@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0a1628">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<title>CEINSPEC — Laudo Isotank</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a1628;
+    --surface:   #0f1f3d;
+    --card:      #162040;
+    --border:    #1e2f55;
+    --accent:    #e8a020;
+    --accent2:   #c07010;
+    --text:      #e2e8f0;
+    --muted:     #94a3b8;
+    --success:   #22c55e;
+    --danger:    #ef4444;
+    --warn:      #f59e0b;
+    --radius:    10px;
+    --shadow:    0 4px 20px rgba(0,0,0,.4);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100dvh;
+    padding-bottom: 100px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────────────── */
+  .header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 14px 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-logo {
+    width: 38px; height: 38px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 15px; color: var(--bg); flex-shrink: 0;
+  }
+  .header-title { flex: 1; }
+  .header-title h1 { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .header-title p  { font-size: 11px; color: var(--muted); }
+
+  /* ── Progress bar ────────────────────────────────────────────────────────── */
+  .progress-bar {
+    background: var(--border);
+    height: 3px;
+    width: 100%;
+  }
+  .progress-fill {
+    background: var(--accent);
+    height: 100%;
+    transition: width .4s ease;
+    width: 0%;
+  }
+
+  /* ── Section tabs ────────────────────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    overflow-x: auto;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab.done { color: var(--success); }
+
+  /* ── Sections ────────────────────────────────────────────────────────────── */
+  .section { display: none; padding: 12px; }
+  .section.active { display: block; }
+
+  /* ── Cards ───────────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--accent);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Form fields ──────────────────────────────────────────────────────────── */
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  label .req { color: var(--accent); margin-left: 2px; }
+
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color .2s;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
+
+  textarea { resize: none; min-height: 90px; }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+
+  /* ── Grid 2 cols ──────────────────────────────────────────────────────────── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* ── Photo grid ───────────────────────────────────────────────────────────── */
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .photo-slot {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+    aspect-ratio: 4/3;
+    position: relative;
+    cursor: pointer;
+  }
+  .photo-slot.captured { border-color: var(--success); border-style: solid; }
+
+  .photo-slot input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+  }
+
+  .photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 6px;
+    padding: 8px;
+    pointer-events: none;
+  }
+  .photo-icon { font-size: 26px; }
+  .photo-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    line-height: 1.3;
+  }
+
+  .photo-preview {
+    position: absolute;
+    inset: 0;
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    border-radius: calc(var(--radius) - 2px);
+    display: none;
+    z-index: 1;
+  }
+  .photo-slot.captured .photo-preview { display: block; }
+  .photo-slot.captured .photo-placeholder { display: none; }
+
+  .photo-badge {
+    position: absolute;
+    top: 4px; right: 4px;
+    background: var(--success);
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    display: none;
+    align-items: center; justify-content: center;
+    font-size: 11px;
+    z-index: 3;
+  }
+  .photo-slot.captured .photo-badge { display: flex; }
+
+  /* ── Exame buttons ────────────────────────────────────────────────────────── */
+  .exam-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .exam-row:last-child { border-bottom: none; }
+  .exam-label { flex: 1; font-size: 13px; }
+  .exam-btns { display: flex; gap: 4px; }
+
+  .btn-exam {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-exam.A.active  { background: var(--success); border-color: var(--success); color: #fff; }
+  .btn-exam.R.active  { background: var(--danger);  border-color: var(--danger);  color: #fff; }
+  .btn-exam.NA.active { background: var(--muted);   border-color: var(--muted);   color: #fff; }
+
+  /* ── Bottom action bar ────────────────────────────────────────────────────── */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    z-index: 200;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 13px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-prev { background: var(--card); color: var(--text); flex: 0 0 48px; font-size: 18px; }
+  .btn-next { background: var(--border); color: var(--text); }
+  .btn-submit { background: var(--accent); color: var(--bg); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn:active:not(:disabled) { transform: scale(.97); }
+
+  /* ── Toast ────────────────────────────────────────────────────────────────── */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    transition: all .3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--success); color: var(--success); }
+  .toast.error   { border-color: var(--danger);  color: var(--danger);  }
+
+  /* ── Spinner overlay ──────────────────────────────────────────────────────── */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,22,40,.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .overlay.active { display: flex; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .overlay-text { color: var(--accent); font-weight: 600; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-logo">CI</div>
+  <div class="header-title">
+    <h1>Laudo Visual — Isotank</h1>
+    <p id="headerSub">Seção 1 de 6</p>
+  </div>
+</header>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- ── Section Tabs ─────────────────────────────────────────────────────────── -->
+<nav class="tabs" id="tabBar">
+  <div class="tab active" data-sec="0">Identificação</div>
+  <div class="tab" data-sec="1">Dados Técnicos</div>
+  <div class="tab" data-sec="2">Estrutura</div>
+  <div class="tab" data-sec="3">Componentes</div>
+  <div class="tab" data-sec="4">Exames &amp; Fotos</div>
+  <div class="tab" data-sec="5">Conclusão</div>
+</nav>
+
+<!-- ── Form ───────────────────────────────────────────────────────────────── -->
+<form id="laudoForm" novalidate>
+
+<!-- ═══════════ SEÇÃO 0 — Identificação ════════════════════════════════════ -->
+<div class="section active" data-sec="0">
+  <div class="card">
+    <div class="card-title">Identificação</div>
+    <div class="field">
+      <label>N° de Identificação <span class="req">*</span></label>
+      <input type="text" name="numero_identificacao" placeholder="Ex: SUTU 258026-0" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Cliente <span class="req">*</span></label>
+      <input type="text" name="cliente" placeholder="Razão Social" required>
+    </div>
+    <div class="field">
+      <label>Endereço do Cliente</label>
+      <input type="text" name="endereco" placeholder="Endereço completo">
+    </div>
+    <div class="field">
+      <label>Data da Inspeção <span class="req">*</span></label>
+      <input type="date" name="data_inspecao" required>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SEÇÃO 1 — Dados Técnicos ════════════════════════════════════ -->
+<div class="section" data-sec="1">
+  <div class="card">
+    <div class="card-title">Dados Técnicos</div>
+    <div class="grid2">
+      <div class="field">
+        <label>Tipo de Equipamento</label>
+        <input type="text" name="tipo_equipamento" value="ISOTANK">
+      </div>
+      <div class="field">
+        <label>Fabricante</label>
+        <input type="text" name="fabricante" placeholder="Ex: CIMC">
+      </div>
+      <div class="field">
+        <label>N° de Série</label>
+        <input type="text" name="numero_serie" placeholder="Ex: NCTE18T 15447">
+      </div>
+      <div class="field">
+        <label>País de Fabricação</label>
+        <input type="text" name="pais_fabricacao" placeholder="Ex: CHINA">
+      </div>
+      <div class="field">
+        <label>Tamanho</label>
+        <input type="text" name="tamanho" placeholder="Ex: 20FT">
+      </div>
+      <div class="field">
+        <label>Ano de Fabricação</label>
+        <input type="text" name="ano_fabricacao" placeholder="Ex: 2018">
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Capacidade Líquida</label>
+        <input type="text" name="capacidade_liquida" placeholder="Ex: 25000 L">
+      </div>
+      <div class="field">
+        <label>Tara</label>
+        <input type="text" name="tara" placeholder="Ex: 3760 kg">
+      </div>
+      <div class="field">
+        <label>Peso Carga Líquida</label>
+        <input type="text" name="peso_carga_liquida" placeholder="Ex: 32240 kg">
+      </div>
+      <div class="field">
+        <label>Peso Bruto Total</label>
+        <input type="text" name="peso_bruto_total" placeholder="Ex: 36000 kg">
+      </div>
+      <div class="field">
+        <label>Peso Empilhamento</label>
+        <input type="text" name="peso_empilhamento" placeholder="Ex: 192000 Kg">
+      </div>
+    </div>
+    <div class="field">
+      <label>Norma de Fabricação</label>
+      <input type="text" name="norma_fabricacao" placeholder="Ex: ASME SECT. VIII DIV. 1(NCS)">
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>Pressão Projeto</label>
+        <input type="text" name="pressao_projeto" placeholder="Ex: 4 bar">
+      </div>
+      <div class="field">
+        <label>Pressão Ensaio</label>
+        <input type="text" name="pressao_ensaio" placeholder="Ex: 6 bar">
+      </div>
+      <div class="field">
+        <label>Pressão Máx. (PMTA)</label>
+        <input type="text" name="pressao_maxima" placeholder="Ex: 4 bar">
+      </div>
+    </div>
+    <div class="field">
+      <label>Temperatura do Projeto</label>
+      <input type="text" name="temperatura_projeto" placeholder="Ex: -40°C à 150°C">
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Material Calota</label>
+        <input type="text" name="material_calota" placeholder="Ex: AWS316L">
+      </div>
+      <div class="field">
+        <label>Material Costado</label>
+        <input type="text" name="material_costado" placeholder="Ex: AWS316L">
+      </div>
+      <div class="field">
+        <label>Espessura Calotas/Costado</label>
+        <input type="text" name="espessura" placeholder="Ex: 6 mm">
+      </div>
+      <div class="field">
+        <label>Conexões de Flange</label>
+        <input type="text" name="conexoes_flange" placeholder="Ex: 3 Pol">
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>Chapa Fab.</label>
+        <select name="chapa_identificacao">
+          <option value="APROVADO">Aprovado</option>
+          <option value="REPROVADO">Reprovado</option>
+          <option value="N/A">N/A</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Cert. Calibração</label>
+        <select name="cert_calibracao">
+          <option value="N/A">N/A</option>
+          <option value="APROVADO">Aprovado</option>
+          <option value="REPROVADO">Reprovado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Cert. Descontam.</label>
+        <select name="cert_descontaminacao">
+          <option value="N/A">N/A</option>
+          <option value="APROVADO">Aprovado</option>
+          <option value="REPROVADO">Reprovado</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SEÇÃO 2 — Estrutura Externa ════════════════════════════════ -->
+<div class="section" data-sec="2">
+  <div class="card">
+    <div class="card-title">Estrutura Externa</div>
+    <div id="estruturaFields"></div>
+  </div>
+</div>
+
+<!-- ═══════════ SEÇÃO 3 — Componentes e Acessórios ════════════════════════ -->
+<div class="section" data-sec="3">
+  <div class="card">
+    <div class="card-title">Componentes e Acessórios</div>
+    <div id="componentesFields"></div>
+  </div>
+</div>
+
+<!-- ═══════════ SEÇÃO 4 — Exames e Fotos ═══════════════════════════════════ -->
+<div class="section" data-sec="4">
+  <div class="card">
+    <div class="card-title">Exames Realizados</div>
+    <div class="exam-row">
+      <span class="exam-label">Exame Visual Externo</span>
+      <div class="exam-btns" data-field="exame_visual_externo">
+        <button type="button" class="btn-exam A" data-val="A">A</button>
+        <button type="button" class="btn-exam R" data-val="R">R</button>
+        <button type="button" class="btn-exam NA" data-val="NA">NA</button>
+      </div>
+    </div>
+    <div class="exam-row">
+      <span class="exam-label">Exame Visual Interno</span>
+      <div class="exam-btns" data-field="exame_visual_interno">
+        <button type="button" class="btn-exam A" data-val="A">A</button>
+        <button type="button" class="btn-exam R" data-val="R">R</button>
+        <button type="button" class="btn-exam NA" data-val="NA">NA</button>
+      </div>
+    </div>
+    <div class="exam-row">
+      <span class="exam-label">Estanqueidade</span>
+      <div class="exam-btns" data-field="estanqueidade">
+        <button type="button" class="btn-exam A" data-val="A">A</button>
+        <button type="button" class="btn-exam R" data-val="R">R</button>
+        <button type="button" class="btn-exam NA" data-val="NA">NA</button>
+      </div>
+    </div>
+    <div class="exam-row">
+      <span class="exam-label">Sistema de Descarga</span>
+      <div class="exam-btns" data-field="sistema_descarga_exame">
+        <button type="button" class="btn-exam A" data-val="A">A</button>
+        <button type="button" class="btn-exam R" data-val="R">R</button>
+        <button type="button" class="btn-exam NA" data-val="NA">NA</button>
+      </div>
+    </div>
+    <div class="exam-row">
+      <span class="exam-label">Válvulas e Conexões</span>
+      <div class="exam-btns" data-field="valvulas_conexoes_exame">
+        <button type="button" class="btn-exam A" data-val="A">A</button>
+        <button type="button" class="btn-exam R" data-val="R">R</button>
+        <button type="button" class="btn-exam NA" data-val="NA">NA</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Registro Fotográfico</div>
+    <div class="photo-grid" id="photoGrid"></div>
+  </div>
+</div>
+
+<!-- ═══════════ SEÇÃO 5 — Conclusão ════════════════════════════════════════ -->
+<div class="section" data-sec="5">
+  <div class="card">
+    <div class="card-title">Conclusão</div>
+    <div class="field">
+      <label>Conclusão</label>
+      <textarea name="conclusao" rows="5" placeholder="Descreva as condições encontradas no isotank..."></textarea>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Recomendação</div>
+    <div class="field">
+      <label>Recomendação</label>
+      <textarea name="recomendacao" rows="5" placeholder="Recomendações para o equipamento..."></textarea>
+    </div>
+  </div>
+</div>
+
+</form><!-- /laudoForm -->
+
+<!-- ── Bottom Bar ─────────────────────────────────────────────────────────── -->
+<div class="bottom-bar">
+  <button type="button" class="btn btn-prev" id="btnPrev" disabled>‹</button>
+  <button type="button" class="btn btn-next" id="btnNext">Próximo →</button>
+  <button type="button" class="btn btn-submit" id="btnSubmit" style="display:none">
+    📄 Gerar Laudo
+  </button>
+</div>
+
+<!-- ── Toast & Overlay ───────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div class="overlay-text">Gerando laudo Word…</div>
+</div>
+
+<script>
+// ─── Dados das seções dinâmicas ────────────────────────────────────────────
+const ESTRUTURA_ITEMS = [
+  { name: 'estrutura_externa',  label: 'Estrutura Externa' },
+  { name: 'corpo_tanque',       label: 'Corpo do Tanque' },
+  { name: 'passadicos',         label: 'Passadiços' },
+  { name: 'revestimento',       label: 'Revestimento' },
+  { name: 'isolamento_termico', label: 'Isolamento Térmico' },
+  { name: 'escada',             label: 'Escada' },
+  { name: 'dispositivos_canto', label: 'Dispositivos de Canto de Chassi' },
+  { name: 'ponto_aterramento',  label: 'Ponto de Aterramento' },
+  { name: 'fixacoes',           label: 'Fixações (parafusos, porcas)' },
+  { name: 'bercos_fixacao',     label: 'Berços de Fixação' },
+  { name: 'mossas_escavacoes',  label: 'Mossas / Escavações / Cortes / Trincas / Corrosão' },
+  { name: 'porosidade',         label: 'Porosidade dos Cordões e Solda' },
+];
+
+const COMPONENTES_ITEMS = [
+  { name: 'bocal_descarga',         label: 'Bocal de Descarga' },
+  { name: 'boca_visita',            label: 'Boca de Visita' },
+  { name: 'valvula_alivio',         label: 'Válvula de Alívio' },
+  { name: 'linha_ar',               label: 'Linha de Ar' },
+  { name: 'linha_recuperacao',      label: 'Linha de Recuperação de Vapor' },
+  { name: 'acionamento_remoto',     label: 'Sistema de Acionamento Remoto' },
+  { name: 'tomada_saida_vapor',     label: 'Tomada de Saída de Vapor' },
+  { name: 'sistema_carga_descarga', label: 'Sistema de Carga e Descarga' },
+  { name: 'dispositivo_medicao',    label: 'Dispositivo de Medição de Volume' },
+  { name: 'valvula_fundo',          label: 'Válvula de Fundo' },
+  { name: 'tomada_entrada_vapor',   label: 'Tomada de Entrada de Vapor' },
+  { name: 'termometro_comp',        label: 'Termômetro' },
+  { name: 'manometro',              label: 'Manômetro' },
+  { name: 'tubulacoes',             label: 'Tubulações' },
+  { name: 'estrutura_visual',       label: 'Estrutura Externa Visual' },
+];
+
+const PHOTOS = [
+  { name: 'foto_frontal',             label: 'Foto\nFrontal' },
+  { name: 'foto_traseira',            label: 'Foto\nTraseira' },
+  { name: 'foto_lateral1',            label: 'Foto\nLateral 1' },
+  { name: 'foto_lateral2',            label: 'Foto\nLateral 2' },
+  { name: 'foto_superior',            label: 'Foto\nSuperior' },
+  { name: 'foto_termometro',          label: 'Foto\nTermômetro' },
+  { name: 'foto_tampa_boca_visita',   label: 'Tampa\nBoca Visita' },
+  { name: 'foto_valvula_alivio',      label: 'Válvula\nde Alívio' },
+  { name: 'foto_valvula_descarga',    label: 'Válvula\nDescarga' },
+  { name: 'foto_placa_identificacao', label: 'Placa de\nIdentificação' },
+];
+
+// ─── Gerar campos de Estrutura e Componentes ─────────────────────────────
+function buildSelectFields(items, containerId) {
+  const html = items.map(({ name, label }) => `
+    <div class="field" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <label style="flex:1;margin:0;font-size:13px;color:var(--text)">${label}</label>
+      <select name="${name}" style="width:110px;font-size:13px;padding:6px 28px 6px 8px;flex-shrink:0">
+        <option value="APROVADO">Aprovado</option>
+        <option value="REPROVADO">Reprovado</option>
+        <option value="N/A">N/A</option>
+      </select>
+    </div>`).join('');
+  document.getElementById(containerId).innerHTML = html;
+}
+
+buildSelectFields(ESTRUTURA_ITEMS, 'estruturaFields');
+buildSelectFields(COMPONENTES_ITEMS, 'componentesFields');
+
+// ─── Gerar grade de fotos ─────────────────────────────────────────────────
+const photoGrid = document.getElementById('photoGrid');
+PHOTOS.forEach(({ name, label }) => {
+  const slot = document.createElement('div');
+  slot.className = 'photo-slot';
+  slot.id = `slot_${name}`;
+  slot.innerHTML = `
+    <input type="file" name="${name}" accept="image/*" capture="environment">
+    <div class="photo-placeholder">
+      <span class="photo-icon">📷</span>
+      <span class="photo-label">${label}</span>
+    </div>
+    <img class="photo-preview" alt="${label}">
+    <div class="photo-badge">✓</div>`;
+  photoGrid.appendChild(slot);
+
+  const input = slot.querySelector('input[type="file"]');
+  const preview = slot.querySelector('.photo-preview');
+  input.addEventListener('change', () => {
+    if (input.files && input.files[0]) {
+      const url = URL.createObjectURL(input.files[0]);
+      preview.src = url;
+      slot.classList.add('captured');
+    }
+  });
+});
+
+// ─── Exam button logic ────────────────────────────────────────────────────
+document.querySelectorAll('.exam-btns').forEach(group => {
+  const field = group.dataset.field;
+  const hidden = document.createElement('input');
+  hidden.type = 'hidden';
+  hidden.name = field;
+  hidden.value = 'NA';
+  group.appendChild(hidden);
+
+  group.querySelectorAll('.btn-exam').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.btn-exam').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      hidden.value = btn.dataset.val;
+    });
+  });
+  // Default: NA active
+  group.querySelector('.btn-exam.NA').classList.add('active');
+});
+
+// ─── Navegação de seções ──────────────────────────────────────────────────
+const TOTAL_SECTIONS = 6;
+let currentSection = 0;
+
+const sections = document.querySelectorAll('.section');
+const tabs     = document.querySelectorAll('.tab');
+const btnPrev  = document.getElementById('btnPrev');
+const btnNext  = document.getElementById('btnNext');
+const btnSubmit = document.getElementById('btnSubmit');
+const progressFill = document.getElementById('progressFill');
+const headerSub    = document.getElementById('headerSub');
+
+const TAB_LABELS = ['Identificação','Dados Técnicos','Estrutura','Componentes','Exames & Fotos','Conclusão'];
+
+function goTo(n) {
+  sections[currentSection].classList.remove('active');
+  tabs[currentSection].classList.remove('active');
+  currentSection = n;
+  sections[currentSection].classList.add('active');
+  tabs[currentSection].classList.add('active');
+
+  // Scroll tab into view
+  tabs[currentSection].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+  btnPrev.disabled = currentSection === 0;
+  const isLast = currentSection === TOTAL_SECTIONS - 1;
+  btnNext.style.display  = isLast ? 'none' : 'flex';
+  btnSubmit.style.display = isLast ? 'flex' : 'none';
+
+  progressFill.style.width = `${((currentSection + 1) / TOTAL_SECTIONS) * 100}%`;
+  headerSub.textContent = `${TAB_LABELS[currentSection]} — ${currentSection + 1} de ${TOTAL_SECTIONS}`;
+}
+
+tabs.forEach((tab, i) => tab.addEventListener('click', () => goTo(i)));
+btnPrev.addEventListener('click', () => currentSection > 0 && goTo(currentSection - 1));
+btnNext.addEventListener('click', () => {
+  if (!validateSection(currentSection)) return;
+  if (currentSection < TOTAL_SECTIONS - 1) goTo(currentSection + 1);
+});
+
+// ─── Validação por seção ──────────────────────────────────────────────────
+function validateSection(sec) {
+  if (sec !== 0) return true;
+  const required = document.querySelectorAll('.section[data-sec="0"] [required]');
+  for (const el of required) {
+    if (!el.value.trim()) {
+      showToast('⚠️ Preencha os campos obrigatórios', 'error');
+      el.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
+// ─── Submissão ────────────────────────────────────────────────────────────
+btnSubmit.addEventListener('click', async () => {
+  if (!validateSection(0)) { goTo(0); return; }
+
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('active');
+
+  try {
+    const form = document.getElementById('laudoForm');
+    const fd   = new FormData(form);
+
+    const res  = await fetch('/generate', { method: 'POST', body: fd });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const blob     = await res.blob();
+    const cdHeader = res.headers.get('Content-Disposition') || '';
+    const match    = cdHeader.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : 'laudo.docx';
+
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    showToast('✅ Laudo gerado com sucesso!', 'success');
+  } catch (err) {
+    showToast(`❌ ${err.message}`, 'error');
+    console.error(err);
+  } finally {
+    overlay.classList.remove('active');
+  }
+});
+
+// ─── Toast ────────────────────────────────────────────────────────────────
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = `toast ${type} show`;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+// ─── PWA Service Worker ───────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// Setar data de hoje como padrão
+document.querySelector('input[name="data_inspecao"]').value =
+  new Date().toISOString().split('T')[0];
+
+// Inicializar barra de progresso
+goTo(0);
+</script>
+</body>
+</html>

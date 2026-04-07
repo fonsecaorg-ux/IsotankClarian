@@ -1,0 +1,21 @@
+# Dependências
+node_modules/
+
+# Saídas locais de teste (não versionar)
+output/
+uploads/
+
+# Ambiente
+.env
+.env.*
+
+# Logs e OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

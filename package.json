@@ -1,0 +1,24 @@
+{
+  "name": "isotank-clariant",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "prepare-template": "node scripts/prepare-template.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "docxtemplater": "^3.68.3",
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "pizzip": "^3.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
