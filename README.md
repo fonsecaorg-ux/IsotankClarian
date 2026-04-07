@@ -220,3 +220,17 @@ O servidor é compatível com o **filesystem efêmero** do Render por não escre
 4. Adicione a variável de ambiente se quiser porta customizada (o Render injeta `PORT` automaticamente — o servidor já usa `process.env.PORT`).
 
 > **Atenção:** a pasta `uploads/` e `output/` existem apenas localmente para testes. No Render elas nunca são criadas nem necessárias — todo o processamento é em RAM.
+
+---
+
+## Roadmap (próximas versões)
+
+Planejado para evoluções futuras do produto:
+
+| Área | Descrição |
+|---|---|
+| **Autenticação** | Tela de login e identificação do usuário (inspetor) |
+| **Gestão** | Outras telas administrativas / gerenciais (cadastros, relatórios, configurações, etc.) |
+| **Laudo** | Preenchimento do nome do inspetor e dados relacionados conforme o **usuário logado**, em vez de depender apenas dos valores fixos em `config.json` |
+
+A stack atual (Express + PWA) permanece a base; sessão/JWT, provedor Microsoft/Google ou integração com o ecossistema corporativo serão definidos na fase de implementação.
