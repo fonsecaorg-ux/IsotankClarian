@@ -225,12 +225,12 @@ O servidor é compatível com o **filesystem efêmero** do Render por não escre
 
 ## Roadmap (próximas versões)
 
-Planejado para evoluções futuras do produto:
-
 | Área | Descrição |
 |---|---|
-| **Autenticação** | Tela de login e identificação do usuário (inspetor) |
-| **Gestão** | Outras telas administrativas / gerenciais (cadastros, relatórios, configurações, etc.) |
-| **Laudo** | Preenchimento do nome do inspetor e dados relacionados conforme o **usuário logado**, em vez de depender apenas dos valores fixos em `config.json` |
-
-A stack atual (Express + PWA) permanece a base; sessão/JWT, provedor Microsoft/Google ou integração com o ecossistema corporativo serão definidos na fase de implementação.
+| **Autenticação** | Tela de login e identificação do inspetor |
+| **SharePoint** | Salvamento automático do laudo gerado na pasta da Ceinspec |
+| **Indicadores** | Dashboard com métricas de inspeções realizadas |
+| **Kanban** | Gestão visual do status dos laudos (pendente, gerado, assinado) |
+| **Alertas de vencimento** | Notificações automáticas de equipamentos com inspeção próxima do vencimento |
+| **CRM** | Gestão de clientes e equipamentos inspecionados |
+| **Autenticação** | Login com identificação do inspetor, substituindo config.json |
