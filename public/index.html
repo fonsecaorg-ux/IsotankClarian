@@ -53,11 +53,10 @@
     gap: 12px;
   }
   .header-logo {
-    width: 38px; height: 38px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: 15px; color: var(--bg); flex-shrink: 0;
+    height: 36px;
+    width: auto;
+    flex-shrink: 0;
+    display: block;
   }
   .header-title { flex: 1; }
   .header-title h1 { font-size: 15px; font-weight: 700; color: var(--accent); }
@@ -360,7 +359,7 @@
 
 <!-- ── Header ─────────────────────────────────────────────────────────────── -->
 <header class="header">
-  <div class="header-logo">CI</div>
+  <img class="header-logo" src="/logo-ceinspec.png" alt="CEINSPEC">
   <div class="header-title">
     <h1>Laudo Visual — Isotank</h1>
     <p id="headerSub">Seção 1 de 6</p>
@@ -625,6 +624,7 @@
 <!-- ── Toast & Overlay ───────────────────────────────────────────────────── -->
 <div class="toast" id="toast"></div>
 <div class="overlay" id="overlay">
+  <img src="/logo-ceinspec.png" alt="CEINSPEC" style="height:48px;width:auto;margin-bottom:20px;opacity:.9;">
   <div class="spinner"></div>
   <div class="overlay-text">Gerando laudo Word…</div>
 </div>
