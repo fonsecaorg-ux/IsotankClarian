@@ -186,5 +186,6 @@
 
     (async () => { try { const ok = await checkAdmin(); if (!ok) return; await loadClientes(); } catch (_) { window.location.replace('/login'); } })();
   </script>
+  <script src="/change-password.js"></script>
 </body>
 </html>

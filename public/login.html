@@ -159,6 +159,58 @@
     const form = document.getElementById('loginForm');
     const btnLogin = document.getElementById('btnLogin');
     const loginError = document.getElementById('loginError');
+    const LOGIN_LOCK_KEY = 'ceinspec_login_lock_until';
+    const LOGIN_LOCK_MS = 15 * 60 * 1000;
+    let lockTimer = null;
+
+    function formatRemaining(ms) {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function getLockUntil() {
+      const raw = localStorage.getItem(LOGIN_LOCK_KEY);
+      if (!raw) return null;
+      const value = Number(raw);
+      if (!Number.isFinite(value)) return null;
+      return value;
+    }
+
+    function clearLoginLock() {
+      localStorage.removeItem(LOGIN_LOCK_KEY);
+      if (lockTimer) {
+        clearInterval(lockTimer);
+        lockTimer = null;
+      }
+      btnLogin.disabled = false;
+    }
+
+    function startLockCountdown(untilTimestamp) {
+      if (lockTimer) clearInterval(lockTimer);
+      const tick = () => {
+        const remaining = untilTimestamp - Date.now();
+        if (remaining <= 0) {
+          clearLoginLock();
+          loginError.textContent = '';
+          return;
+        }
+        btnLogin.disabled = true;
+        loginError.textContent = `Muitas tentativas. Tente novamente em ${formatRemaining(remaining)}`;
+      };
+      tick();
+      lockTimer = setInterval(tick, 1000);
+    }
+
+    function applyStoredLockIfAny() {
+      const lockUntil = getLockUntil();
+      if (lockUntil && lockUntil > Date.now()) {
+        startLockCountdown(lockUntil);
+      } else {
+        clearLoginLock();
+      }
+    }
 
     async function checkCurrentSession() {
       try {
@@ -187,6 +239,12 @@
         return;
       }
 
+      const lockUntil = getLockUntil();
+      if (lockUntil && lockUntil > Date.now()) {
+        startLockCountdown(lockUntil);
+        return;
+      }
+
       btnLogin.disabled = true;
 
       try {
@@ -202,6 +260,13 @@
           return;
         }
 
+        if (res.status === 429) {
+          const untilTimestamp = Date.now() + LOGIN_LOCK_MS;
+          localStorage.setItem(LOGIN_LOCK_KEY, String(untilTimestamp));
+          startLockCountdown(untilTimestamp);
+          return;
+        }
+
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: 'Erro no login' }));
           loginError.textContent = err.error || 'Erro ao autenticar';
@@ -212,10 +277,14 @@
       } catch (_) {
         loginError.textContent = 'Não foi possível conectar ao servidor';
       } finally {
-        btnLogin.disabled = false;
+        const activeLockUntil = getLockUntil();
+        if (!activeLockUntil || activeLockUntil <= Date.now()) {
+          btnLogin.disabled = false;
+        }
       }
     });
 
+    applyStoredLockIfAny();
     checkCurrentSession();
   </script>
 </body>

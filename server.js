@@ -7,6 +7,8 @@ const Docxtemplater = require('docxtemplater');
 const bcrypt = require('bcryptjs');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const xss = require('xss');
 const fs   = require('fs');
 const path = require('path');
 const prisma = require('./src/lib/prisma');
@@ -17,12 +19,31 @@ const adminRoutes = require('./src/routes/admin');
 const dashboardRoutes = require('./src/routes/dashboard');
 const equipamentosRoutes = require('./src/routes/equipamentos');
 const clientesRoutes = require('./src/routes/clientes');
+const authRoutes = require('./src/routes/auth');
 const { checkVencimentos } = require('./src/services/alertaVencimento');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_EXPIRES_IN = '8h';
 const COOKIE_NAME = 'auth_token';
+const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
+
+const loginLimiter = rateLimit({
+  windowMs: LOGIN_LOCK_WINDOW_MS,
+  max: 5,
+  message: { error: 'Muitas tentativas. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { error: 'Muitas requisições. Aguarde um momento.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/generate',
+});
 
 function getCookieOptions() {
   return {
@@ -84,6 +105,24 @@ function formatDatePt(iso) {
 // ─── Static files ─────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(cookieParser());
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    for (const key of Object.keys(req.body)) {
+      if (typeof req.body[key] === 'string') {
+        req.body[key] = xss(req.body[key]);
+      }
+    }
+  }
+  next();
+});
+app.use(generalLimiter);
 
 app.get('/index.html', (req, res) => res.redirect(301, '/'));
 app.get('/login.html', (req, res) => res.redirect(301, '/login'));
@@ -120,7 +159,7 @@ app.get('/clientes', (req, res, next) => {
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-app.post('/auth/login', async (req, res) => {
+app.post('/auth/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body || {};
 
@@ -186,6 +225,7 @@ app.use('/admin', adminRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/equipamentos', equipamentosRoutes);
 app.use('/clientes', clientesRoutes);
+app.use('/auth', authRoutes);
 
 function buildTemplateData(formData, cfg, dataPt) {
   return {
