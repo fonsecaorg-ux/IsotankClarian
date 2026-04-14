@@ -266,7 +266,13 @@
         });
 
         if (res.ok) {
-          window.location.replace('/');
+          const data = await res.json();
+          const role = data.role ?? data.user?.role;
+          if (role === 'ADMIN') {
+            window.location.href = '/painel-admin';
+          } else {
+            window.location.href = '/';
+          }
         }
       } catch (_) {
         // Se falhar a checagem, mantém na tela de login.
@@ -319,7 +325,14 @@
           return;
         }
 
-        window.location.replace('/');
+        const data = await res.json();
+        // POST /auth/login retorna { user: { role, ... } }; data.role cobre respostas alternativas
+        const role = data.role ?? data.user?.role;
+        if (role === 'ADMIN') {
+          window.location.href = '/painel-admin';
+        } else {
+          window.location.href = '/';
+        }
       } catch (_) {
         loginError.textContent = 'Não foi possível conectar ao servidor';
       } finally {
