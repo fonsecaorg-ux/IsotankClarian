@@ -5,12 +5,28 @@ const multer  = require('multer');
 const PizZip  = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const bcrypt = require('bcryptjs');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 const fs   = require('fs');
 const path = require('path');
 const prisma = require('./src/lib/prisma');
+const authMiddleware = require('./src/middlewares/authMiddleware');
+const requireRole = require('./src/middlewares/requireRole');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_EXPIRES_IN = '8h';
+const COOKIE_NAME = 'auth_token';
+
+function getCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 8 * 60 * 60 * 1000,
+    path: '/',
+  };
+}
 
 // ─── Caminhos de arquivos somente-leitura (existem no repo, não são escritos) ─
 const CONFIG_PATH   = path.join(__dirname, 'config.json');
@@ -60,7 +76,71 @@ function formatDatePt(iso) {
 }
 
 // ─── Static files ─────────────────────────────────────────────────────────────
+app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: String(email).trim().toLowerCase() },
+    });
+
+    if (!user || !user.ativo) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        role: user.role,
+        email: user.email,
+        nome: user.nome,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.cookie(COOKIE_NAME, token, getCookieOptions());
+
+    return res.json({
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error('Erro no login:', err);
+    return res.status(500).json({ error: 'Erro interno no login' });
+  }
+});
+
+app.post('/auth/logout', (req, res) => {
+  res.clearCookie(COOKIE_NAME, getCookieOptions());
+  return res.status(204).send();
+});
+
+app.get('/auth/me', authMiddleware, (req, res) => {
+  return res.json({ user: req.user });
+});
+
+app.get('/auth/admin/ping', authMiddleware, requireRole('ADMIN'), (req, res) => {
+  return res.json({ ok: true });
+});
 
 // ─── Rota: POST /generate ────────────────────────────────────────────────────
 app.post(

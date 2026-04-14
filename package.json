@@ -21,8 +21,10 @@
   "dependencies": {
     "@prisma/client": "^6.6.0",
     "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "docxtemplater": "^3.68.3",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
     "pizzip": "^3.2.0"
   },
