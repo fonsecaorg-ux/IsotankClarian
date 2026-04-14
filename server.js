@@ -12,6 +12,7 @@ const path = require('path');
 const prisma = require('./src/lib/prisma');
 const authMiddleware = require('./src/middlewares/authMiddleware');
 const requireRole = require('./src/middlewares/requireRole');
+const laudosRoutes = require('./src/routes/laudos');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -142,100 +143,125 @@ app.get('/auth/admin/ping', authMiddleware, requireRole('ADMIN'), (req, res) => 
   return res.json({ ok: true });
 });
 
+app.use('/laudos', laudosRoutes);
+
+function buildTemplateData(formData, cfg, dataPt) {
+  return {
+    // Identificação
+    numero_identificacao: formData.numero_identificacao || '',
+    cliente:              formData.cliente              || '',
+    endereco:             formData.endereco             || '',
+    data_inspecao:        dataPt,
+
+    // Dados Técnicos
+    tipo_equipamento:     formData.tipo_equipamento     || 'ISOTANK',
+    fabricante:           formData.fabricante           || '',
+    numero_serie:         formData.numero_serie         || '',
+    pais_fabricacao:      formData.pais_fabricacao      || '',
+    tamanho:              formData.tamanho              || '',
+    capacidade_liquida:   formData.capacidade_liquida   || '',
+    ano_fabricacao:       formData.ano_fabricacao       || '',
+    identificacao:        (formData.numero_identificacao || '').split(' ')[0] || '',
+    tara:                 formData.tara                 || '',
+    peso_carga_liquida:   formData.peso_carga_liquida   || '',
+    peso_bruto_total:     formData.peso_bruto_total     || '',
+    peso_empilhamento:    formData.peso_empilhamento    || '',
+    norma_fabricacao:     formData.norma_fabricacao     || '',
+    pressao_projeto:      formData.pressao_projeto      || '',
+    pressao_ensaio:       formData.pressao_ensaio       || '',
+    pressao_maxima:       formData.pressao_maxima       || '',
+    temperatura_projeto:  formData.temperatura_projeto  || '',
+    material_calota:      formData.material_calota      || '',
+    material_costado:     formData.material_costado     || '',
+    espessura:            formData.espessura            || '',
+    conexoes_flange:      formData.conexoes_flange      || '',
+    chapa_identificacao:  formData.chapa_identificacao  || '',
+    cert_calibracao:      formData.cert_calibracao      || '',
+    cert_descontaminacao: formData.cert_descontaminacao || '',
+
+    // Estrutura Externa
+    estrutura_externa:    formData.estrutura_externa    || '',
+    corpo_tanque:         formData.corpo_tanque         || '',
+    passadicos:           formData.passadicos           || '',
+    revestimento:         formData.revestimento         || '',
+    isolamento_termico:   formData.isolamento_termico   || '',
+    escada:               formData.escada               || '',
+    dispositivos_canto:   formData.dispositivos_canto   || '',
+    ponto_aterramento:    formData.ponto_aterramento    || '',
+    fixacoes:             formData.fixacoes             || '',
+    bercos_fixacao:       formData.bercos_fixacao       || '',
+    mossas_escavacoes:    formData.mossas_escavacoes    || '',
+    porosidade:           formData.porosidade           || '',
+
+    // Componentes e Acessórios
+    bocal_descarga:         formData.bocal_descarga         || '',
+    boca_visita:            formData.boca_visita            || '',
+    valvula_alivio:         formData.valvula_alivio         || '',
+    linha_ar:               formData.linha_ar               || '',
+    linha_recuperacao:      formData.linha_recuperacao      || '',
+    acionamento_remoto:     formData.acionamento_remoto     || '',
+    tomada_saida_vapor:     formData.tomada_saida_vapor     || '',
+    sistema_carga_descarga: formData.sistema_carga_descarga || '',
+    dispositivo_medicao:    formData.dispositivo_medicao    || '',
+    valvula_fundo:          formData.valvula_fundo          || '',
+    tomada_entrada_vapor:   formData.tomada_entrada_vapor   || '',
+    termometro_comp:        formData.termometro_comp        || '',
+    manometro:              formData.manometro              || '',
+    tubulacoes:             formData.tubulacoes             || '',
+    estrutura_visual:       formData.estrutura_visual       || '',
+
+    // Exames realizados
+    exame_visual_externo:   formData.exame_visual_externo   || '',
+    exame_visual_interno:   formData.exame_visual_interno   || '',
+    estanqueidade:          formData.estanqueidade          || '',
+    sistema_descarga_exame: formData.sistema_descarga_exame || '',
+    valvulas_conexoes_exame:formData.valvulas_conexoes_exame|| '',
+
+    // Conclusão / Recomendação / Rodapé
+    conclusao:      formData.conclusao      || '',
+    recomendacao:   formData.recomendacao   || '',
+    encarregado:    cfg.encarregado,
+    engenheiro:     cfg.engenheiro,
+    crea_info:      cfg.crea_info,
+    cidade_data:    `${cfg.cidade}, ${dataPt}`,
+  };
+}
+
 // ─── Rota: POST /generate ────────────────────────────────────────────────────
 app.post(
   '/generate',
   upload.fields(PHOTO_FIELDS.map(f => ({ name: f, maxCount: 1 }))),
-  (req, res) => {
+  async (req, res) => {
     try {
       const body  = req.body;
       const files = req.files || {};
       const cfg   = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+      let sourceData = body;
+      let laudo = null;
+
+      if (body.laudoId) {
+        laudo = await prisma.laudo.findUnique({
+          where: { id: String(body.laudoId) },
+          select: {
+            id: true,
+            status: true,
+            formData: true,
+          },
+        });
+
+        if (!laudo) {
+          return res.status(404).json({ error: 'Laudo não encontrado para geração' });
+        }
+
+        sourceData = laudo.formData || {};
+      }
 
       // ── Montar objeto de dados para o template ──────────────────────────────
-      const dataPt = body.data_inspecao
-        ? formatDatePt(body.data_inspecao)
+      const dataPt = sourceData.data_inspecao
+        ? formatDatePt(sourceData.data_inspecao)
         : '';
 
-      const templateData = {
-        // Identificação
-        numero_identificacao: body.numero_identificacao || '',
-        cliente:              body.cliente              || '',
-        endereco:             body.endereco             || '',
-        data_inspecao:        dataPt,
-
-        // Dados Técnicos
-        tipo_equipamento:     body.tipo_equipamento     || 'ISOTANK',
-        fabricante:           body.fabricante           || '',
-        numero_serie:         body.numero_serie         || '',
-        pais_fabricacao:      body.pais_fabricacao      || '',
-        tamanho:              body.tamanho              || '',
-        capacidade_liquida:   body.capacidade_liquida   || '',
-        ano_fabricacao:       body.ano_fabricacao       || '',
-        identificacao:        (body.numero_identificacao || '').split(' ')[0] || '',
-        tara:                 body.tara                 || '',
-        peso_carga_liquida:   body.peso_carga_liquida   || '',
-        peso_bruto_total:     body.peso_bruto_total     || '',
-        peso_empilhamento:    body.peso_empilhamento    || '',
-        norma_fabricacao:     body.norma_fabricacao     || '',
-        pressao_projeto:      body.pressao_projeto      || '',
-        pressao_ensaio:       body.pressao_ensaio       || '',
-        pressao_maxima:       body.pressao_maxima       || '',
-        temperatura_projeto:  body.temperatura_projeto  || '',
-        material_calota:      body.material_calota      || '',
-        material_costado:     body.material_costado     || '',
-        espessura:            body.espessura            || '',
-        conexoes_flange:      body.conexoes_flange      || '',
-        chapa_identificacao:  body.chapa_identificacao  || '',
-        cert_calibracao:      body.cert_calibracao      || '',
-        cert_descontaminacao: body.cert_descontaminacao || '',
-
-        // Estrutura Externa
-        estrutura_externa:    body.estrutura_externa    || '',
-        corpo_tanque:         body.corpo_tanque         || '',
-        passadicos:           body.passadicos           || '',
-        revestimento:         body.revestimento         || '',
-        isolamento_termico:   body.isolamento_termico   || '',
-        escada:               body.escada               || '',
-        dispositivos_canto:   body.dispositivos_canto   || '',
-        ponto_aterramento:    body.ponto_aterramento    || '',
-        fixacoes:             body.fixacoes             || '',
-        bercos_fixacao:       body.bercos_fixacao       || '',
-        mossas_escavacoes:    body.mossas_escavacoes    || '',
-        porosidade:           body.porosidade           || '',
-
-        // Componentes e Acessórios
-        bocal_descarga:         body.bocal_descarga         || '',
-        boca_visita:            body.boca_visita            || '',
-        valvula_alivio:         body.valvula_alivio         || '',
-        linha_ar:               body.linha_ar               || '',
-        linha_recuperacao:      body.linha_recuperacao      || '',
-        acionamento_remoto:     body.acionamento_remoto     || '',
-        tomada_saida_vapor:     body.tomada_saida_vapor     || '',
-        sistema_carga_descarga: body.sistema_carga_descarga || '',
-        dispositivo_medicao:    body.dispositivo_medicao    || '',
-        valvula_fundo:          body.valvula_fundo          || '',
-        tomada_entrada_vapor:   body.tomada_entrada_vapor   || '',
-        termometro_comp:        body.termometro_comp        || '',
-        manometro:              body.manometro              || '',
-        tubulacoes:             body.tubulacoes             || '',
-        estrutura_visual:       body.estrutura_visual       || '',
-
-        // Exames realizados
-        exame_visual_externo:   body.exame_visual_externo   || '',
-        exame_visual_interno:   body.exame_visual_interno   || '',
-        estanqueidade:          body.estanqueidade          || '',
-        sistema_descarga_exame: body.sistema_descarga_exame || '',
-        valvulas_conexoes_exame:body.valvulas_conexoes_exame|| '',
-
-        // Conclusão / Recomendação / Rodapé
-        conclusao:      body.conclusao      || '',
-        recomendacao:   body.recomendacao   || '',
-        encarregado:    cfg.encarregado,
-        engenheiro:     cfg.engenheiro,
-        crea_info:      cfg.crea_info,
-        cidade_data:    `${cfg.cidade}, ${dataPt}`,
-      };
+      const templateData = buildTemplateData(sourceData, cfg, dataPt);
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
@@ -316,9 +342,30 @@ app.post(
         compression: 'DEFLATE',
       });
 
-      const safeId = (body.numero_identificacao || 'ISOTANK')
+      const safeId = (sourceData.numero_identificacao || 'ISOTANK')
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       const filename = `LAUDO_${safeId}.docx`;
+
+      if (laudo) {
+        await prisma.laudo.update({
+          where: { id: laudo.id },
+          data: {
+            status: 'GERADO',
+            generatedAt: new Date(),
+            generatedFileName: filename,
+          },
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            action: 'STATUS_CHANGED',
+            laudoId: laudo.id,
+            fromStatus: laudo.status,
+            toStatus: 'GERADO',
+            metadata: { source: 'generate' },
+          },
+        });
+      }
 
       res.setHeader('Content-Type',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document');

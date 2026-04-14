@@ -35,6 +35,10 @@ model User {
 model Laudo {
   id                String      @id @default(cuid())
   status            LaudoStatus @default(PENDENTE)
+  numeroIdentificacao String?
+  cliente           String?
+  endereco          String?
+  dataInspecao      DateTime?
   formData          Json
   generatedFileName String?
   generatedAt       DateTime?
@@ -48,6 +52,8 @@ model Laudo {
 
   @@index([createdById])
   @@index([status])
+  @@index([numeroIdentificacao])
+  @@index([dataInspecao])
 }
 
 model AuditLog {
