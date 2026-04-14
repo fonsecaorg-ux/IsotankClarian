@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f2f1">
+  <title>CEINSPEC - Isotanks</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-bg: #f3f2f1; --color-surface: #ffffff; --color-sidebar: #ffffff; --color-border: #edebe9;
+      --color-text: #323130; --color-text-muted: #605e5c; --color-primary: #0078d4; --color-primary-hover: #106ebe;
+      --color-badge-pendente-bg: #fff4ce; --color-badge-pendente-txt: #835c00; --color-badge-gerado-bg: #dce6f7;
+      --color-badge-gerado-txt: #0078d4; --color-badge-assinado-bg: #dff6dd; --color-badge-assinado-txt: #107c10;
+      --danger: #a80000; --warning: #ff8c00; --ok: #107c10;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--color-bg); color: var(--color-text); min-height: 100vh; }
+    .wrap { max-width: 1600px; margin: 0 auto; padding: 14px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .title { color: var(--color-primary); font-size: 22px; font-weight: 800; }
+    .meta { color: var(--color-text-muted); font-size: 12px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 8px; min-height: 40px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .btn.primary { border-color: var(--color-primary); color: #fff; background: var(--color-primary); }
+    .btn.primary:hover { background: var(--color-primary-hover); }
+    .panel { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .panel-title { color: var(--color-primary); font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+    .form-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 8px; align-items: end; }
+    input, select { width: 100%; height: 40px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 10px; background: var(--color-surface); color: var(--color-text); }
+    .field label { display: block; font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; }
+    .field-error { color: var(--danger); font-size: 12px; margin-top: 6px; min-height: 16px; }
+    .table-wrap { overflow: auto; border: 1px solid var(--color-border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1180px; }
+    th, td { border-bottom: 1px solid var(--color-border); padding: 8px; font-size: 12px; text-align: left; vertical-align: top; }
+    th { background: #faf9f8; color: var(--color-text-muted); font-weight: 800; }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .b-red { background: #fde7e9; color: var(--danger); }
+    .b-yellow { background: var(--color-badge-pendente-bg); color: var(--color-badge-pendente-txt); }
+    .b-orange { background: #fff4e5; color: var(--warning); }
+    .b-green { background: var(--color-badge-assinado-bg); color: var(--ok); }
+    .b-gray { background: #edebe9; color: #605e5c; }
+    .error { color: var(--danger); font-size: 12px; min-height: 18px; margin-top: 8px; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 60; }
+    .modal-bg.active { display: flex; }
+    .modal { width: min(980px, 100%); max-height: 90vh; overflow: auto; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 10px; padding: 12px; }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .kv { border: 1px solid var(--color-border); border-radius: 8px; padding: 8px; font-size: 12px; background: #faf9f8; }
+    .kv b { display: block; color: var(--color-primary); margin-bottom: 4px; }
+    .toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-20px); opacity: 0; transition: .2s; border: 1px solid var(--color-border); background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 700; z-index: 1000; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { color: var(--ok); border-color: #92c353; } .toast.error { color: var(--danger); border-color: #f7d6d9; } .toast.warn { color: var(--color-badge-pendente-txt); border-color: #ffe8a3; }
+    @media (max-width: 767px) {
+      .actions { width: 100%; } .actions .btn { flex: 1; text-align: center; }
+      .form-grid { grid-template-columns: 1fr; }
+      .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap tr, .table-wrap th, .table-wrap td { display: block; }
+      .table-wrap thead { display: none; }
+      .table-wrap tr { border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 8px; padding: 6px; }
+      .table-wrap td { border: 0; padding: 4px 6px; }
+      .table-wrap td::before { content: attr(data-label); display: inline-block; width: 130px; color: var(--color-text-muted); font-weight: 700; }
+      .grid2 { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 768px) and (max-width: 1024px) { .form-grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div>
+        <h1 class="title">Cadastro de Isotanks</h1>
+        <p class="meta" id="sessionMeta">Carregando sessão...</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnRefresh">Atualizar</button>
+        <a class="btn" href="/dashboard">Dashboard</a>
+        <a class="btn" href="/painel-admin#usuarios">Usuários</a>
+        <a class="btn" href="/clientes">Clientes</a>
+        <a class="btn" href="/kanban">Kanban</a>
+        <a class="btn" href="/">Formulário</a>
+        <button class="btn primary" id="btnLogout">Sair</button>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2 class="panel-title">Novo Equipamento</h2>
+      <form id="equipForm">
+        <div class="form-grid">
+          <div class="field"><label for="numeroIdentificacao">N° Identificação *</label><input id="numeroIdentificacao" name="numeroIdentificacao" required></div>
+          <div class="field"><label for="fabricante">Fabricante *</label><input id="fabricante" name="fabricante" required></div>
+          <div class="field"><label for="clienteId">Cliente</label><select id="clienteId" name="clienteId"><option value="">Sem cliente</option></select></div>
+          <button class="btn primary" type="submit">Adicionar Equipamento</button>
+        </div>
+        <p class="field-error" id="formError"></p>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Equipamentos Ativos</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Container</th><th>Fabricante</th><th>Cliente</th><th>Últ. Inspeção</th><th>Próximo Vencimento</th><th>Total Inspeções</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="equipBody"></tbody>
+        </table>
+      </div>
+      <p class="error" id="pageError"></p>
+    </section>
+  </div>
+
+  <div class="modal-bg" id="historyModalBg"><div class="modal"><div class="modal-head"><h3>Histórico de Laudos</h3><button class="btn" id="closeHistory">Fechar</button></div><div id="historyContent"></div></div></div>
+  <div class="modal-bg" id="editModalBg">
+    <div class="modal">
+      <div class="modal-head"><h3>Editar Equipamento</h3><button class="btn" id="closeEdit">Fechar</button></div>
+      <form id="editForm">
+        <div class="grid2">
+          <div class="field"><label>Fabricante</label><input name="fabricante" required></div>
+          <div class="field"><label>Cliente</label><select name="clienteId" id="editClienteId"><option value="">Sem cliente</option></select></div>
+          <div class="field"><label>N° Série</label><input name="numeroSerie"></div>
+          <div class="field"><label>País</label><input name="paisFabricacao"></div>
+          <div class="field"><label>Tamanho</label><input name="tamanho"></div>
+          <div class="field"><label>Capacidade</label><input name="capacidadeLiquida"></div>
+          <div class="field"><label>Ano</label><input name="anoFabricacao"></div>
+          <div class="field"><label>Norma</label><input name="normaFabricacao"></div>
+          <div class="field"><label>Material Calota</label><input name="materialCalota"></div>
+          <div class="field"><label>Material Costado</label><input name="materialCostado"></div>
+          <div class="field"><label>Espessura</label><input name="espessura"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px;"><button class="btn primary" type="submit">Salvar</button></div>
+        <p class="field-error" id="editError"></p>
+      </form>
+    </div>
+  </div>
+  <div class="modal-bg" id="confirmModalBg"><div class="modal" style="max-width:460px;"><div class="modal-head"><h3>Confirmar desativação</h3><button class="btn" id="closeConfirm">Cancelar</button></div><p style="font-size:13px;margin-bottom:12px;">Deseja desativar este equipamento?</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn" id="cancelConfirm">Cancelar</button><button class="btn primary" id="okConfirm">Desativar</button></div></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    'use strict';
+    const state = { user: null, equipamentos: [], clientes: [], editingId: null, deletingId: null };
+    const el = {
+      sessionMeta: document.getElementById('sessionMeta'), btnRefresh: document.getElementById('btnRefresh'), btnLogout: document.getElementById('btnLogout'),
+      equipForm: document.getElementById('equipForm'), numeroIdentificacao: document.getElementById('numeroIdentificacao'), fabricante: document.getElementById('fabricante'),
+      clienteId: document.getElementById('clienteId'), formError: document.getElementById('formError'), equipBody: document.getElementById('equipBody'), pageError: document.getElementById('pageError'),
+      historyModalBg: document.getElementById('historyModalBg'), historyContent: document.getElementById('historyContent'), closeHistory: document.getElementById('closeHistory'),
+      editModalBg: document.getElementById('editModalBg'), closeEdit: document.getElementById('closeEdit'), editForm: document.getElementById('editForm'), editError: document.getElementById('editError'),
+      editClienteId: document.getElementById('editClienteId'), confirmModalBg: document.getElementById('confirmModalBg'), closeConfirm: document.getElementById('closeConfirm'),
+      cancelConfirm: document.getElementById('cancelConfirm'), okConfirm: document.getElementById('okConfirm'), toast: document.getElementById('toast')
+    };
+
+    function esc(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+    function fmtDate(v) { if (!v) return '-'; const d = new Date(v); return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString('pt-BR'); }
+    function toast(msg, type) { el.toast.textContent = msg; el.toast.className = `toast ${type || ''} show`; clearTimeout(el.toast._t); el.toast._t = setTimeout(() => el.toast.classList.remove('show'), 3000); }
+    async function api(path, options = {}) { const r = await fetch(path, { credentials: 'include', ...options }); if (!r.ok) { const e = await r.json().catch(() => ({ error: `HTTP ${r.status}` })); throw new Error(e.error || `HTTP ${r.status}`); } return r.status === 204 ? null : r.json(); }
+    function daysUntil(v) { const d = new Date(v); if (Number.isNaN(d.getTime())) return null; const now = new Date(); const startNow = new Date(now.getFullYear(), now.getMonth(), now.getDate()); const startV = new Date(d.getFullYear(), d.getMonth(), d.getDate()); return Math.ceil((startV - startNow) / 86400000); }
+    function vencBadge(item) { if (!item.ultimaInspecao || !item.proximoVencimento) return '<span class="badge b-gray">Sem inspeção</span>'; const days = daysUntil(item.proximoVencimento); if (days === null) return '<span class="badge b-gray">Sem inspeção</span>'; if (days <= 7) return `<span class="badge b-red">${days} dias</span>`; if (days <= 15) return `<span class="badge b-yellow">${days} dias</span>`; if (days <= 30) return `<span class="badge b-orange">${days} dias</span>`; return `<span class="badge b-green">${days} dias</span>`; }
+
+    async function checkAdmin() {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+      if (res.status === 401) { window.location.replace('/login'); return false; }
+      if (!res.ok) throw new Error('Falha ao validar sessão');
+      const payload = await res.json(); state.user = payload.user;
+      if (state.user.role !== 'ADMIN') { window.location.replace('/'); return false; }
+      el.sessionMeta.textContent = `${state.user.nome} (${state.user.role})`; return true;
+    }
+
+    function renderClientesSelects() {
+      const opts = ['<option value="">Sem cliente</option>'].concat(state.clientes.map((c) => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`));
+      el.clienteId.innerHTML = opts.join('');
+      el.editClienteId.innerHTML = opts.join('');
+    }
+
+    function renderTable() {
+      if (!state.equipamentos.length) { el.equipBody.innerHTML = '<tr><td colspan="8">Nenhum equipamento ativo.</td></tr>'; return; }
+      el.equipBody.innerHTML = state.equipamentos.map((e) => `
+        <tr>
+          <td data-label="Container">${esc(e.numeroIdentificacao)}</td>
+          <td data-label="Fabricante">${esc(e.fabricante || '-')}</td>
+          <td data-label="Cliente">${esc(e.cliente?.nome || '-')}</td>
+          <td data-label="Últ. Inspeção">${fmtDate(e.ultimaInspecao)}</td>
+          <td data-label="Próximo Vencimento">${fmtDate(e.proximoVencimento)}</td>
+          <td data-label="Total Inspeções">${Number(e.totalInspecoes || 0)}</td>
+          <td data-label="Status">${vencBadge(e)}</td>
+          <td data-label="Ações"><div class="row-actions"><button class="btn" data-a="hist" data-id="${esc(e.id)}">Ver histórico</button><button class="btn" data-a="edit" data-id="${esc(e.id)}">Editar</button><button class="btn" data-a="del" data-id="${esc(e.id)}">Desativar</button></div></td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadClientes() { state.clientes = await api('/clientes'); renderClientesSelects(); }
+    async function loadEquipamentos() { state.equipamentos = await api('/equipamentos'); renderTable(); }
+    async function reloadAll() { el.pageError.textContent = ''; await Promise.all([loadClientes(), loadEquipamentos()]); }
+
+    async function openHistory(id) {
+      const detail = await api(`/equipamentos/${id}`);
+      const rows = (detail.laudos || []).map((l) => `
+        <tr>
+          <td data-label="Data Inspeção">${fmtDate(l.dataInspecao)}</td>
+          <td data-label="Inspetor">${esc(l.createdBy?.nome || '-')}</td>
+          <td data-label="Status">${esc(l.status)}</td>
+          <td data-label="Ação"><button class="btn" data-a="download" data-laudo="${esc(l.id)}">Baixar docx</button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="4">Sem histórico de laudos.</td></tr>';
+      el.historyContent.innerHTML = `
+        <div class="grid2" style="margin-bottom:10px;">
+          <div class="kv"><b>Container</b>${esc(detail.numeroIdentificacao)}</div>
+          <div class="kv"><b>Fabricante</b>${esc(detail.fabricante || '-')}</div>
+          <div class="kv"><b>Cliente</b>${esc(detail.cliente?.nome || '-')}</div>
+          <div class="kv"><b>Total Inspeções</b>${Number(detail.totalInspecoes || 0)}</div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Data Inspeção</th><th>Inspetor</th><th>Status</th><th>Ação</th></tr></thead><tbody>${rows}</tbody></table></div>
+      `;
+      el.historyModalBg.classList.add('active');
+    }
+
+    async function downloadDocx(laudoId) {
+      const fd = new FormData(); fd.set('laudoId', laudoId);
+      const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: 'Erro ao baixar DOCX' })); throw new Error(err.error || 'Erro ao baixar DOCX'); }
+      const blob = await res.blob(); const cd = res.headers.get('Content-Disposition') || ''; const m = cd.match(/filename="([^"]+)"/); const filename = m ? m[1] : `LAUDO_${laudoId}.docx`;
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function openEdit(id) {
+      const item = state.equipamentos.find((e) => e.id === id); if (!item) return;
+      state.editingId = id; el.editError.textContent = '';
+      const set = (k, v) => { const field = el.editForm.elements[k]; if (field) field.value = v || ''; };
+      set('fabricante', item.fabricante); set('clienteId', item.cliente?.id || ''); set('numeroSerie', item.numeroSerie); set('paisFabricacao', item.paisFabricacao);
+      set('tamanho', item.tamanho); set('capacidadeLiquida', item.capacidadeLiquida); set('anoFabricacao', item.anoFabricacao); set('normaFabricacao', item.normaFabricacao);
+      set('materialCalota', item.materialCalota); set('materialCostado', item.materialCostado); set('espessura', item.espessura);
+      el.editModalBg.classList.add('active');
+    }
+
+    el.equipForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault(); el.formError.textContent = '';
+      const payload = { numeroIdentificacao: el.numeroIdentificacao.value.trim(), fabricante: el.fabricante.value.trim(), clienteId: el.clienteId.value || null };
+      if (!payload.numeroIdentificacao || !payload.fabricante) { el.formError.textContent = 'Preencha N° Identificação e Fabricante.'; return; }
+      try { await api('/equipamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); el.equipForm.reset(); toast('Equipamento adicionado com sucesso', 'success'); await loadEquipamentos(); }
+      catch (err) { el.formError.textContent = err.message; }
+    });
+
+    el.equipBody.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('button[data-a]'); if (!btn) return;
+      const action = btn.dataset.a; const id = btn.dataset.id;
+      try {
+        if (action === 'hist') await openHistory(id);
+        if (action === 'edit') openEdit(id);
+        if (action === 'del') { state.deletingId = id; el.confirmModalBg.classList.add('active'); }
+      } catch (err) { el.pageError.textContent = err.message; }
+    });
+
+    el.historyContent.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('button[data-a="download"]'); if (!btn) return;
+      try { await downloadDocx(btn.dataset.laudo); toast('DOCX gerado com sucesso', 'success'); } catch (err) { el.pageError.textContent = err.message; }
+    });
+
+    el.editForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault(); el.editError.textContent = '';
+      if (!state.editingId) return;
+      const fd = new FormData(el.editForm); const payload = {};
+      ['fabricante','clienteId','numeroSerie','paisFabricacao','tamanho','capacidadeLiquida','anoFabricacao','normaFabricacao','materialCalota','materialCostado','espessura'].forEach((k) => {
+        if (k === 'clienteId') payload[k] = String(fd.get(k) || '').trim() || null;
+        else payload[k] = String(fd.get(k) || '').trim() || null;
+      });
+      if (!payload.fabricante) { el.editError.textContent = 'Fabricante é obrigatório.'; return; }
+      try { await api(`/equipamentos/${state.editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); el.editModalBg.classList.remove('active'); toast('Equipamento atualizado', 'success'); await loadEquipamentos(); }
+      catch (err) { el.editError.textContent = err.message; }
+    });
+
+    el.okConfirm.addEventListener('click', async () => {
+      if (!state.deletingId) return;
+      try { await api(`/equipamentos/${state.deletingId}`, { method: 'DELETE' }); el.confirmModalBg.classList.remove('active'); state.deletingId = null; toast('Equipamento desativado', 'warn'); await loadEquipamentos(); }
+      catch (err) { el.pageError.textContent = err.message; }
+    });
+
+    el.btnRefresh.addEventListener('click', async () => { try { await reloadAll(); toast('Dados atualizados', 'success'); } catch (err) { el.pageError.textContent = err.message; } });
+    el.btnLogout.addEventListener('click', async () => { try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {} window.location.replace('/login'); });
+    [el.closeHistory, el.closeEdit, el.closeConfirm, el.cancelConfirm].forEach((b) => b.addEventListener('click', () => { el.historyModalBg.classList.remove('active'); el.editModalBg.classList.remove('active'); el.confirmModalBg.classList.remove('active'); }));
+    [el.historyModalBg, el.editModalBg, el.confirmModalBg].forEach((bg) => bg.addEventListener('click', (ev) => { if (ev.target === bg) bg.classList.remove('active'); }));
+
+    (async () => { try { const ok = await checkAdmin(); if (!ok) return; await reloadAll(); } catch (_) { window.location.replace('/login'); } })();
+  </script>
+</body>
+</html>

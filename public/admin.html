@@ -67,6 +67,14 @@
       margin-bottom: 8px;
       font-weight: 700;
     }
+    .nav-group {
+      margin: 10px 0 6px;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
     .nav-btn.active { border-color: var(--accent); color: var(--accent); }
     .main { padding: 16px; }
     .header {
@@ -223,9 +231,14 @@
   <div class="layout">
     <aside class="sidebar">
       <img src="/logo-ceinspec.png" alt="CEINSPEC" class="logo">
+      <p class="nav-group">Portal Admin</p>
       <button class="nav-btn active" id="tabLaudosBtn" data-short="L" title="Laudos">Laudos</button>
-      <button class="nav-btn" id="tabUsersBtn" data-short="U" title="Usuários">Usuários</button>
       <a href="/dashboard" class="btn" data-short="D" title="Dashboard" style="display:inline-block;text-decoration:none;margin-top:4px;">Dashboard</a>
+      <a href="/painel-admin#usuarios" class="btn" data-short="U" title="Usuários" style="display:inline-block;text-decoration:none;margin-top:4px;">Usuários</a>
+      <p class="nav-group">Cadastros</p>
+      <a href="/equipamentos" class="btn" data-short="I" title="Isotanks" style="display:inline-block;text-decoration:none;margin-top:4px;">Isotanks</a>
+      <a href="/clientes" class="btn" data-short="C" title="Clientes" style="display:inline-block;text-decoration:none;margin-top:4px;">Clientes</a>
+      <p class="nav-group">Operação</p>
       <a href="/kanban" class="btn" data-short="K" title="Kanban" style="display:inline-block;text-decoration:none;margin-top:4px;">Kanban</a>
       <a href="/" class="btn" data-short="F" title="Formulário" style="display:inline-block;text-decoration:none;margin-top:8px;">Voltar ao formulário</a>
     </aside>
@@ -348,7 +361,6 @@
       btnLogout: document.getElementById('btnLogout'),
       btnRefresh: document.getElementById('btnRefresh'),
       tabLaudosBtn: document.getElementById('tabLaudosBtn'),
-      tabUsersBtn: document.getElementById('tabUsersBtn'),
       laudosSection: document.getElementById('laudosSection'),
       usersSection: document.getElementById('usersSection'),
       searchInput: document.getElementById('searchInput'),
@@ -513,9 +525,17 @@
     function switchTab(tab) {
       state.tab = tab;
       el.tabLaudosBtn.classList.toggle('active', tab === 'laudos');
-      el.tabUsersBtn.classList.toggle('active', tab === 'users');
       el.laudosSection.classList.toggle('hidden', tab !== 'laudos');
       el.usersSection.classList.toggle('hidden', tab !== 'users');
+    }
+
+    async function syncTabFromHash() {
+      if (window.location.hash === '#usuarios') {
+        switchTab('users');
+        if (!state.users.length) await loadUsers();
+      } else {
+        switchTab('laudos');
+      }
     }
 
     async function showLaudoDetail(laudoId) {
@@ -585,11 +605,6 @@
     el.dateEnd.addEventListener('change', renderLaudosTable);
 
     el.tabLaudosBtn.addEventListener('click', () => switchTab('laudos'));
-    el.tabUsersBtn.addEventListener('click', async () => {
-      switchTab('users');
-      if (!state.users.length) await loadUsers();
-    });
-
     el.btnRefresh.addEventListener('click', async () => {
       if (state.tab === 'laudos') await loadLaudos();
       if (state.tab === 'users') await loadUsers();
@@ -704,12 +719,14 @@
     el.closeUserModal.addEventListener('click', () => el.newUserModalBg.classList.remove('active'));
     el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) el.detailModalBg.classList.remove('active'); });
     el.newUserModalBg.addEventListener('click', (ev) => { if (ev.target === el.newUserModalBg) el.newUserModalBg.classList.remove('active'); });
+    window.addEventListener('hashchange', () => { syncTabFromHash().catch(() => {}); });
 
     (async () => {
       try {
         const ok = await checkAdminAccess();
         if (!ok) return;
         await loadLaudos();
+        await syncTabFromHash();
       } catch (_) {
         window.location.replace('/login');
       }

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f2f1">
+  <title>CEINSPEC - Clientes</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-bg: #f3f2f1; --color-surface: #ffffff; --color-border: #edebe9; --color-text: #323130;
+      --color-text-muted: #605e5c; --color-primary: #0078d4; --color-primary-hover: #106ebe; --danger: #a80000;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--color-bg); color: var(--color-text); min-height: 100vh; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 14px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .title { color: var(--color-primary); font-size: 22px; font-weight: 800; }
+    .meta { color: var(--color-text-muted); font-size: 12px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 8px; min-height: 40px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .btn.primary { border-color: var(--color-primary); color: #fff; background: var(--color-primary); }
+    .btn.primary:hover { background: var(--color-primary-hover); }
+    .panel { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .panel-title { color: var(--color-primary); font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1.5fr auto; gap: 8px; align-items: end; }
+    .field label { display: block; color: var(--color-text-muted); font-size: 12px; margin-bottom: 4px; }
+    input { width: 100%; height: 40px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 10px; background: var(--color-surface); color: var(--color-text); }
+    .field-error { min-height: 16px; margin-top: 6px; color: var(--danger); font-size: 12px; }
+    .table-wrap { overflow: auto; border: 1px solid var(--color-border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; }
+    th, td { border-bottom: 1px solid var(--color-border); padding: 8px; font-size: 12px; text-align: left; vertical-align: top; }
+    th { background: #faf9f8; color: var(--color-text-muted); font-weight: 800; }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .error { color: var(--danger); font-size: 12px; min-height: 18px; margin-top: 8px; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 60; }
+    .modal-bg.active { display: flex; }
+    .modal { width: min(560px, 100%); border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 10px; padding: 12px; }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-20px); opacity: 0; transition: .2s; border: 1px solid var(--color-border); background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 700; z-index: 1000; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { color: #107c10; border-color: #92c353; } .toast.warn { color: #835c00; border-color: #ffe8a3; } .toast.error { color: var(--danger); border-color: #f7d6d9; }
+    @media (max-width: 767px) {
+      .actions { width: 100%; } .actions .btn { flex: 1; text-align: center; }
+      .form-grid { grid-template-columns: 1fr; }
+      .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap tr, .table-wrap th, .table-wrap td { display: block; }
+      .table-wrap thead { display: none; }
+      .table-wrap tr { border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 8px; padding: 6px; }
+      .table-wrap td { border: 0; padding: 4px 6px; }
+      .table-wrap td::before { content: attr(data-label); display: inline-block; width: 130px; color: var(--color-text-muted); font-weight: 700; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div>
+        <h1 class="title">Cadastro de Clientes</h1>
+        <p class="meta" id="sessionMeta">Carregando sessão...</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnRefresh">Atualizar</button>
+        <a class="btn" href="/dashboard">Dashboard</a>
+        <a class="btn" href="/painel-admin#usuarios">Usuários</a>
+        <a class="btn" href="/equipamentos">Isotanks</a>
+        <a class="btn" href="/kanban">Kanban</a>
+        <a class="btn" href="/">Formulário</a>
+        <button class="btn primary" id="btnLogout">Sair</button>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2 class="panel-title">Novo Cliente</h2>
+      <form id="clienteForm">
+        <div class="form-grid">
+          <div class="field"><label for="nome">Nome *</label><input id="nome" name="nome" required></div>
+          <div class="field"><label for="endereco">Endereço</label><input id="endereco" name="endereco"></div>
+          <button class="btn primary" type="submit">Adicionar Cliente</button>
+        </div>
+        <p class="field-error" id="formError"></p>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Clientes Ativos</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nome</th><th>Endereço</th><th>Total Equipamentos</th><th>Ações</th></tr></thead>
+          <tbody id="clientesBody"></tbody>
+        </table>
+      </div>
+      <p class="error" id="pageError"></p>
+    </section>
+  </div>
+
+  <div class="modal-bg" id="editModalBg">
+    <div class="modal">
+      <div class="modal-head"><h3>Editar Cliente</h3><button class="btn" id="closeEdit">Fechar</button></div>
+      <form id="editForm">
+        <div class="field"><label>Nome *</label><input name="nome" required></div>
+        <div class="field" style="margin-top:8px;"><label>Endereço</label><input name="endereco"></div>
+        <div style="margin-top:10px;display:flex;justify-content:flex-end;"><button class="btn primary" type="submit">Salvar</button></div>
+        <p class="field-error" id="editError"></p>
+      </form>
+    </div>
+  </div>
+  <div class="modal-bg" id="confirmModalBg"><div class="modal"><div class="modal-head"><h3>Confirmar desativação</h3><button class="btn" id="closeConfirm">Cancelar</button></div><p style="font-size:13px;margin-bottom:12px;">Deseja desativar este cliente?</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn" id="cancelConfirm">Cancelar</button><button class="btn primary" id="okConfirm">Desativar</button></div></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    'use strict';
+    const state = { user: null, clientes: [], editingId: null, deletingId: null };
+    const el = {
+      sessionMeta: document.getElementById('sessionMeta'), btnRefresh: document.getElementById('btnRefresh'), btnLogout: document.getElementById('btnLogout'),
+      clienteForm: document.getElementById('clienteForm'), nome: document.getElementById('nome'), endereco: document.getElementById('endereco'),
+      formError: document.getElementById('formError'), clientesBody: document.getElementById('clientesBody'), pageError: document.getElementById('pageError'),
+      editModalBg: document.getElementById('editModalBg'), closeEdit: document.getElementById('closeEdit'), editForm: document.getElementById('editForm'), editError: document.getElementById('editError'),
+      confirmModalBg: document.getElementById('confirmModalBg'), closeConfirm: document.getElementById('closeConfirm'), cancelConfirm: document.getElementById('cancelConfirm'),
+      okConfirm: document.getElementById('okConfirm'), toast: document.getElementById('toast')
+    };
+
+    function esc(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+    function toast(msg, type) { el.toast.textContent = msg; el.toast.className = `toast ${type || ''} show`; clearTimeout(el.toast._t); el.toast._t = setTimeout(() => el.toast.classList.remove('show'), 3000); }
+    async function api(path, options = {}) { const r = await fetch(path, { credentials: 'include', ...options }); if (!r.ok) { const e = await r.json().catch(() => ({ error: `HTTP ${r.status}` })); throw new Error(e.error || `HTTP ${r.status}`); } return r.status === 204 ? null : r.json(); }
+
+    async function checkAdmin() {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+      if (res.status === 401) { window.location.replace('/login'); return false; }
+      if (!res.ok) throw new Error('Falha ao validar sessão');
+      const payload = await res.json(); state.user = payload.user;
+      if (state.user.role !== 'ADMIN') { window.location.replace('/'); return false; }
+      el.sessionMeta.textContent = `${state.user.nome} (${state.user.role})`; return true;
+    }
+
+    function renderTable() {
+      if (!state.clientes.length) { el.clientesBody.innerHTML = '<tr><td colspan="4">Nenhum cliente ativo.</td></tr>'; return; }
+      el.clientesBody.innerHTML = state.clientes.map((c) => `
+        <tr>
+          <td data-label="Nome">${esc(c.nome)}</td>
+          <td data-label="Endereço">${esc(c.endereco || '-')}</td>
+          <td data-label="Total Equipamentos">${Number(c._count?.equipamentos || 0)}</td>
+          <td data-label="Ações"><div class="row-actions"><button class="btn" data-a="edit" data-id="${esc(c.id)}">Editar</button><button class="btn" data-a="del" data-id="${esc(c.id)}">Desativar</button></div></td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadClientes() { state.clientes = await api('/clientes'); renderTable(); }
+
+    el.clienteForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault(); el.formError.textContent = '';
+      const payload = { nome: el.nome.value.trim(), endereco: el.endereco.value.trim() || null };
+      if (!payload.nome) { el.formError.textContent = 'Nome é obrigatório.'; return; }
+      try { await api('/clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); el.clienteForm.reset(); toast('Cliente adicionado com sucesso', 'success'); await loadClientes(); }
+      catch (err) { el.formError.textContent = err.message; }
+    });
+
+    el.clientesBody.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-a]'); if (!btn) return;
+      const action = btn.dataset.a; const id = btn.dataset.id;
+      if (action === 'edit') {
+        const item = state.clientes.find((c) => c.id === id); if (!item) return;
+        state.editingId = id; el.editError.textContent = ''; el.editForm.elements.nome.value = item.nome || ''; el.editForm.elements.endereco.value = item.endereco || '';
+        el.editModalBg.classList.add('active');
+      }
+      if (action === 'del') { state.deletingId = id; el.confirmModalBg.classList.add('active'); }
+    });
+
+    el.editForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault(); el.editError.textContent = '';
+      if (!state.editingId) return;
+      const payload = { nome: String(el.editForm.elements.nome.value || '').trim(), endereco: String(el.editForm.elements.endereco.value || '').trim() || null };
+      if (!payload.nome) { el.editError.textContent = 'Nome é obrigatório.'; return; }
+      try { await api(`/clientes/${state.editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); el.editModalBg.classList.remove('active'); toast('Cliente atualizado', 'success'); await loadClientes(); }
+      catch (err) { el.editError.textContent = err.message; }
+    });
+
+    el.okConfirm.addEventListener('click', async () => {
+      if (!state.deletingId) return;
+      try { await api(`/clientes/${state.deletingId}`, { method: 'DELETE' }); el.confirmModalBg.classList.remove('active'); state.deletingId = null; toast('Cliente desativado', 'warn'); await loadClientes(); }
+      catch (err) { el.pageError.textContent = err.message; }
+    });
+
+    el.btnRefresh.addEventListener('click', async () => { try { await loadClientes(); toast('Dados atualizados', 'success'); } catch (err) { el.pageError.textContent = err.message; } });
+    el.btnLogout.addEventListener('click', async () => { try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {} window.location.replace('/login'); });
+    [el.closeEdit, el.closeConfirm, el.cancelConfirm].forEach((b) => b.addEventListener('click', () => { el.editModalBg.classList.remove('active'); el.confirmModalBg.classList.remove('active'); }));
+    [el.editModalBg, el.confirmModalBg].forEach((bg) => bg.addEventListener('click', (ev) => { if (ev.target === bg) bg.classList.remove('active'); }));
+
+    (async () => { try { const ok = await checkAdmin(); if (!ok) return; await loadClientes(); } catch (_) { window.location.replace('/login'); } })();
+  </script>
+</body>
+</html>

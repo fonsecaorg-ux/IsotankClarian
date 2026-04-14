@@ -90,6 +90,8 @@ app.get('/login.html', (req, res) => res.redirect(301, '/login'));
 app.get('/admin.html', (req, res) => res.redirect(301, '/painel-admin'));
 app.get('/kanban.html', (req, res) => res.redirect(301, '/kanban'));
 app.get('/dashboard.html', (req, res) => res.redirect(301, '/dashboard'));
+app.get('/equipamentos.html', (req, res) => res.redirect(301, '/equipamentos'));
+app.get('/clientes.html', (req, res) => res.redirect(301, '/clientes'));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/login', (req, res) => {
@@ -103,6 +105,12 @@ app.get('/kanban', (req, res) => {
 });
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+app.get('/equipamentos', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'equipamentos.html'));
+});
+app.get('/clientes', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'clientes.html'));
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
