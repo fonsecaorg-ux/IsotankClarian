@@ -106,11 +106,17 @@ app.get('/kanban', (req, res) => {
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
-app.get('/equipamentos', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'equipamentos.html'));
+function isPageNavigation(req) {
+  const accept = String(req.headers.accept || '');
+  return accept.includes('text/html');
+}
+app.get('/equipamentos', (req, res, next) => {
+  if (!isPageNavigation(req)) return next();
+  return res.sendFile(path.join(__dirname, 'public', 'equipamentos.html'));
 });
-app.get('/clientes', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'clientes.html'));
+app.get('/clientes', (req, res, next) => {
+  if (!isPageNavigation(req)) return next();
+  return res.sendFile(path.join(__dirname, 'public', 'clientes.html'));
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
