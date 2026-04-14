@@ -8,10 +8,24 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #0a1628; --surface: #0f1f3d; --card: #162040; --border: #1e2f55; --accent: #e8a020;
-      --text: #e2e8f0; --muted: #94a3b8; --warn: #f59e0b; --info: #3b82f6; --success: #22c55e; --danger: #ef4444;
+      --color-bg:         #f3f2f1;
+      --color-surface:    #ffffff;
+      --color-sidebar:    #ffffff;
+      --color-border:     #edebe9;
+      --color-text:       #323130;
+      --color-text-muted: #605e5c;
+      --color-primary:    #0078d4;
+      --color-primary-hover: #106ebe;
+      --color-badge-pendente-bg:  #fff4ce;
+      --color-badge-pendente-txt: #835c00;
+      --color-badge-gerado-bg:    #dce6f7;
+      --color-badge-gerado-txt:   #0078d4;
+      --color-badge-assinado-bg:  #dff6dd;
+      --color-badge-assinado-txt: #107c10;
+      --bg: var(--color-bg); --surface: var(--color-surface); --card: var(--color-surface); --border: var(--color-border); --accent: var(--color-primary);
+      --text: var(--color-text); --muted: var(--color-text-muted); --warn: #835c00; --info: #0078d4; --success: #107c10; --danger: #a80000;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
     .wrap { padding: 14px; max-width: 1600px; margin: 0 auto; }
     .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
     .title { color: var(--accent); font-size: 22px; font-weight: 800; }
@@ -36,9 +50,9 @@
     .card-line { font-size: 12px; color: var(--text); margin-bottom: 2px; }
     .card-muted { font-size: 11px; color: var(--muted); }
     .status-badge { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 800; padding: 3px 6px; border-radius: 999px; }
-    .status-badge.PENDENTE { color: var(--warn); background: rgba(245,158,11,.2); }
-    .status-badge.GERADO { color: var(--info); background: rgba(59,130,246,.2); }
-    .status-badge.ASSINADO { color: var(--success); background: rgba(34,197,94,.2); }
+    .status-badge.PENDENTE { color: var(--color-badge-pendente-txt); background: var(--color-badge-pendente-bg); }
+    .status-badge.GERADO { color: var(--color-badge-gerado-txt); background: var(--color-badge-gerado-bg); }
+    .status-badge.ASSINADO { color: var(--color-badge-assinado-txt); background: var(--color-badge-assinado-bg); }
     .msg { margin-top: 8px; font-size: 12px; color: var(--danger); min-height: 18px; }
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 50; }
     .modal-bg.active { display: flex; }
@@ -49,7 +63,24 @@
     .kv { border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--surface); font-size: 12px; }
     .kv b { color: var(--accent); display: block; margin-bottom: 4px; }
     .audit-item { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; font-size: 12px; background: var(--surface); }
-    @media (max-width: 1100px) {
+    @media (max-width: 767px) {
+      .actions { width: 100%; }
+      .actions .btn { flex: 1; text-align: center; }
+      .filters { grid-template-columns: 1fr; }
+      .board {
+        display: flex;
+        overflow-x: auto;
+        gap: 10px;
+        padding-bottom: 6px;
+      }
+      .col { min-width: 86vw; min-height: auto; }
+      .grid2 { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .filters { grid-template-columns: 1fr 1fr; }
+      .board { grid-template-columns: repeat(3, minmax(260px, 1fr)); overflow-x: auto; }
+    }
+    @media (min-width: 768px) and (max-width: 1100px) {
       .filters { grid-template-columns: 1fr; }
       .board { grid-template-columns: 1fr; }
       .col { min-height: auto; }

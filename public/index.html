@@ -13,25 +13,40 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:        #0a1628;
-    --surface:   #0f1f3d;
-    --card:      #162040;
-    --border:    #1e2f55;
-    --accent:    #e8a020;
-    --accent2:   #c07010;
-    --text:      #e2e8f0;
-    --muted:     #94a3b8;
-    --success:   #22c55e;
-    --danger:    #ef4444;
-    --warn:      #f59e0b;
+    --color-bg:         #f3f2f1;
+    --color-surface:    #ffffff;
+    --color-sidebar:    #ffffff;
+    --color-border:     #edebe9;
+    --color-text:       #323130;
+    --color-text-muted: #605e5c;
+    --color-primary:    #0078d4;
+    --color-primary-hover: #106ebe;
+    --color-badge-pendente-bg:  #fff4ce;
+    --color-badge-pendente-txt: #835c00;
+    --color-badge-gerado-bg:    #dce6f7;
+    --color-badge-gerado-txt:   #0078d4;
+    --color-badge-assinado-bg:  #dff6dd;
+    --color-badge-assinado-txt: #107c10;
+
+    --bg:        var(--color-bg);
+    --surface:   var(--color-surface);
+    --card:      var(--color-surface);
+    --border:    var(--color-border);
+    --accent:    var(--color-primary);
+    --accent2:   var(--color-primary-hover);
+    --text:      var(--color-text);
+    --muted:     var(--color-text-muted);
+    --success:   #107c10;
+    --danger:    #a80000;
+    --warn:      #835c00;
     --radius:    10px;
-    --shadow:    0 4px 20px rgba(0,0,0,.4);
+    --shadow:    0 8px 24px rgba(0,0,0,.08);
   }
 
   html { scroll-behavior: smooth; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Segoe UI', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
     font-size: 15px;
@@ -43,7 +58,7 @@
   /* ── Header ─────────────────────────────────────────────────────────────── */
   .header {
     background: var(--surface);
-    border-bottom: 2px solid var(--accent);
+    border-bottom: 1px solid var(--border);
     padding: 14px 16px 12px;
     position: sticky;
     top: 0;
@@ -61,6 +76,7 @@
   .header-title { flex: 1; }
   .header-title h1 { font-size: 15px; font-weight: 700; color: var(--accent); }
   .header-title p  { font-size: 11px; color: var(--muted); }
+  .draft-meta { font-size: 11px; color: var(--success); margin-top: 2px; }
   .header-user {
     display: flex;
     flex-direction: column;
@@ -270,6 +286,20 @@
   }
   .photo-slot.captured .photo-preview { display: block; }
   .photo-slot.captured .photo-placeholder { display: none; }
+  .photo-size {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    font-size: 10px;
+    color: var(--text);
+    background: rgba(10,22,40,.88);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 6px;
+    z-index: 3;
+    display: none;
+  }
+  .photo-slot.captured .photo-size { display: inline-block; }
 
   .photo-badge {
     position: absolute;
@@ -326,6 +356,7 @@
   .btn {
     flex: 1;
     padding: 13px;
+    min-height: 48px;
     border-radius: var(--radius);
     border: none;
     font-size: 15px;
@@ -340,15 +371,16 @@
   .btn-prev { background: var(--card); color: var(--text); flex: 0 0 48px; font-size: 18px; }
   .btn-next { background: var(--border); color: var(--text); }
   .btn-submit { background: var(--accent); color: var(--bg); }
+  .btn-submit { color: #fff; }
   .btn:disabled { opacity: .4; cursor: not-allowed; }
   .btn:active:not(:disabled) { transform: scale(.97); }
 
   /* ── Toast ────────────────────────────────────────────────────────────────── */
   .toast {
     position: fixed;
-    bottom: 80px;
+    top: 14px;
     left: 50%;
-    transform: translateX(-50%) translateY(20px);
+    transform: translateX(-50%) translateY(-20px);
     background: var(--card);
     border: 1px solid var(--border);
     color: var(--text);
@@ -365,6 +397,51 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.success { border-color: var(--success); color: var(--success); }
   .toast.error   { border-color: var(--danger);  color: var(--danger);  }
+  .toast.warn    { border-color: var(--warn);    color: var(--warn);    }
+
+  .inline-error {
+    color: var(--danger);
+    font-size: 11px;
+    min-height: 14px;
+    margin-top: 4px;
+  }
+  .field.has-error input,
+  .field.has-error select,
+  .field.has-error textarea {
+    border-color: var(--danger);
+  }
+
+  .offline-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1200;
+    display: none;
+    text-align: center;
+    padding: 8px;
+    background: rgba(245,158,11,.95);
+    color: #1f2937;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .offline-banner.show { display: block; }
+
+  .retry-wrap {
+    position: fixed;
+    left: 50%;
+    bottom: 92px;
+    transform: translateX(-50%);
+    width: min(92vw, 360px);
+    border: 1px solid var(--danger);
+    border-radius: 10px;
+    background: var(--card);
+    padding: 10px;
+    z-index: 1001;
+    display: none;
+  }
+  .retry-wrap.show { display: block; }
+  .retry-wrap p { font-size: 12px; margin-bottom: 8px; color: var(--danger); }
 
   /* ── Spinner overlay ──────────────────────────────────────────────────────── */
   .overlay {
@@ -398,6 +475,7 @@
   <div class="header-title">
     <h1>Laudo Visual — Isotank</h1>
     <p id="headerSub">Seção 1 de 6</p>
+    <p id="draftMeta" class="draft-meta"></p>
   </div>
   <div class="header-user">
     <div class="header-user-meta">
@@ -414,10 +492,10 @@
 <nav class="tabs" id="tabBar">
   <div class="tab active" data-sec="0">Identificação</div>
   <div class="tab" data-sec="1">Dados Técnicos</div>
-  <div class="tab" data-sec="2">Estrutura</div>
-  <div class="tab" data-sec="3">Componentes</div>
-  <div class="tab" data-sec="4">Exames &amp; Fotos</div>
-  <div class="tab" data-sec="5">Conclusão</div>
+  <div class="tab" data-sec="2">Estrutura Externa</div>
+  <div class="tab" data-sec="3">Componentes e Acessórios</div>
+  <div class="tab" data-sec="4">Exames Realizados</div>
+  <div class="tab" data-sec="5">Fotos + Conclusão</div>
 </nav>
 
 <!-- ── Form ───────────────────────────────────────────────────────────────── -->
@@ -666,10 +744,15 @@
 
 <!-- ── Toast & Overlay ───────────────────────────────────────────────────── -->
 <div class="toast" id="toast"></div>
+<div class="offline-banner" id="offlineBanner">Sem conexão — seus dados estão salvos</div>
 <div class="overlay" id="overlay">
   <img src="/logo-ceinspec.png" alt="CEINSPEC" style="height:48px;width:auto;margin-bottom:20px;opacity:.9;">
   <div class="spinner"></div>
   <div class="overlay-text">Gerando laudo Word…</div>
+</div>
+<div class="retry-wrap" id="retryWrap">
+  <p>Erro ao gerar laudo. Tente novamente.</p>
+  <button type="button" class="btn btn-submit" id="btnRetryGenerate">Tentar novamente</button>
 </div>
 
 <script>
@@ -750,16 +833,19 @@ PHOTOS.forEach(({ name, label }) => {
       <span class="photo-label">${label}</span>
     </div>
     <img class="photo-preview" alt="${label}">
+    <div class="photo-size"></div>
     <div class="photo-badge">✓</div>`;
   photoGrid.appendChild(slot);
 
   const input = slot.querySelector('input[type="file"]');
   const preview = slot.querySelector('.photo-preview');
-  input.addEventListener('change', () => {
-    if (input.files && input.files[0]) {
-      const url = URL.createObjectURL(input.files[0]);
-      preview.src = url;
-      slot.classList.add('captured');
+  input.addEventListener('change', async () => {
+    try {
+      await handlePhotoInputChange(input, slot, preview);
+      saveDraft();
+    } catch (err) {
+      showToast('Falha ao processar foto', 'error');
+      console.error(err);
     }
   });
 });
@@ -784,116 +870,294 @@ document.querySelectorAll('.exam-btns').forEach(group => {
   group.querySelector('.btn-exam.NA').classList.add('active');
 });
 
-// ─── Navegação de seções ──────────────────────────────────────────────────
+// ─── Navegação de seções, autosave e validação ────────────────────────────
 const TOTAL_SECTIONS = 6;
 let currentSection = 0;
 let loggedUser = null;
+let isSubmitting = false;
+let draftKey = null;
+const visitedSections = new Set([0]);
 
+const SECTION_LABELS = [
+  'Identificação',
+  'Dados Técnicos',
+  'Estrutura Externa',
+  'Componentes e Acessórios',
+  'Exames Realizados',
+  'Fotos + Conclusão',
+];
+const NUMERIC_FIELDS = [
+  'ano_fabricacao','tamanho','capacidade_liquida','tara','peso_carga_liquida','peso_bruto_total',
+  'peso_empilhamento','pressao_projeto','pressao_ensaio','pressao_maxima','espessura','conexoes_flange'
+];
+const SECTION_REQUIRED = {
+  0: ['numero_identificacao', 'cliente', 'data_inspecao'],
+  1: ['fabricante', 'numero_serie'],
+  4: ['exame_visual_externo'],
+};
+
+const form = document.getElementById('laudoForm');
 const sections = document.querySelectorAll('.section');
-const tabs     = document.querySelectorAll('.tab');
-const btnPrev  = document.getElementById('btnPrev');
-const btnNext  = document.getElementById('btnNext');
+const tabs = document.querySelectorAll('.tab');
+const btnPrev = document.getElementById('btnPrev');
+const btnNext = document.getElementById('btnNext');
 const btnSubmit = document.getElementById('btnSubmit');
 const progressFill = document.getElementById('progressFill');
-const headerSub    = document.getElementById('headerSub');
+const headerSub = document.getElementById('headerSub');
 const loggedUserName = document.getElementById('loggedUserName');
 const loggedUserRole = document.getElementById('loggedUserRole');
 const btnLogout = document.getElementById('btnLogout');
 const adminLink = document.getElementById('adminLink');
+const draftMeta = document.getElementById('draftMeta');
+const overlay = document.getElementById('overlay');
+const retryWrap = document.getElementById('retryWrap');
+const btnRetryGenerate = document.getElementById('btnRetryGenerate');
+const offlineBanner = document.getElementById('offlineBanner');
 
-const TAB_LABELS = ['Identificação','Dados Técnicos','Estrutura','Componentes','Exames & Fotos','Conclusão'];
-
-function goTo(n) {
-  sections[currentSection].classList.remove('active');
-  tabs[currentSection].classList.remove('active');
-  currentSection = n;
-  sections[currentSection].classList.add('active');
-  tabs[currentSection].classList.add('active');
-
-  // Scroll tab into view
-  tabs[currentSection].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-
-  btnPrev.disabled = currentSection === 0;
-  const isLast = currentSection === TOTAL_SECTIONS - 1;
-  btnNext.style.display  = isLast ? 'none' : 'flex';
-  btnSubmit.style.display = isLast ? 'flex' : 'none';
-
-  progressFill.style.width = `${((currentSection + 1) / TOTAL_SECTIONS) * 100}%`;
-  headerSub.textContent = `${TAB_LABELS[currentSection]} — ${currentSection + 1} de ${TOTAL_SECTIONS}`;
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = bytes;
+  let idx = 0;
+  while (size >= 1024 && idx < units.length - 1) {
+    size /= 1024;
+    idx += 1;
+  }
+  return `${size.toFixed(size >= 100 || idx === 0 ? 0 : 1)} ${units[idx]}`;
 }
 
-tabs.forEach((tab, i) => tab.addEventListener('click', () => goTo(i)));
-btnPrev.addEventListener('click', () => currentSection > 0 && goTo(currentSection - 1));
-btnNext.addEventListener('click', () => {
-  if (!validateSection(currentSection)) return;
-  if (currentSection < TOTAL_SECTIONS - 1) goTo(currentSection + 1);
-});
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = `toast ${type} show`;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), 3000);
+}
 
-// ─── Validação por seção ──────────────────────────────────────────────────
+function setFieldError(fieldName, message) {
+  const input = form.querySelector(`[name="${fieldName}"]`);
+  if (!input) return;
+  const field = input.closest('.field');
+  if (!field) return;
+  field.classList.add('has-error');
+  let errorEl = field.querySelector('.inline-error');
+  if (!errorEl) {
+    errorEl = document.createElement('div');
+    errorEl.className = 'inline-error';
+    field.appendChild(errorEl);
+  }
+  errorEl.textContent = message;
+}
+
+function clearFieldError(fieldName) {
+  const input = form.querySelector(`[name="${fieldName}"]`);
+  if (!input) return;
+  const field = input.closest('.field');
+  if (!field) return;
+  field.classList.remove('has-error');
+  const errorEl = field.querySelector('.inline-error');
+  if (errorEl) errorEl.textContent = '';
+}
+
 function validateSection(sec) {
-  if (sec !== 0) return true;
-  const required = document.querySelectorAll('.section[data-sec="0"] [required]');
-  for (const el of required) {
-    if (!el.value.trim()) {
-      showToast('⚠️ Preencha os campos obrigatórios', 'error');
-      el.focus();
+  const requiredFields = SECTION_REQUIRED[sec] || [];
+  if (requiredFields.length === 0) return true;
+
+  for (const fieldName of requiredFields) {
+    const input = form.querySelector(`[name="${fieldName}"]`);
+    const value = input ? String(input.value || '').trim() : '';
+    if (!value) {
+      setFieldError(fieldName, 'Campo obrigatório');
+      if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus();
+      }
       return false;
     }
+    clearFieldError(fieldName);
   }
   return true;
 }
 
-async function ensureAuthenticated() {
-  const res = await fetch('/auth/me', {
-    method: 'GET',
-    credentials: 'include',
+function computeFillPercent() {
+  const fields = [...form.querySelectorAll('input, select, textarea')]
+    .filter((el) => el.type !== 'file' && el.name && !el.disabled);
+  if (!fields.length) return 0;
+  const filled = fields.filter((el) => String(el.value || '').trim() !== '').length;
+  return Math.round((filled / fields.length) * 100);
+}
+
+function updateSectionUI() {
+  const isLast = currentSection === TOTAL_SECTIONS - 1;
+  btnPrev.disabled = currentSection === 0;
+  btnNext.style.display = isLast ? 'none' : 'flex';
+  btnSubmit.style.display = isLast ? 'flex' : 'none';
+
+  tabs.forEach((tab, idx) => {
+    tab.classList.toggle('active', idx === currentSection);
+    tab.classList.toggle('done', visitedSections.has(idx));
   });
 
+  const fillPercent = computeFillPercent();
+  progressFill.style.width = `${Math.max(((currentSection + 1) / TOTAL_SECTIONS) * 100, fillPercent)}%`;
+  headerSub.textContent = `Seção ${currentSection + 1} de ${TOTAL_SECTIONS} — ${fillPercent}% preenchido`;
+}
+
+function goTo(sectionIdx) {
+  sections[currentSection].classList.remove('active');
+  currentSection = sectionIdx;
+  sections[currentSection].classList.add('active');
+  visitedSections.add(currentSection);
+  tabs[currentSection].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  updateSectionUI();
+}
+
+function getDraftData() {
+  const data = {};
+  const fd = new FormData(form);
+  for (const [key, value] of fd.entries()) {
+    if (value instanceof File) continue;
+    data[key] = value;
+  }
+  return data;
+}
+
+function saveDraft() {
+  if (!draftKey) return;
+  const payload = {
+    savedAt: new Date().toISOString(),
+    data: getDraftData(),
+  };
+  localStorage.setItem(draftKey, JSON.stringify(payload));
+  const hhmm = new Date(payload.savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  draftMeta.textContent = `Rascunho salvo às ${hhmm}`;
+}
+
+function restoreDraftIfAny() {
+  if (!draftKey) return;
+  const raw = localStorage.getItem(draftKey);
+  if (!raw) return;
+  let parsed = null;
+  try { parsed = JSON.parse(raw); } catch (_) { localStorage.removeItem(draftKey); return; }
+  if (!parsed || !parsed.data) return;
+
+  const shouldRestore = window.confirm('Você tem um rascunho salvo. Deseja continuar?');
+  if (!shouldRestore) {
+    localStorage.removeItem(draftKey);
+    draftMeta.textContent = '';
+    return;
+  }
+
+  Object.entries(parsed.data).forEach(([key, value]) => {
+    const input = form.querySelector(`[name="${key}"]`);
+    if (input && input.type !== 'file') {
+      input.value = value;
+    }
+  });
+
+  document.querySelectorAll('.exam-btns').forEach((group) => {
+    const hidden = group.querySelector(`input[type="hidden"][name="${group.dataset.field}"]`);
+    if (!hidden) return;
+    const val = hidden.value || 'NA';
+    group.querySelectorAll('.btn-exam').forEach((b) => b.classList.toggle('active', b.dataset.val === val));
+  });
+
+  showToast('Rascunho restaurado', 'warn');
+  if (parsed.savedAt) {
+    const hhmm = new Date(parsed.savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    draftMeta.textContent = `Rascunho salvo às ${hhmm}`;
+  }
+}
+
+function clearDraft() {
+  if (draftKey) localStorage.removeItem(draftKey);
+  draftMeta.textContent = '';
+}
+
+async function compressImageFile(file) {
+  const imageBitmap = await createImageBitmap(file);
+  const maxSide = 1280;
+  let targetW = imageBitmap.width;
+  let targetH = imageBitmap.height;
+  if (Math.max(targetW, targetH) > maxSide) {
+    const scale = maxSide / Math.max(targetW, targetH);
+    targetW = Math.round(targetW * scale);
+    targetH = Math.round(targetH * scale);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(imageBitmap, 0, 0, targetW, targetH);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+  return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+}
+
+async function handlePhotoInputChange(input, slot, preview) {
+  if (!input.files || !input.files[0]) return;
+  const original = input.files[0];
+  const compressed = await compressImageFile(original);
+  const dt = new DataTransfer();
+  dt.items.add(compressed);
+  input.files = dt.files;
+
+  const sizeEl = slot.querySelector('.photo-size');
+  sizeEl.textContent = `${formatBytes(original.size)} → ${formatBytes(compressed.size)}`;
+  const url = URL.createObjectURL(compressed);
+  preview.src = url;
+  slot.classList.add('captured');
+}
+
+async function ensureAuthenticated() {
+  const res = await fetch('/auth/me', { method: 'GET', credentials: 'include' });
   if (res.status === 401) {
     window.location.replace('/login');
     return false;
   }
-
-  if (!res.ok) {
-    throw new Error(`Falha ao validar sessão (${res.status})`);
-  }
-
+  if (!res.ok) throw new Error(`Falha ao validar sessão (${res.status})`);
   const payload = await res.json();
   loggedUser = payload.user;
 
   loggedUserName.textContent = loggedUser.nome || 'Usuário';
   loggedUserRole.textContent = loggedUser.role || '-';
-  if (loggedUser.role === 'ADMIN') {
-    adminLink.classList.remove('hidden');
-  }
+  if (loggedUser.role === 'ADMIN') adminLink.classList.remove('hidden');
+  draftKey = `isotank_draft_${loggedUser.id}`;
   return true;
 }
 
 btnLogout.addEventListener('click', async () => {
-  try {
-    await fetch('/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-  } catch (_) {
-    // Ignorar erro de rede no logout e redirecionar assim mesmo.
-  }
-
+  try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {}
   window.location.replace('/login');
 });
 
-// ─── Submissão ────────────────────────────────────────────────────────────
-btnSubmit.addEventListener('click', async () => {
-  if (!validateSection(0)) { goTo(0); return; }
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => {
+    if (!visitedSections.has(i)) return;
+    goTo(i);
+  });
+});
+btnPrev.addEventListener('click', () => currentSection > 0 && goTo(currentSection - 1));
+btnNext.addEventListener('click', () => {
+  if (!validateSection(currentSection)) {
+    showToast('Preencha os campos obrigatórios da seção', 'warn');
+    return;
+  }
+  if (currentSection < TOTAL_SECTIONS - 1) goTo(currentSection + 1);
+});
 
-  const overlay = document.getElementById('overlay');
+async function submitGenerate() {
+  if (isSubmitting) return;
+  if (!validateSection(currentSection)) return;
+  isSubmitting = true;
+  btnSubmit.disabled = true;
+  retryWrap.classList.remove('show');
   overlay.classList.add('active');
 
   try {
-    const form = document.getElementById('laudoForm');
-    const fd   = new FormData(form);
+    const fd = new FormData(form);
     const laudoPayload = {};
-
     for (const [key, value] of fd.entries()) {
       if (value instanceof File) continue;
       laudoPayload[key] = value;
@@ -905,75 +1169,77 @@ btnSubmit.addEventListener('click', async () => {
       credentials: 'include',
       body: JSON.stringify(laudoPayload),
     });
-
     if (!laudoRes.ok) {
       const err = await laudoRes.json().catch(() => ({ error: 'Erro ao criar laudo' }));
       throw new Error(err.error || `Falha ao salvar laudo (HTTP ${laudoRes.status})`);
     }
-
     const laudo = await laudoRes.json();
     fd.set('laudoId', laudo.id);
 
-    const res  = await fetch('/generate', {
-      method: 'POST',
-      credentials: 'include',
-      body: fd,
-    });
+    const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
+    if (!res.ok) throw new Error('Erro ao gerar laudo. Tente novamente.');
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-
-    const blob     = await res.blob();
+    const blob = await res.blob();
     const cdHeader = res.headers.get('Content-Disposition') || '';
-    const match    = cdHeader.match(/filename="([^"]+)"/);
+    const match = cdHeader.match(/filename="([^"]+)"/);
     const filename = match ? match[1] : 'laudo.docx';
-
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href     = url;
+    link.href = url;
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
 
-    showToast('✅ Laudo gerado com sucesso!', 'success');
+    clearDraft();
+    showToast('Laudo gerado com sucesso!', 'success');
   } catch (err) {
-    showToast(`❌ ${err.message}`, 'error');
-    console.error(err);
+    retryWrap.classList.add('show');
+    showToast(err.message || 'Erro ao gerar laudo. Tente novamente.', 'error');
   } finally {
+    isSubmitting = false;
+    btnSubmit.disabled = false;
     overlay.classList.remove('active');
   }
+}
+
+btnSubmit.addEventListener('click', submitGenerate);
+btnRetryGenerate.addEventListener('click', submitGenerate);
+
+form.addEventListener('input', (event) => {
+  if (event.target && event.target.name) clearFieldError(event.target.name);
+  saveDraft();
+  updateSectionUI();
+});
+form.addEventListener('change', (event) => {
+  if (event.target && event.target.name) clearFieldError(event.target.name);
+  saveDraft();
+  updateSectionUI();
 });
 
-// ─── Toast ────────────────────────────────────────────────────────────────
-function showToast(msg, type = '') {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = `toast ${type} show`;
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => toast.classList.remove('show'), 3500);
-}
+window.addEventListener('offline', () => offlineBanner.classList.add('show'));
+window.addEventListener('online', () => offlineBanner.classList.remove('show'));
 
 // ─── PWA Service Worker ───────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
-// Setar data de hoje como padrão
-document.querySelector('input[name="data_inspecao"]').value =
-  new Date().toISOString().split('T')[0];
+NUMERIC_FIELDS.forEach((name) => {
+  const input = form.querySelector(`input[name="${name}"]`);
+  if (input) input.setAttribute('inputmode', 'numeric');
+});
 
-// Inicializar barra de progresso
+document.querySelector('input[name="data_inspecao"]').value = new Date().toISOString().split('T')[0];
+
 (async () => {
   try {
     const ok = await ensureAuthenticated();
     if (!ok) return;
-
+    restoreDraftIfAny();
     goTo(0);
   } catch (err) {
     console.error(err);
-    showToast('❌ Não foi possível validar sua sessão', 'error');
+    showToast('Não foi possível validar sua sessão', 'error');
     setTimeout(() => window.location.replace('/login'), 1200);
   }
 })();
