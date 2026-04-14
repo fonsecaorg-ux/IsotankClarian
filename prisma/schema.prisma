@@ -47,6 +47,8 @@ model Laudo {
 
   createdById       String
   createdBy         User        @relation("LaudoCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  equipamentoId     String?
+  equipamento       Equipamento? @relation(fields: [equipamentoId], references: [id])
 
   auditLogs         AuditLog[]
 
@@ -54,6 +56,44 @@ model Laudo {
   @@index([status])
   @@index([numeroIdentificacao])
   @@index([dataInspecao])
+  @@index([equipamentoId])
+}
+
+model Cliente {
+  id           String       @id @default(uuid())
+  nome         String       @unique
+  endereco     String?
+  ativo        Boolean      @default(true)
+  equipamentos Equipamento[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Equipamento {
+  id                  String    @id @default(uuid())
+  numeroIdentificacao String    @unique
+  fabricante          String
+  numeroSerie         String?
+  paisFabricacao      String?
+  tamanho             String?
+  capacidadeLiquida   String?
+  anoFabricacao       String?
+  normaFabricacao     String?
+  materialCalota      String?
+  materialCostado     String?
+  espessura           String?
+  totalInspecoes      Int       @default(0)
+  ultimaInspecao      DateTime?
+  proximoVencimento   DateTime?
+  ativo               Boolean   @default(true)
+  clienteId           String?
+  cliente             Cliente?  @relation(fields: [clienteId], references: [id])
+  laudos              Laudo[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([clienteId])
+  @@index([ativo])
 }
 
 model AuditLog {

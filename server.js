@@ -15,6 +15,8 @@ const requireRole = require('./src/middlewares/requireRole');
 const laudosRoutes = require('./src/routes/laudos');
 const adminRoutes = require('./src/routes/admin');
 const dashboardRoutes = require('./src/routes/dashboard');
+const equipamentosRoutes = require('./src/routes/equipamentos');
+const clientesRoutes = require('./src/routes/clientes');
 const { checkVencimentos } = require('./src/services/alertaVencimento');
 
 const app = express();
@@ -168,6 +170,8 @@ app.get('/auth/admin/ping', authMiddleware, requireRole('ADMIN'), (req, res) => 
 app.use('/laudos', laudosRoutes);
 app.use('/admin', adminRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/equipamentos', equipamentosRoutes);
+app.use('/clientes', clientesRoutes);
 
 function buildTemplateData(formData, cfg, dataPt) {
   return {
@@ -395,6 +399,78 @@ app.post(
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(outputBuffer);
+
+      // Cadastro automático de cliente/equipamento (não crítico).
+      // Este bloco roda após o download ser disparado e nunca deve quebrar a resposta.
+      try {
+        const clienteNome = String(templateData.cliente || '').trim();
+        const numeroIdentificacao = String(templateData.numero_identificacao || '').trim();
+        const dataInspecaoRaw = body.data_inspecao || sourceData.data_inspecao;
+        const dataInspecao = dataInspecaoRaw ? new Date(dataInspecaoRaw) : null;
+        const dataInspecaoValida = dataInspecao && !Number.isNaN(dataInspecao.getTime())
+          ? dataInspecao
+          : null;
+        const proximoVencimento = dataInspecaoValida
+          ? new Date(dataInspecaoValida.getFullYear() + 1, dataInspecaoValida.getMonth(), dataInspecaoValida.getDate())
+          : null;
+
+        if (clienteNome && numeroIdentificacao) {
+          const cliente = await prisma.cliente.upsert({
+            where: { nome: clienteNome },
+            update: {},
+            create: {
+              nome: clienteNome,
+              endereco: templateData.endereco || null,
+            },
+          });
+
+          const equipamento = await prisma.equipamento.upsert({
+            where: { numeroIdentificacao },
+            update: {
+              fabricante: templateData.fabricante || 'N/A',
+              numeroSerie: templateData.numero_serie || null,
+              paisFabricacao: templateData.pais_fabricacao || null,
+              tamanho: templateData.tamanho || null,
+              capacidadeLiquida: templateData.capacidade_liquida || null,
+              anoFabricacao: templateData.ano_fabricacao || null,
+              normaFabricacao: templateData.norma_fabricacao || null,
+              materialCalota: templateData.material_calota || null,
+              materialCostado: templateData.material_costado || null,
+              espessura: templateData.espessura || null,
+              ultimaInspecao: dataInspecaoValida,
+              proximoVencimento,
+              totalInspecoes: { increment: 1 },
+              clienteId: cliente.id,
+            },
+            create: {
+              numeroIdentificacao,
+              fabricante: templateData.fabricante || 'N/A',
+              numeroSerie: templateData.numero_serie || null,
+              paisFabricacao: templateData.pais_fabricacao || null,
+              tamanho: templateData.tamanho || null,
+              capacidadeLiquida: templateData.capacidade_liquida || null,
+              anoFabricacao: templateData.ano_fabricacao || null,
+              normaFabricacao: templateData.norma_fabricacao || null,
+              materialCalota: templateData.material_calota || null,
+              materialCostado: templateData.material_costado || null,
+              espessura: templateData.espessura || null,
+              ultimaInspecao: dataInspecaoValida,
+              proximoVencimento,
+              totalInspecoes: 1,
+              clienteId: cliente.id,
+            },
+          });
+
+          if (laudo?.id) {
+            await prisma.laudo.update({
+              where: { id: laudo.id },
+              data: { equipamentoId: equipamento.id },
+            });
+          }
+        }
+      } catch (errCadastroEquipamento) {
+        console.error('Erro ao cadastrar equipamento (não crítico):', errCadastroEquipamento);
+      }
 
     } catch (err) {
       console.error('Erro ao gerar laudo:', err);
