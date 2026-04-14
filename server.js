@@ -578,9 +578,9 @@ async function bootstrap() {
   try {
     await ensureDefaultUsers();
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`\n  CEINSPEC Isotank — Laudo Generator`);
-      console.log(`  Servidor rodando em http://localhost:${PORT}\n`);
+      console.log(`  Servidor rodando na porta ${PORT}\n`);
 
       const runAlertCheck = async () => {
         try {

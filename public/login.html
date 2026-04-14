@@ -86,14 +86,21 @@
       margin-bottom: 16px;
     }
 
+    .login-center {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     .cesari-logo {
- .cesari-logo {
-  width: 160px;
-  margin-bottom: 24px;
-  display: block;
-  mix-blend-mode: screen;
-  filter: brightness(2) invert(1);
-}
+      width: 120px;
+      mix-blend-mode: screen;
+      filter: brightness(2) invert(1);
+      display: block;
+      margin: 0 auto 20px auto;
+    }
     .footer-note {
       position: fixed;
       bottom: 16px;
@@ -161,14 +168,14 @@
     @media (max-width: 768px) {
       .card { width: 90%; max-width: 400px; padding: 16px; }
       .btn { width: 100%; }
-      .cesari-logo { width: 140px; }
     }
   </style>
 </head>
 <body>
   <div class="login-wrap">
-    <img src="/images/logo_cesari.png" alt="Cesari" class="cesari-logo">
-    <main class="card">
+    <div class="login-center">
+      <img src="/images/logo_cesari.png" alt="Cesari" class="cesari-logo">
+      <main class="card">
       <div class="logo-wrap">
         <img src="/logo-ceinspec.png" alt="CEINSPEC" class="logo">
       </div>
@@ -188,6 +195,7 @@
         <p class="error" id="loginError"></p>
       </form>
     </main>
+    </div>
   </div>
   <p class="footer-note">Desenvolvido pela Célula Inovação - SI · 2026</p>
 

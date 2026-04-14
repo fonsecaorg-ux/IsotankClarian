@@ -221,6 +221,17 @@ O servidor é compatível com o **filesystem efêmero** do Render por não escre
 
 > **Atenção:** a pasta `uploads/` e `output/` existem apenas localmente para testes. No Render elas nunca são criadas nem necessárias — todo o processamento é em RAM.
 
+### Erro “Not Found” ao abrir o site
+
+| Causa | O que fazer |
+|---|---|
+| **Serviço errado** | Crie um **Web Service** (Node), **não** um *Static Site*. Este app precisa rodar `node server.js` para servir o PWA e o `POST /generate`. |
+| **Start Command** | Deve ser `npm start` (ou `node server.js`). |
+| **Root Directory** | Deixe vazio (raiz do repositório), a menos que o projeto esteja em subpasta. |
+| **Deploy antigo / falha no build** | Abra **Logs** no painel do Render: se o processo cair na subida (ex.: `template/template.docx` ausente), o site pode responder com erro. Faça **Manual Deploy → Clear build cache & deploy**. |
+
+O servidor escuta em `0.0.0.0` e na porta `PORT` definida pelo Render.
+
 ---
 
 ## Roadmap (próximas versões)
