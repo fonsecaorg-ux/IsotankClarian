@@ -1004,7 +1004,7 @@ function updateSectionUI() {
 }
 
 function goTo(sectionIdx) {
-  sections[currentSection].classList.remove('active');
+  sections.forEach((section) => section.classList.remove('active'));
   currentSection = sectionIdx;
   sections[currentSection].classList.add('active');
   visitedSections.add(currentSection);
@@ -1134,7 +1134,6 @@ btnLogout.addEventListener('click', async () => {
 
 tabs.forEach((tab, i) => {
   tab.addEventListener('click', () => {
-    if (!visitedSections.has(i)) return;
     goTo(i);
   });
 });
