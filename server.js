@@ -382,33 +382,44 @@ app.post(
 );
 
 async function ensureDefaultUsers() {
-  const totalUsers = await prisma.user.count();
-
-  if (totalUsers > 0) return;
-
   const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
   const inspetorPasswordHash = await bcrypt.hash('Inspetor@123', 10);
 
-  await prisma.user.createMany({
-    data: [
-      {
-        nome: 'Administrador CEINSPEC',
-        email: 'admin@ceinspec.local',
-        passwordHash: adminPasswordHash,
-        role: 'ADMIN',
-        ativo: true,
-      },
-      {
-        nome: 'Inspetor Padrão',
-        email: 'inspetor@ceinspec.local',
-        passwordHash: inspetorPasswordHash,
-        role: 'INSPETOR',
-        ativo: true,
-      },
-    ],
+  await prisma.user.upsert({
+    where: { email: 'admin@ceinspec.local' },
+    update: {
+      nome: 'Administrador CEINSPEC',
+      passwordHash: adminPasswordHash,
+      role: 'ADMIN',
+      ativo: true,
+    },
+    create: {
+      nome: 'Administrador CEINSPEC',
+      email: 'admin@ceinspec.local',
+      passwordHash: adminPasswordHash,
+      role: 'ADMIN',
+      ativo: true,
+    },
   });
 
-  console.log('Usuários padrão criados automaticamente.');
+  await prisma.user.upsert({
+    where: { email: 'inspetor@ceinspec.local' },
+    update: {
+      nome: 'Inspetor Padrão',
+      passwordHash: inspetorPasswordHash,
+      role: 'INSPETOR',
+      ativo: true,
+    },
+    create: {
+      nome: 'Inspetor Padrão',
+      email: 'inspetor@ceinspec.local',
+      passwordHash: inspetorPasswordHash,
+      role: 'INSPETOR',
+      ativo: true,
+    },
+  });
+
+  console.log('Usuários padrão garantidos automaticamente.');
 }
 
 async function bootstrap() {
