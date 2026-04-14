@@ -57,9 +57,18 @@ router.get('/', async (req, res) => {
         id: true,
         numeroIdentificacao: true,
         cliente: true,
+        endereco: true,
         status: true,
         dataInspecao: true,
         createdAt: true,
+        createdById: true,
+        createdBy: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
       },
     });
 
@@ -74,6 +83,27 @@ router.get('/:id', async (req, res) => {
   try {
     const laudo = await prisma.laudo.findUnique({
       where: { id: req.params.id },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        auditLogs: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                nome: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!laudo) {

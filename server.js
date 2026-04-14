@@ -13,6 +13,7 @@ const prisma = require('./src/lib/prisma');
 const authMiddleware = require('./src/middlewares/authMiddleware');
 const requireRole = require('./src/middlewares/requireRole');
 const laudosRoutes = require('./src/routes/laudos');
+const adminRoutes = require('./src/routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -144,6 +145,7 @@ app.get('/auth/admin/ping', authMiddleware, requireRole('ADMIN'), (req, res) => 
 });
 
 app.use('/laudos', laudosRoutes);
+app.use('/admin', adminRoutes);
 
 function buildTemplateData(formData, cfg, dataPt) {
   return {

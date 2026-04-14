@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a1628">
+  <title>CEINSPEC — Painel Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a1628;
+      --surface: #0f1f3d;
+      --card: #162040;
+      --border: #1e2f55;
+      --accent: #e8a020;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --success: #22c55e;
+      --warn: #f59e0b;
+      --info: #3b82f6;
+      --danger: #ef4444;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 18px 14px;
+    }
+    .logo {
+      width: 150px;
+      max-width: 100%;
+      margin-bottom: 16px;
+    }
+    .nav-btn {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .nav-btn.active { border-color: var(--accent); color: var(--accent); }
+    .main { padding: 16px; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .title { color: var(--accent); font-size: 20px; font-weight: 800; }
+    .user-meta { color: var(--muted); font-size: 12px; }
+    .actions-top { display: flex; gap: 8px; align-items: center; }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .btn.accent { border-color: var(--accent); color: var(--accent); }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 160px 150px 150px;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    input, select {
+      width: 100%;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 10px;
+    }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1050px; }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+      font-size: 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 700; background: rgba(15, 31, 61, 0.5); }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .badge.PENDENTE { background: rgba(245, 158, 11, .2); color: var(--warn); }
+    .badge.GERADO { background: rgba(59, 130, 246, .2); color: var(--info); }
+    .badge.ASSINADO { background: rgba(34, 197, 94, .2); color: var(--success); }
+    .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .hidden { display: none !important; }
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      z-index: 50;
+    }
+    .modal-bg.active { display: flex; }
+    .modal {
+      width: min(980px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .modal h3 { color: var(--accent); margin-bottom: 10px; }
+    .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .kv {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      background: var(--surface);
+      font-size: 12px;
+    }
+    .kv b { color: var(--accent); display: block; margin-bottom: 4px; }
+    .audit-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      background: var(--surface);
+    }
+    .error {
+      color: var(--danger);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+      .filters { grid-template-columns: 1fr; }
+      .grid2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <img src="/logo-ceinspec.png" alt="CEINSPEC" class="logo">
+      <button class="nav-btn active" id="tabLaudosBtn">Laudos</button>
+      <button class="nav-btn" id="tabUsersBtn">Usuários</button>
+      <a href="/index.html" class="btn" style="display:inline-block;text-decoration:none;margin-top:8px;">Voltar ao formulário</a>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div>
+          <h1 class="title">Painel Admin</h1>
+          <p class="user-meta" id="adminMeta">Carregando sessão...</p>
+        </div>
+        <div class="actions-top">
+          <button class="btn" id="btnRefresh">Atualizar</button>
+          <button class="btn accent" id="btnLogout">Sair</button>
+        </div>
+      </header>
+
+      <section id="laudosSection" class="panel">
+        <div class="filters">
+          <input type="text" id="searchInput" placeholder="Buscar por container ou cliente">
+          <select id="statusFilter">
+            <option value="">Todos os status</option>
+            <option value="PENDENTE">PENDENTE</option>
+            <option value="GERADO">GERADO</option>
+            <option value="ASSINADO">ASSINADO</option>
+          </select>
+          <input type="date" id="dateStart">
+          <input type="date" id="dateEnd">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Container</th>
+                <th>Cliente</th>
+                <th>Inspetor</th>
+                <th>Status</th>
+                <th>Data Inspeção</th>
+                <th>Data Criação</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="laudosBody"></tbody>
+          </table>
+        </div>
+        <p id="laudosError" class="error"></p>
+      </section>
+
+      <section id="usersSection" class="panel hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h2 style="font-size:16px;color:var(--accent);">Usuários</h2>
+          <button class="btn accent" id="btnNewUser">Novo Usuário</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Criado em</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+        <p id="usersError" class="error"></p>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-bg" id="detailModalBg">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>Detalhe do Laudo</h3>
+        <button class="btn" id="closeDetailModal">Fechar</button>
+      </div>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="newUserModalBg">
+    <div class="modal" style="max-width:560px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>Novo Usuário</h3>
+        <button class="btn" id="closeUserModal">Fechar</button>
+      </div>
+      <form id="newUserForm">
+        <div class="grid2">
+          <input type="text" name="name" placeholder="Nome" required>
+          <input type="email" name="email" placeholder="E-mail" required>
+          <input type="password" name="password" placeholder="Senha inicial" required>
+          <select name="role" required>
+            <option value="INSPETOR">INSPETOR</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px;">
+          <button type="submit" class="btn accent">Criar usuário</button>
+        </div>
+      </form>
+      <p id="newUserError" class="error"></p>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const state = {
+      user: null,
+      laudos: [],
+      users: [],
+      tab: 'laudos',
+    };
+
+    const el = {
+      adminMeta: document.getElementById('adminMeta'),
+      btnLogout: document.getElementById('btnLogout'),
+      btnRefresh: document.getElementById('btnRefresh'),
+      tabLaudosBtn: document.getElementById('tabLaudosBtn'),
+      tabUsersBtn: document.getElementById('tabUsersBtn'),
+      laudosSection: document.getElementById('laudosSection'),
+      usersSection: document.getElementById('usersSection'),
+      searchInput: document.getElementById('searchInput'),
+      statusFilter: document.getElementById('statusFilter'),
+      dateStart: document.getElementById('dateStart'),
+      dateEnd: document.getElementById('dateEnd'),
+      laudosBody: document.getElementById('laudosBody'),
+      usersBody: document.getElementById('usersBody'),
+      laudosError: document.getElementById('laudosError'),
+      usersError: document.getElementById('usersError'),
+      detailModalBg: document.getElementById('detailModalBg'),
+      detailContent: document.getElementById('detailContent'),
+      closeDetailModal: document.getElementById('closeDetailModal'),
+      btnNewUser: document.getElementById('btnNewUser'),
+      newUserModalBg: document.getElementById('newUserModalBg'),
+      closeUserModal: document.getElementById('closeUserModal'),
+      newUserForm: document.getElementById('newUserForm'),
+      newUserError: document.getElementById('newUserError'),
+    };
+
+    function fmtDate(dateValue) {
+      if (!dateValue) return '-';
+      const d = new Date(dateValue);
+      if (Number.isNaN(d.getTime())) return '-';
+      return d.toLocaleString('pt-BR');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        credentials: 'include',
+        ...options,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Erro de requisição' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      if (res.status === 204) return null;
+      return res.json();
+    }
+
+    async function checkAdminAccess() {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.replace('/login.html');
+        return false;
+      }
+      if (!res.ok) throw new Error('Erro ao validar sessão');
+
+      const payload = await res.json();
+      state.user = payload.user;
+
+      if (state.user.role !== 'ADMIN') {
+        window.location.replace('/index.html');
+        return false;
+      }
+
+      el.adminMeta.textContent = `${state.user.nome} (${state.user.role})`;
+      return true;
+    }
+
+    function renderLaudosTable() {
+      const q = el.searchInput.value.trim().toLowerCase();
+      const status = el.statusFilter.value;
+      const start = el.dateStart.value ? new Date(`${el.dateStart.value}T00:00:00`) : null;
+      const end = el.dateEnd.value ? new Date(`${el.dateEnd.value}T23:59:59`) : null;
+
+      const items = state.laudos.filter((l) => {
+        const text = `${l.numeroIdentificacao || ''} ${l.cliente || ''}`.toLowerCase();
+        const matchesSearch = !q || text.includes(q);
+        const matchesStatus = !status || l.status === status;
+        const d = l.dataInspecao ? new Date(l.dataInspecao) : null;
+        const matchesStart = !start || (d && d >= start);
+        const matchesEnd = !end || (d && d <= end);
+        return matchesSearch && matchesStatus && matchesStart && matchesEnd;
+      });
+
+      if (items.length === 0) {
+        el.laudosBody.innerHTML = '<tr><td colspan="8">Nenhum laudo encontrado.</td></tr>';
+        return;
+      }
+
+      el.laudosBody.innerHTML = items.map((l) => `
+        <tr>
+          <td>${escapeHtml(l.id)}</td>
+          <td>${escapeHtml(l.numeroIdentificacao || '-')}</td>
+          <td>${escapeHtml(l.cliente || '-')}</td>
+          <td>${escapeHtml(l.createdBy?.nome || '-')}</td>
+          <td><span class="badge ${escapeHtml(l.status)}">${escapeHtml(l.status)}</span></td>
+          <td>${fmtDate(l.dataInspecao)}</td>
+          <td>${fmtDate(l.createdAt)}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn" data-action="detail" data-id="${escapeHtml(l.id)}">Ver detalhe</button>
+              <select data-action="status" data-id="${escapeHtml(l.id)}">
+                <option value="PENDENTE" ${l.status === 'PENDENTE' ? 'selected' : ''}>PENDENTE</option>
+                <option value="GERADO" ${l.status === 'GERADO' ? 'selected' : ''}>GERADO</option>
+                <option value="ASSINADO" ${l.status === 'ASSINADO' ? 'selected' : ''}>ASSINADO</option>
+              </select>
+              <button class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar docx</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderUsersTable() {
+      if (state.users.length === 0) {
+        el.usersBody.innerHTML = '<tr><td colspan="6">Nenhum usuário encontrado.</td></tr>';
+        return;
+      }
+
+      el.usersBody.innerHTML = state.users.map((u) => `
+        <tr>
+          <td>${escapeHtml(u.nome)}</td>
+          <td>${escapeHtml(u.email)}</td>
+          <td>${escapeHtml(u.role)}</td>
+          <td>${u.ativo ? 'Ativo' : 'Inativo'}</td>
+          <td>${fmtDate(u.createdAt)}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn" data-user-action="toggle" data-id="${u.id}" data-active="${u.ativo}">
+                ${u.ativo ? 'Desativar' : 'Ativar'}
+              </button>
+              <button class="btn" data-user-action="edit" data-id="${u.id}">Editar</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadLaudos() {
+      el.laudosError.textContent = '';
+      try {
+        state.laudos = await api('/laudos');
+        renderLaudosTable();
+      } catch (err) {
+        el.laudosError.textContent = err.message;
+      }
+    }
+
+    async function loadUsers() {
+      el.usersError.textContent = '';
+      try {
+        state.users = await api('/admin/users');
+        renderUsersTable();
+      } catch (err) {
+        el.usersError.textContent = err.message;
+      }
+    }
+
+    function switchTab(tab) {
+      state.tab = tab;
+      el.tabLaudosBtn.classList.toggle('active', tab === 'laudos');
+      el.tabUsersBtn.classList.toggle('active', tab === 'users');
+      el.laudosSection.classList.toggle('hidden', tab !== 'laudos');
+      el.usersSection.classList.toggle('hidden', tab !== 'users');
+    }
+
+    async function showLaudoDetail(laudoId) {
+      const detail = await api(`/laudos/${laudoId}`);
+
+      const formEntries = Object.entries(detail.formData || {}).map(([k, v]) => `
+        <div class="kv"><b>${escapeHtml(k)}</b>${escapeHtml(v)}</div>
+      `).join('');
+
+      const auditEntries = (detail.auditLogs || []).map((a) => `
+        <div class="audit-item">
+          <b>${escapeHtml(a.action)}</b><br>
+          De: ${escapeHtml(a.fromStatus || '-')} → Para: ${escapeHtml(a.toStatus || '-')}<br>
+          Por: ${escapeHtml(a.user?.nome || 'Sistema')}<br>
+          Em: ${fmtDate(a.createdAt)}
+        </div>
+      `).join('') || '<p>Nenhum histórico de status.</p>';
+
+      el.detailContent.innerHTML = `
+        <div class="grid2" style="margin-bottom:10px;">
+          <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
+          <div class="kv"><b>Status</b><span class="badge ${escapeHtml(detail.status)}">${escapeHtml(detail.status)}</span></div>
+          <div class="kv"><b>Container</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
+          <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
+          <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>
+          <div class="kv"><b>Criado em</b>${fmtDate(detail.createdAt)}</div>
+        </div>
+        <h3 style="font-size:14px;margin-bottom:8px;">Campos do Formulário</h3>
+        <div class="grid2">${formEntries || '<p>Sem dados de formulário.</p>'}</div>
+        <h3 style="font-size:14px;margin:14px 0 8px;">Histórico de Status</h3>
+        ${auditEntries}
+      `;
+
+      el.detailModalBg.classList.add('active');
+    }
+
+    async function reprocessLaudo(laudoId) {
+      const fd = new FormData();
+      fd.set('laudoId', laudoId);
+
+      const res = await fetch('/generate', {
+        method: 'POST',
+        body: fd,
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Erro ao reprocessar laudo' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const cdHeader = res.headers.get('Content-Disposition') || '';
+      const match = cdHeader.match(/filename="([^"]+)"/);
+      const filename = match ? match[1] : `LAUDO_${laudoId}.docx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    el.searchInput.addEventListener('input', renderLaudosTable);
+    el.statusFilter.addEventListener('change', renderLaudosTable);
+    el.dateStart.addEventListener('change', renderLaudosTable);
+    el.dateEnd.addEventListener('change', renderLaudosTable);
+
+    el.tabLaudosBtn.addEventListener('click', () => switchTab('laudos'));
+    el.tabUsersBtn.addEventListener('click', async () => {
+      switchTab('users');
+      if (!state.users.length) await loadUsers();
+    });
+
+    el.btnRefresh.addEventListener('click', async () => {
+      if (state.tab === 'laudos') await loadLaudos();
+      if (state.tab === 'users') await loadUsers();
+    });
+
+    el.btnLogout.addEventListener('click', async () => {
+      try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {}
+      window.location.replace('/login.html');
+    });
+
+    el.laudosBody.addEventListener('click', async (ev) => {
+      const action = ev.target.dataset.action;
+      const id = ev.target.dataset.id;
+      if (!action || !id) return;
+
+      try {
+        if (action === 'detail') await showLaudoDetail(id);
+        if (action === 'reprocess') {
+          await reprocessLaudo(id);
+          await loadLaudos();
+        }
+      } catch (err) {
+        el.laudosError.textContent = err.message;
+      }
+    });
+
+    el.laudosBody.addEventListener('change', async (ev) => {
+      if (ev.target.dataset.action !== 'status') return;
+      const id = ev.target.dataset.id;
+      const status = ev.target.value;
+      try {
+        await api(`/laudos/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+        await loadLaudos();
+      } catch (err) {
+        el.laudosError.textContent = err.message;
+      }
+    });
+
+    el.usersBody.addEventListener('click', async (ev) => {
+      const action = ev.target.dataset.userAction;
+      const id = ev.target.dataset.id;
+      if (!action || !id) return;
+
+      try {
+        if (action === 'toggle') {
+          const next = ev.target.dataset.active !== 'true';
+          await api(`/admin/users/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: next }),
+          });
+          await loadUsers();
+        }
+
+        if (action === 'edit') {
+          const user = state.users.find((u) => u.id === id);
+          if (!user) return;
+
+          const newName = prompt('Novo nome do usuário:', user.nome);
+          if (!newName) return;
+          const newRole = prompt('Nova role (ADMIN ou INSPETOR):', user.role);
+          if (!newRole) return;
+
+          await api(`/admin/users/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName, role: newRole.toUpperCase() }),
+          });
+          await loadUsers();
+        }
+      } catch (err) {
+        el.usersError.textContent = err.message;
+      }
+    });
+
+    el.btnNewUser.addEventListener('click', () => {
+      el.newUserError.textContent = '';
+      el.newUserForm.reset();
+      el.newUserModalBg.classList.add('active');
+    });
+
+    el.newUserForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      el.newUserError.textContent = '';
+
+      const fd = new FormData(el.newUserForm);
+      const payload = {
+        name: String(fd.get('name') || '').trim(),
+        email: String(fd.get('email') || '').trim().toLowerCase(),
+        password: String(fd.get('password') || ''),
+        role: String(fd.get('role') || 'INSPETOR'),
+      };
+
+      try {
+        await api('/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        el.newUserModalBg.classList.remove('active');
+        await loadUsers();
+      } catch (err) {
+        el.newUserError.textContent = err.message;
+      }
+    });
+
+    el.closeDetailModal.addEventListener('click', () => el.detailModalBg.classList.remove('active'));
+    el.closeUserModal.addEventListener('click', () => el.newUserModalBg.classList.remove('active'));
+    el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) el.detailModalBg.classList.remove('active'); });
+    el.newUserModalBg.addEventListener('click', (ev) => { if (ev.target === el.newUserModalBg) el.newUserModalBg.classList.remove('active'); });
+
+    (async () => {
+      try {
+        const ok = await checkAdminAccess();
+        if (!ok) return;
+        await loadLaudos();
+      } catch (_) {
+        window.location.replace('/login.html');
+      }
+    })();
+  </script>
+</body>
+</html>

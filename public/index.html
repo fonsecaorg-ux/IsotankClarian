@@ -61,6 +61,41 @@
   .header-title { flex: 1; }
   .header-title h1 { font-size: 15px; font-weight: 700; color: var(--accent); }
   .header-title p  { font-size: 11px; color: var(--muted); }
+  .header-user {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .header-user-meta {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.25;
+  }
+  .header-user-meta strong {
+    color: var(--text);
+    font-size: 12px;
+    display: block;
+  }
+  .btn-logout {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-logout:hover { border-color: var(--accent); }
+  .admin-link {
+    color: var(--accent);
+    font-size: 11px;
+    text-decoration: none;
+    font-weight: 700;
+  }
+  .admin-link.hidden { display: none; }
 
   /* ── Progress bar ────────────────────────────────────────────────────────── */
   .progress-bar {
@@ -363,6 +398,14 @@
   <div class="header-title">
     <h1>Laudo Visual — Isotank</h1>
     <p id="headerSub">Seção 1 de 6</p>
+  </div>
+  <div class="header-user">
+    <div class="header-user-meta">
+      <strong id="loggedUserName">Carregando...</strong>
+      <span id="loggedUserRole">--</span>
+    </div>
+    <a class="admin-link hidden" id="adminLink" href="/admin.html">Painel Admin</a>
+    <button type="button" class="btn-logout" id="btnLogout">Sair</button>
   </div>
 </header>
 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
@@ -744,6 +787,7 @@ document.querySelectorAll('.exam-btns').forEach(group => {
 // ─── Navegação de seções ──────────────────────────────────────────────────
 const TOTAL_SECTIONS = 6;
 let currentSection = 0;
+let loggedUser = null;
 
 const sections = document.querySelectorAll('.section');
 const tabs     = document.querySelectorAll('.tab');
@@ -752,6 +796,10 @@ const btnNext  = document.getElementById('btnNext');
 const btnSubmit = document.getElementById('btnSubmit');
 const progressFill = document.getElementById('progressFill');
 const headerSub    = document.getElementById('headerSub');
+const loggedUserName = document.getElementById('loggedUserName');
+const loggedUserRole = document.getElementById('loggedUserRole');
+const btnLogout = document.getElementById('btnLogout');
+const adminLink = document.getElementById('adminLink');
 
 const TAB_LABELS = ['Identificação','Dados Técnicos','Estrutura','Componentes','Exames & Fotos','Conclusão'];
 
@@ -795,6 +843,45 @@ function validateSection(sec) {
   return true;
 }
 
+async function ensureAuthenticated() {
+  const res = await fetch('/auth/me', {
+    method: 'GET',
+    credentials: 'include',
+  });
+
+  if (res.status === 401) {
+    window.location.replace('/login.html');
+    return false;
+  }
+
+  if (!res.ok) {
+    throw new Error(`Falha ao validar sessão (${res.status})`);
+  }
+
+  const payload = await res.json();
+  loggedUser = payload.user;
+
+  loggedUserName.textContent = loggedUser.nome || 'Usuário';
+  loggedUserRole.textContent = loggedUser.role || '-';
+  if (loggedUser.role === 'ADMIN') {
+    adminLink.classList.remove('hidden');
+  }
+  return true;
+}
+
+btnLogout.addEventListener('click', async () => {
+  try {
+    await fetch('/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch (_) {
+    // Ignorar erro de rede no logout e redirecionar assim mesmo.
+  }
+
+  window.location.replace('/login.html');
+});
+
 // ─── Submissão ────────────────────────────────────────────────────────────
 btnSubmit.addEventListener('click', async () => {
   if (!validateSection(0)) { goTo(0); return; }
@@ -805,8 +892,33 @@ btnSubmit.addEventListener('click', async () => {
   try {
     const form = document.getElementById('laudoForm');
     const fd   = new FormData(form);
+    const laudoPayload = {};
 
-    const res  = await fetch('/generate', { method: 'POST', body: fd });
+    for (const [key, value] of fd.entries()) {
+      if (value instanceof File) continue;
+      laudoPayload[key] = value;
+    }
+
+    const laudoRes = await fetch('/laudos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(laudoPayload),
+    });
+
+    if (!laudoRes.ok) {
+      const err = await laudoRes.json().catch(() => ({ error: 'Erro ao criar laudo' }));
+      throw new Error(err.error || `Falha ao salvar laudo (HTTP ${laudoRes.status})`);
+    }
+
+    const laudo = await laudoRes.json();
+    fd.set('laudoId', laudo.id);
+
+    const res  = await fetch('/generate', {
+      method: 'POST',
+      credentials: 'include',
+      body: fd,
+    });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -853,7 +965,18 @@ document.querySelector('input[name="data_inspecao"]').value =
   new Date().toISOString().split('T')[0];
 
 // Inicializar barra de progresso
-goTo(0);
+(async () => {
+  try {
+    const ok = await ensureAuthenticated();
+    if (!ok) return;
+
+    goTo(0);
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Não foi possível validar sua sessão', 'error');
+    setTimeout(() => window.location.replace('/login.html'), 1200);
+  }
+})();
 </script>
 </body>
 </html>

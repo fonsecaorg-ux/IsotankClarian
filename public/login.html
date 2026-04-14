@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#0a1628">
+  <title>CEINSPEC — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a1628;
+      --surface: #0f1f3d;
+      --card: #162040;
+      --border: #1e2f55;
+      --accent: #e8a020;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --danger: #ef4444;
+      --radius: 10px;
+    }
+
+    body {
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+
+    .logo-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .logo {
+      width: min(250px, 75%);
+      height: auto;
+      display: block;
+    }
+
+    h1 {
+      font-size: 18px;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field { margin-bottom: 12px; }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 12px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(232, 160, 32, 0.18);
+    }
+
+    .btn {
+      width: 100%;
+      height: 42px;
+      border-radius: 8px;
+      border: 0;
+      background: var(--accent);
+      color: var(--bg);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .btn:disabled {
+      opacity: .7;
+      cursor: not-allowed;
+    }
+
+    .error {
+      min-height: 18px;
+      margin-top: 10px;
+      color: var(--danger);
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo-wrap">
+      <img src="/logo-ceinspec.png" alt="CEINSPEC" class="logo">
+    </div>
+    <h1>Acesso ao sistema</h1>
+    <p class="subtitle">Laudo Visual — Isotank</p>
+
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn" id="btnLogin">Entrar</button>
+      <p class="error" id="loginError"></p>
+    </form>
+  </main>
+
+  <script>
+    'use strict';
+
+    const form = document.getElementById('loginForm');
+    const btnLogin = document.getElementById('btnLogin');
+    const loginError = document.getElementById('loginError');
+
+    async function checkCurrentSession() {
+      try {
+        const res = await fetch('/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (res.ok) {
+          window.location.replace('/index.html');
+        }
+      } catch (_) {
+        // Se falhar a checagem, mantém na tela de login.
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      loginError.textContent = '';
+
+      const email = form.email.value.trim().toLowerCase();
+      const password = form.password.value;
+
+      if (!email || !password) {
+        loginError.textContent = 'Preencha e-mail e senha.';
+        return;
+      }
+
+      btnLogin.disabled = true;
+
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (res.status === 401) {
+          loginError.textContent = 'E-mail ou senha inválidos';
+          return;
+        }
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Erro no login' }));
+          loginError.textContent = err.error || 'Erro ao autenticar';
+          return;
+        }
+
+        window.location.replace('/index.html');
+      } catch (_) {
+        loginError.textContent = 'Não foi possível conectar ao servidor';
+      } finally {
+        btnLogin.disabled = false;
+      }
+    });
+
+    checkCurrentSession();
+  </script>
+</body>
+</html>
