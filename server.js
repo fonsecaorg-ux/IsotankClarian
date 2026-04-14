@@ -80,7 +80,22 @@ function formatDatePt(iso) {
 // ─── Static files ─────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(cookieParser());
+
+app.get('/index.html', (req, res) => res.redirect(301, '/'));
+app.get('/login.html', (req, res) => res.redirect(301, '/login'));
+app.get('/admin.html', (req, res) => res.redirect(301, '/painel-admin'));
+app.get('/kanban.html', (req, res) => res.redirect(301, '/kanban'));
+
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.get('/painel-admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+app.get('/kanban', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'kanban.html'));
+});
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 app.post('/auth/login', async (req, res) => {

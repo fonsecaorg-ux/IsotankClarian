@@ -155,7 +155,7 @@
         });
 
         if (res.ok) {
-          window.location.replace('/index.html');
+          window.location.replace('/');
         }
       } catch (_) {
         // Se falhar a checagem, mantém na tela de login.
@@ -195,7 +195,7 @@
           return;
         }
 
-        window.location.replace('/index.html');
+        window.location.replace('/');
       } catch (_) {
         loginError.textContent = 'Não foi possível conectar ao servidor';
       } finally {

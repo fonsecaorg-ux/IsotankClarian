@@ -177,7 +177,8 @@
       <img src="/logo-ceinspec.png" alt="CEINSPEC" class="logo">
       <button class="nav-btn active" id="tabLaudosBtn">Laudos</button>
       <button class="nav-btn" id="tabUsersBtn">Usuários</button>
-      <a href="/index.html" class="btn" style="display:inline-block;text-decoration:none;margin-top:8px;">Voltar ao formulário</a>
+      <a href="/kanban" class="btn" style="display:inline-block;text-decoration:none;margin-top:4px;">Kanban</a>
+      <a href="/" class="btn" style="display:inline-block;text-decoration:none;margin-top:8px;">Voltar ao formulário</a>
     </aside>
 
     <main class="main">
@@ -353,7 +354,7 @@
     async function checkAdminAccess() {
       const res = await fetch('/auth/me', { credentials: 'include' });
       if (res.status === 401) {
-        window.location.replace('/login.html');
+        window.location.replace('/login');
         return false;
       }
       if (!res.ok) throw new Error('Erro ao validar sessão');
@@ -362,7 +363,7 @@
       state.user = payload.user;
 
       if (state.user.role !== 'ADMIN') {
-        window.location.replace('/index.html');
+        window.location.replace('/');
         return false;
       }
 
@@ -547,7 +548,7 @@
 
     el.btnLogout.addEventListener('click', async () => {
       try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {}
-      window.location.replace('/login.html');
+      window.location.replace('/login');
     });
 
     el.laudosBody.addEventListener('click', async (ev) => {
@@ -661,7 +662,7 @@
         if (!ok) return;
         await loadLaudos();
       } catch (_) {
-        window.location.replace('/login.html');
+        window.location.replace('/login');
       }
     })();
   </script>

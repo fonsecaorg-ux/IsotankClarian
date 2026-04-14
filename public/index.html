@@ -404,7 +404,7 @@
       <strong id="loggedUserName">Carregando...</strong>
       <span id="loggedUserRole">--</span>
     </div>
-    <a class="admin-link hidden" id="adminLink" href="/admin.html">Painel Admin</a>
+    <a class="admin-link hidden" id="adminLink" href="/painel-admin">Painel Admin</a>
     <button type="button" class="btn-logout" id="btnLogout">Sair</button>
   </div>
 </header>
@@ -850,7 +850,7 @@ async function ensureAuthenticated() {
   });
 
   if (res.status === 401) {
-    window.location.replace('/login.html');
+    window.location.replace('/login');
     return false;
   }
 
@@ -879,7 +879,7 @@ btnLogout.addEventListener('click', async () => {
     // Ignorar erro de rede no logout e redirecionar assim mesmo.
   }
 
-  window.location.replace('/login.html');
+  window.location.replace('/login');
 });
 
 // ─── Submissão ────────────────────────────────────────────────────────────
@@ -974,7 +974,7 @@ document.querySelector('input[name="data_inspecao"]').value =
   } catch (err) {
     console.error(err);
     showToast('❌ Não foi possível validar sua sessão', 'error');
-    setTimeout(() => window.location.replace('/login.html'), 1200);
+    setTimeout(() => window.location.replace('/login'), 1200);
   }
 })();
 </script>
