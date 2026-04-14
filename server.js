@@ -14,6 +14,7 @@ const authMiddleware = require('./src/middlewares/authMiddleware');
 const requireRole = require('./src/middlewares/requireRole');
 const laudosRoutes = require('./src/routes/laudos');
 const adminRoutes = require('./src/routes/admin');
+const dashboardRoutes = require('./src/routes/dashboard');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -85,6 +86,7 @@ app.get('/index.html', (req, res) => res.redirect(301, '/'));
 app.get('/login.html', (req, res) => res.redirect(301, '/login'));
 app.get('/admin.html', (req, res) => res.redirect(301, '/painel-admin'));
 app.get('/kanban.html', (req, res) => res.redirect(301, '/kanban'));
+app.get('/dashboard.html', (req, res) => res.redirect(301, '/dashboard'));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/login', (req, res) => {
@@ -95,6 +97,9 @@ app.get('/painel-admin', (req, res) => {
 });
 app.get('/kanban', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'kanban.html'));
+});
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -161,6 +166,7 @@ app.get('/auth/admin/ping', authMiddleware, requireRole('ADMIN'), (req, res) => 
 
 app.use('/laudos', laudosRoutes);
 app.use('/admin', adminRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 function buildTemplateData(formData, cfg, dataPt) {
   return {

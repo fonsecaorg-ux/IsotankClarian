@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f2f1">
+  <title>CEINSPEC — Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-bg:         #f3f2f1;
+      --color-surface:    #ffffff;
+      --color-sidebar:    #ffffff;
+      --color-border:     #edebe9;
+      --color-text:       #323130;
+      --color-text-muted: #605e5c;
+      --color-primary:    #0078d4;
+      --color-primary-hover: #106ebe;
+      --color-badge-pendente-bg:  #fff4ce;
+      --color-badge-pendente-txt: #835c00;
+      --color-badge-gerado-bg:    #dce6f7;
+      --color-badge-gerado-txt:   #0078d4;
+      --color-badge-assinado-bg:  #dff6dd;
+      --color-badge-assinado-txt: #107c10;
+      --danger: #a80000;
+      --warning: #ff8c00;
+      --warn: #835c00;
+      --ok: #107c10;
+      --radius: 10px;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1600px; margin: 0 auto; padding: 14px; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .title { color: var(--color-primary); font-size: 22px; font-weight: 800; }
+    .meta { font-size: 12px; color: var(--color-text-muted); }
+    .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn.primary { border-color: var(--color-primary); color: #fff; background: var(--color-primary); }
+    .btn.primary:hover { background: var(--color-primary-hover); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    .card-label { font-size: 12px; color: var(--color-text-muted); margin-bottom: 6px; }
+    .card-value { font-size: 26px; font-weight: 800; color: var(--color-primary); }
+
+    .charts {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .panel {
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 12px;
+      min-height: 260px;
+    }
+    .panel-title { color: var(--color-primary); font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+    .panel-subhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .toggle {
+      border: 1px solid var(--color-border);
+      background: #fff;
+      color: var(--color-text);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .toggle.active { border-color: var(--color-primary); color: var(--color-primary); }
+    .canvas-wrap { overflow-x: auto; }
+    canvas { display: block; }
+    .legend { display: grid; gap: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-text); }
+    .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    .table-wrap { overflow: auto; border: 1px solid var(--color-border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 980px; }
+    th, td {
+      border-bottom: 1px solid var(--color-border);
+      padding: 8px;
+      font-size: 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { color: var(--color-text-muted); background: #faf9f8; font-weight: 800; }
+    .urgency {
+      display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800;
+    }
+    .u-red { background: #fde7e9; color: var(--danger); }
+    .u-yellow { background: var(--color-badge-pendente-bg); color: var(--color-badge-pendente-txt); }
+    .u-orange { background: #fff4e5; color: var(--warning); }
+    .u-green { background: var(--color-badge-assinado-bg); color: var(--ok); }
+    .error { margin-top: 8px; color: var(--danger); font-size: 12px; min-height: 18px; }
+
+    @media (max-width: 767px) {
+      .cards { grid-template-columns: 1fr; }
+      .charts { grid-template-columns: 1fr; }
+      .actions { width: 100%; }
+      .actions .btn { flex: 1; }
+      .table-wrap table, .table-wrap thead, .table-wrap tbody, .table-wrap tr, .table-wrap th, .table-wrap td { display: block; }
+      .table-wrap thead { display: none; }
+      .table-wrap tr { border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 8px; padding: 6px; }
+      .table-wrap td { border: 0; padding: 4px 6px; }
+      .table-wrap td::before { content: attr(data-label); color: var(--color-text-muted); font-weight: 700; display: inline-block; width: 120px; }
+    }
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .charts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div>
+        <h1 class="title">Dashboard de Laudos</h1>
+        <p class="meta" id="sessionMeta">Carregando sessão...</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnRefresh">Atualizar</button>
+        <a class="btn" href="/painel-admin">Painel Admin</a>
+        <a class="btn" href="/kanban">Kanban</a>
+        <a class="btn" href="/">Formulário</a>
+        <button class="btn primary" id="btnLogout">Sair</button>
+      </div>
+    </header>
+
+    <section class="cards">
+      <article class="card"><p class="card-label">Total de Laudos</p><p class="card-value" id="kpiTotal">0</p></article>
+      <article class="card"><p class="card-label">Laudos este mês</p><p class="card-value" id="kpiMes">0</p></article>
+      <article class="card"><p class="card-label">Aguardando Assinatura</p><p class="card-value" id="kpiGerado">0</p></article>
+      <article class="card"><p class="card-label">Taxa de Aprovação</p><p class="card-value" id="kpiTaxa">0%</p></article>
+    </section>
+
+    <section class="charts">
+      <article class="panel">
+        <div class="panel-subhead">
+          <h2 class="panel-title">Volume por período</h2>
+          <div class="toggle-group">
+            <button class="toggle active" data-period="7">7 dias</button>
+            <button class="toggle" data-period="30">30 dias</button>
+            <button class="toggle" data-period="12">12 meses</button>
+          </div>
+        </div>
+        <div class="canvas-wrap"><canvas id="canvasVolume" width="760" height="260"></canvas></div>
+      </article>
+      <article class="panel">
+        <h2 class="panel-title">Laudos por Status</h2>
+        <div class="canvas-wrap"><canvas id="canvasStatus" width="360" height="220"></canvas></div>
+        <div class="legend" id="statusLegend"></div>
+      </article>
+    </section>
+
+    <section class="charts">
+      <article class="panel">
+        <h2 class="panel-title">Laudos por Inspetor</h2>
+        <div class="canvas-wrap"><canvas id="canvasInspetor" width="760" height="260"></canvas></div>
+      </article>
+      <article class="panel">
+        <h2 class="panel-title">Tempo médio de fechamento (últ. 30 dias)</h2>
+        <div class="canvas-wrap"><canvas id="canvasTempo" width="360" height="220"></canvas></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-subhead">
+        <h2 class="panel-title">Vencimentos próximos</h2>
+        <select id="vencimentoRange" style="width:180px;">
+          <option value="30">Próximos 30 dias</option>
+          <option value="60">Próximos 60 dias</option>
+          <option value="90">Próximos 90 dias</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Container</th>
+              <th>Cliente</th>
+              <th>Inspetor</th>
+              <th>Data Inspeção</th>
+              <th>Vencimento</th>
+              <th>Dias Restantes</th>
+            </tr>
+          </thead>
+          <tbody id="vencimentosBody"></tbody>
+        </table>
+      </div>
+      <p class="error" id="errorMsg"></p>
+    </section>
+  </div>
+
+  <script>
+    'use strict';
+
+    const state = {
+      user: null,
+      stats: null,
+      volumePeriod: '7',
+    };
+
+    const el = {
+      sessionMeta: document.getElementById('sessionMeta'),
+      btnRefresh: document.getElementById('btnRefresh'),
+      btnLogout: document.getElementById('btnLogout'),
+      kpiTotal: document.getElementById('kpiTotal'),
+      kpiMes: document.getElementById('kpiMes'),
+      kpiGerado: document.getElementById('kpiGerado'),
+      kpiTaxa: document.getElementById('kpiTaxa'),
+      canvasVolume: document.getElementById('canvasVolume'),
+      canvasStatus: document.getElementById('canvasStatus'),
+      canvasInspetor: document.getElementById('canvasInspetor'),
+      canvasTempo: document.getElementById('canvasTempo'),
+      statusLegend: document.getElementById('statusLegend'),
+      vencimentoRange: document.getElementById('vencimentoRange'),
+      vencimentosBody: document.getElementById('vencimentosBody'),
+      errorMsg: document.getElementById('errorMsg'),
+      periodToggles: [...document.querySelectorAll('.toggle[data-period]')],
+    };
+
+    function fmtDate(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return '-';
+      return d.toLocaleDateString('pt-BR');
+    }
+
+    async function api(path) {
+      const res = await fetch(path, { credentials: 'include' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    async function checkAdminAccess() {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.replace('/login');
+        return false;
+      }
+      if (!res.ok) throw new Error('Erro ao validar sessão');
+      const payload = await res.json();
+      state.user = payload.user;
+      if (state.user.role !== 'ADMIN') {
+        window.location.replace('/');
+        return false;
+      }
+      el.sessionMeta.textContent = `${state.user.nome} (${state.user.role})`;
+      return true;
+    }
+
+    function drawBars(ctx, width, height, items, labelKey, valueKey, horizontal = false) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#faf9f8';
+      ctx.fillRect(0, 0, width, height);
+
+      const padding = 30;
+      const values = items.map((i) => i[valueKey] || 0);
+      const maxVal = Math.max(1, ...values);
+
+      if (!horizontal) {
+        const chartW = width - padding * 2;
+        const chartH = height - padding * 2;
+        const barW = Math.max(14, chartW / Math.max(items.length, 1) - 6);
+
+        items.forEach((item, idx) => {
+          const val = item[valueKey] || 0;
+          const x = padding + idx * (barW + 6);
+          const h = (val / maxVal) * chartH;
+          const y = padding + chartH - h;
+          ctx.fillStyle = '#0078d4';
+          ctx.fillRect(x, y, barW, h);
+          ctx.fillStyle = '#605e5c';
+          ctx.font = '11px Segoe UI';
+          ctx.fillText(String(item[labelKey]).slice(0, 8), x, height - 8);
+        });
+      } else {
+        const chartW = width - padding * 2;
+        const rowH = Math.max(20, (height - padding * 2) / Math.max(items.length, 1));
+        items.forEach((item, idx) => {
+          const y = padding + idx * rowH;
+          const val = item[valueKey] || 0;
+          const w = (val / maxVal) * chartW;
+          ctx.fillStyle = '#0078d4';
+          ctx.fillRect(padding, y + 3, w, rowH - 6);
+          ctx.fillStyle = '#323130';
+          ctx.font = '11px Segoe UI';
+          ctx.fillText(`${item[labelKey]} (${val})`, padding + 6, y + rowH / 2 + 4);
+        });
+      }
+    }
+
+    function drawPie(ctx, width, height, data) {
+      ctx.clearRect(0, 0, width, height);
+      const total = data.reduce((a, b) => a + b.value, 0) || 1;
+      const cx = width / 2;
+      const cy = height / 2;
+      const radius = Math.min(width, height) * 0.35;
+      let start = -Math.PI / 2;
+
+      data.forEach((slice) => {
+        const angle = (slice.value / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, start, start + angle);
+        ctx.closePath();
+        ctx.fillStyle = slice.color;
+        ctx.fill();
+        start += angle;
+      });
+    }
+
+    function drawTempoLinha(ctx, width, height, avgDays) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#faf9f8';
+      ctx.fillRect(0, 0, width, height);
+
+      const padding = 32;
+      const baselineY = height - padding;
+      ctx.strokeStyle = '#edebe9';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, baselineY);
+      ctx.lineTo(width - padding, baselineY);
+      ctx.stroke();
+
+      const x1 = padding;
+      const x2 = width - padding;
+      const maxY = Math.max(1, avgDays * 1.5);
+      const y = baselineY - ((avgDays / maxY) * (height - padding * 2));
+
+      ctx.strokeStyle = '#0078d4';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+
+      ctx.fillStyle = '#323130';
+      ctx.font = '12px Segoe UI';
+      ctx.fillText(`Média: ${avgDays.toFixed(2)} dias`, padding, y - 8);
+    }
+
+    function renderSummary(stats) {
+      el.kpiTotal.textContent = String(stats.totalLaudos || 0);
+      el.kpiMes.textContent = String(stats.laudosMes || 0);
+      el.kpiGerado.textContent = String(stats.aguardandoAssinatura || 0);
+      el.kpiTaxa.textContent = `${Number(stats.taxaAprovacao || 0).toFixed(1)}%`;
+    }
+
+    function renderVolumeChart(stats) {
+      const ctx = el.canvasVolume.getContext('2d');
+      let items = [];
+      if (state.volumePeriod === '7') {
+        items = (stats.laudosPorDia || []).slice(-7).map((i) => ({ label: i.data.slice(5), total: i.total }));
+      } else if (state.volumePeriod === '30') {
+        items = (stats.laudosPorDia || []).map((i) => ({ label: i.data.slice(5), total: i.total }));
+      } else {
+        items = (stats.laudosPorMes || []).map((i) => ({ label: i.mes.slice(2), total: i.total }));
+      }
+      drawBars(ctx, el.canvasVolume.width, el.canvasVolume.height, items, 'label', 'total', false);
+    }
+
+    function renderStatusChart(stats) {
+      const status = stats.laudosPorStatus || {};
+      const data = [
+        { key: 'PENDENTE', value: status.PENDENTE || 0, color: '#fff4ce' },
+        { key: 'GERADO', value: status.GERADO || 0, color: '#0078d4' },
+        { key: 'ASSINADO', value: status.ASSINADO || 0, color: '#107c10' },
+      ];
+      const ctx = el.canvasStatus.getContext('2d');
+      drawPie(ctx, el.canvasStatus.width, el.canvasStatus.height, data);
+      el.statusLegend.innerHTML = data.map((d) => `
+        <div class="legend-item">
+          <span class="dot" style="background:${d.color};"></span>
+          <span>${d.key}: ${d.value}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderInspectorChart(stats) {
+      const list = [...(stats.laudosPorInspetor || [])].sort((a, b) => b.total - a.total);
+      const ctx = el.canvasInspetor.getContext('2d');
+      drawBars(ctx, el.canvasInspetor.width, el.canvasInspetor.height, list, 'nome', 'total', true);
+    }
+
+    function renderTempoChart(stats) {
+      const ctx = el.canvasTempo.getContext('2d');
+      drawTempoLinha(ctx, el.canvasTempo.width, el.canvasTempo.height, Number(stats.tempoMedioFechamento || 0));
+    }
+
+    function urgencyClass(days) {
+      if (days <= 7) return 'u-red';
+      if (days <= 15) return 'u-yellow';
+      if (days <= 30) return 'u-orange';
+      return 'u-green';
+    }
+
+    async function loadVencimentos() {
+      const dias = Number(el.vencimentoRange.value || 30);
+      const rows = await api(`/dashboard/vencimentos?dias=${dias}`);
+      if (!rows.length) {
+        el.vencimentosBody.innerHTML = '<tr><td colspan="6">Nenhum vencimento no período selecionado.</td></tr>';
+        return;
+      }
+      el.vencimentosBody.innerHTML = rows.map((r) => `
+        <tr>
+          <td data-label="Container">${r.container || '-'}</td>
+          <td data-label="Cliente">${r.cliente || '-'}</td>
+          <td data-label="Inspetor">${r.inspetor || '-'}</td>
+          <td data-label="Data Inspeção">${fmtDate(r.dataInspecao)}</td>
+          <td data-label="Vencimento">${fmtDate(r.vencimento)}</td>
+          <td data-label="Dias Restantes"><span class="urgency ${urgencyClass(r.diasRestantes)}">${r.diasRestantes} dias</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadDashboard() {
+      el.errorMsg.textContent = '';
+      const stats = await api('/dashboard/stats');
+      state.stats = stats;
+      renderSummary(stats);
+      renderVolumeChart(stats);
+      renderStatusChart(stats);
+      renderInspectorChart(stats);
+      renderTempoChart(stats);
+      await loadVencimentos();
+    }
+
+    el.btnRefresh.addEventListener('click', async () => {
+      try {
+        await loadDashboard();
+      } catch (err) {
+        el.errorMsg.textContent = err.message;
+      }
+    });
+
+    el.btnLogout.addEventListener('click', async () => {
+      try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {}
+      window.location.replace('/login');
+    });
+
+    el.vencimentoRange.addEventListener('change', async () => {
+      try {
+        await loadVencimentos();
+      } catch (err) {
+        el.errorMsg.textContent = err.message;
+      }
+    });
+
+    el.periodToggles.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.volumePeriod = btn.dataset.period;
+        el.periodToggles.forEach((b) => b.classList.toggle('active', b === btn));
+        if (state.stats) renderVolumeChart(state.stats);
+      });
+    });
+
+    (async () => {
+      try {
+        const ok = await checkAdminAccess();
+        if (!ok) return;
+        await loadDashboard();
+      } catch (_) {
+        window.location.replace('/login');
+      }
+    })();
+  </script>
+</body>
+</html>
