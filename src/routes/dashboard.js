@@ -4,6 +4,7 @@ const express = require('express');
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/requireRole');
+const { checkVencimentos } = require('../services/alertaVencimento');
 
 const router = express.Router();
 
@@ -189,6 +190,16 @@ router.get('/vencimentos', async (req, res) => {
   } catch (err) {
     console.error('Erro em /dashboard/vencimentos:', err);
     return res.status(500).json({ error: 'Erro ao obter vencimentos' });
+  }
+});
+
+router.post('/alertas/check', async (req, res) => {
+  try {
+    const result = await checkVencimentos();
+    return res.json(result);
+  } catch (err) {
+    console.error('Erro em /dashboard/alertas/check:', err);
+    return res.status(500).json({ error: 'Erro ao verificar alertas de vencimento' });
   }
 });
 

@@ -15,6 +15,7 @@ const requireRole = require('./src/middlewares/requireRole');
 const laudosRoutes = require('./src/routes/laudos');
 const adminRoutes = require('./src/routes/admin');
 const dashboardRoutes = require('./src/routes/dashboard');
+const { checkVencimentos } = require('./src/services/alertaVencimento');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -450,6 +451,19 @@ async function bootstrap() {
     app.listen(PORT, () => {
       console.log(`\n  CEINSPEC Isotank — Laudo Generator`);
       console.log(`  Servidor rodando em http://localhost:${PORT}\n`);
+
+      const runAlertCheck = async () => {
+        try {
+          const result = await checkVencimentos();
+          const hhmm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          console.log(`Verificação de vencimentos executada: ${hhmm}`, result);
+        } catch (err) {
+          console.error('Falha na verificação de vencimentos:', err.message);
+        }
+      };
+
+      runAlertCheck();
+      setInterval(runAlertCheck, 86400000);
     });
   } catch (err) {
     console.error('Falha ao inicializar aplicação:', err);

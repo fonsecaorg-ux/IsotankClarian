@@ -126,6 +126,44 @@
     .u-orange { background: #fff4e5; color: var(--warning); }
     .u-green { background: var(--color-badge-assinado-bg); color: var(--ok); }
     .error { margin-top: 8px; color: var(--danger); font-size: 12px; min-height: 18px; }
+    .toast {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #fff;
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-text);
+      opacity: 0;
+      transition: all .2s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: #92c353; color: var(--ok); }
+    .toast.error { border-color: #f7d6d9; color: var(--danger); }
+    .toast.warn { border-color: var(--color-badge-pendente-bg); color: var(--color-badge-pendente-txt); }
+    .critical-alert {
+      border: 1px solid #f7d6d9;
+      background: #fff5f6;
+      color: var(--danger);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      cursor: pointer;
+      display: none;
+    }
+    .critical-alert.warn {
+      background: var(--color-badge-pendente-bg);
+      border-color: #ffe8a3;
+      color: var(--color-badge-pendente-txt);
+    }
 
     @media (max-width: 767px) {
       .cards { grid-template-columns: 1fr; }
@@ -153,12 +191,15 @@
       </div>
       <div class="actions">
         <button class="btn" id="btnRefresh">Atualizar</button>
+        <button class="btn" id="btnCheckAlerts">Verificar agora</button>
         <a class="btn" href="/painel-admin">Painel Admin</a>
         <a class="btn" href="/kanban">Kanban</a>
         <a class="btn" href="/">Formulário</a>
         <button class="btn primary" id="btnLogout">Sair</button>
       </div>
     </header>
+
+    <button class="critical-alert" id="criticalAlert" type="button"></button>
 
     <section class="cards">
       <article class="card"><p class="card-label">Total de Laudos</p><p class="card-value" id="kpiTotal">0</p></article>
@@ -197,7 +238,7 @@
       </article>
     </section>
 
-    <section class="panel">
+    <section class="panel" id="vencimentosSection">
       <div class="panel-subhead">
         <h2 class="panel-title">Vencimentos próximos</h2>
         <select id="vencimentoRange" style="width:180px;">
@@ -225,6 +266,8 @@
     </section>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <script>
     'use strict';
 
@@ -237,6 +280,7 @@
     const el = {
       sessionMeta: document.getElementById('sessionMeta'),
       btnRefresh: document.getElementById('btnRefresh'),
+      btnCheckAlerts: document.getElementById('btnCheckAlerts'),
       btnLogout: document.getElementById('btnLogout'),
       kpiTotal: document.getElementById('kpiTotal'),
       kpiMes: document.getElementById('kpiMes'),
@@ -250,6 +294,9 @@
       vencimentoRange: document.getElementById('vencimentoRange'),
       vencimentosBody: document.getElementById('vencimentosBody'),
       errorMsg: document.getElementById('errorMsg'),
+      toast: document.getElementById('toast'),
+      criticalAlert: document.getElementById('criticalAlert'),
+      vencimentosSection: document.getElementById('vencimentosSection'),
       periodToggles: [...document.querySelectorAll('.toggle[data-period]')],
     };
 
@@ -267,6 +314,24 @@
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       return res.json();
+    }
+
+    async function apiPost(path) {
+      const res = await fetch(path, { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function showToast(message, type = '') {
+      el.toast.textContent = message;
+      el.toast.className = `toast ${type} show`;
+      clearTimeout(el.toast._t);
+      el.toast._t = setTimeout(() => {
+        el.toast.classList.remove('show');
+      }, 3000);
     }
 
     async function checkAdminAccess() {
@@ -462,13 +527,55 @@
       renderInspectorChart(stats);
       renderTempoChart(stats);
       await loadVencimentos();
+      await loadCriticalAlert();
+    }
+
+    async function loadCriticalAlert() {
+      const [v7, v15] = await Promise.all([
+        api('/dashboard/vencimentos?dias=7'),
+        api('/dashboard/vencimentos?dias=15'),
+      ]);
+
+      const in7 = v7.length;
+      const in15 = v15.length;
+
+      if (in7 > 0) {
+        el.criticalAlert.textContent = `${in7} equipamento(s) vencem em até 7 dias`;
+        el.criticalAlert.classList.remove('warn');
+        el.criticalAlert.style.display = 'block';
+      } else if (in15 > 0) {
+        el.criticalAlert.textContent = `${in15} equipamento(s) vencem em até 15 dias`;
+        el.criticalAlert.classList.add('warn');
+        el.criticalAlert.style.display = 'block';
+      } else {
+        el.criticalAlert.style.display = 'none';
+      }
     }
 
     el.btnRefresh.addEventListener('click', async () => {
       try {
         await loadDashboard();
+        showToast('Dados atualizados', 'success');
       } catch (err) {
         el.errorMsg.textContent = err.message;
+      }
+    });
+
+    el.btnCheckAlerts.addEventListener('click', async () => {
+      try {
+        const result = await apiPost('/dashboard/alertas/check');
+        const grupos = (result.detalhes || [])
+          .filter((d) => d.total > 0)
+          .map((d) => `${d.total} em ${d.dias}d`)
+          .join(', ');
+        showToast(
+          result.enviados > 0
+            ? `Alertas enviados (${grupos || 'sem grupos'})`
+            : 'Verificação concluída sem envios',
+          result.enviados > 0 ? 'success' : 'warn'
+        );
+      } catch (err) {
+        showToast(err.message, 'error');
       }
     });
 
@@ -491,6 +598,10 @@
         el.periodToggles.forEach((b) => b.classList.toggle('active', b === btn));
         if (state.stats) renderVolumeChart(state.stats);
       });
+    });
+
+    el.criticalAlert.addEventListener('click', () => {
+      el.vencimentosSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     (async () => {
