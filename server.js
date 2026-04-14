@@ -4,8 +4,10 @@ const express = require('express');
 const multer  = require('multer');
 const PizZip  = require('pizzip');
 const Docxtemplater = require('docxtemplater');
+const bcrypt = require('bcryptjs');
 const fs   = require('fs');
 const path = require('path');
+const prisma = require('./src/lib/prisma');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -250,8 +252,48 @@ app.post(
   }
 );
 
-// ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n  CEINSPEC Isotank — Laudo Generator`);
-  console.log(`  Servidor rodando em http://localhost:${PORT}\n`);
-});
+async function ensureDefaultUsers() {
+  const totalUsers = await prisma.user.count();
+
+  if (totalUsers > 0) return;
+
+  const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
+  const inspetorPasswordHash = await bcrypt.hash('Inspetor@123', 10);
+
+  await prisma.user.createMany({
+    data: [
+      {
+        nome: 'Administrador CEINSPEC',
+        email: 'admin@ceinspec.local',
+        passwordHash: adminPasswordHash,
+        role: 'ADMIN',
+        ativo: true,
+      },
+      {
+        nome: 'Inspetor Padrão',
+        email: 'inspetor@ceinspec.local',
+        passwordHash: inspetorPasswordHash,
+        role: 'INSPETOR',
+        ativo: true,
+      },
+    ],
+  });
+
+  console.log('Usuários padrão criados automaticamente.');
+}
+
+async function bootstrap() {
+  try {
+    await ensureDefaultUsers();
+
+    app.listen(PORT, () => {
+      console.log(`\n  CEINSPEC Isotank — Laudo Generator`);
+      console.log(`  Servidor rodando em http://localhost:${PORT}\n`);
+    });
+  } catch (err) {
+    console.error('Falha ao inicializar aplicação:', err);
+    process.exit(1);
+  }
+}
+
+bootstrap();
