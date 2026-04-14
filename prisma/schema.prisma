@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  INSPETOR
+}
+
+enum LaudoStatus {
+  PENDENTE
+  GERADO
+  ASSINADO
+}
+
+model User {
+  id           String     @id @default(cuid())
+  nome         String
+  email        String     @unique
+  passwordHash String
+  role         UserRole   @default(INSPETOR)
+  ativo        Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  laudos       Laudo[]    @relation("LaudoCreatedBy")
+  auditLogs    AuditLog[]
+}
+
+model Laudo {
+  id                String      @id @default(cuid())
+  status            LaudoStatus @default(PENDENTE)
+  formData          Json
+  generatedFileName String?
+  generatedAt       DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  createdById       String
+  createdBy         User        @relation("LaudoCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  auditLogs         AuditLog[]
+
+  @@index([createdById])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String       @id @default(cuid())
+  action      String
+  fromStatus  LaudoStatus?
+  toStatus    LaudoStatus?
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+
+  laudoId     String?
+  laudo       Laudo?       @relation(fields: [laudoId], references: [id], onDelete: Cascade)
+
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([laudoId])
+  @@index([userId])
+  @@index([createdAt])
+}
