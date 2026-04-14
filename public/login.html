@@ -28,13 +28,26 @@
 
     body {
       min-height: 100dvh;
-      background: var(--color-bg);
+      background-image:
+        linear-gradient(rgba(15,30,60,0.75), rgba(15,30,60,0.75)),
+        url('/images/bg_login.jpg');
+      background-size: cover;
+      background-position: center;
       color: var(--color-text);
       font-family: 'Segoe UI', system-ui, sans-serif;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 18px;
+      position: relative;
+    }
+
+    .login-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     .card {
@@ -71,6 +84,25 @@
       color: var(--color-text-muted);
       font-size: 12px;
       margin-bottom: 16px;
+    }
+
+    .cesari-logo {
+      width: 180px;
+      filter: brightness(0) invert(1);
+      margin-bottom: 24px;
+      display: block;
+    }
+
+    .footer-note {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      width: calc(100% - 24px);
+      pointer-events: none;
     }
 
     .field { margin-bottom: 12px; }
@@ -126,32 +158,37 @@
       text-align: center;
     }
     @media (max-width: 768px) {
-      .card { max-width: 100%; padding: 16px; }
+      .card { width: 90%; max-width: 400px; padding: 16px; }
       .btn { width: 100%; }
+      .cesari-logo { width: 140px; }
     }
   </style>
 </head>
 <body>
-  <main class="card">
-    <div class="logo-wrap">
-      <img src="/logo-ceinspec.png" alt="CEINSPEC" class="logo">
-    </div>
-    <h1>Acesso ao sistema</h1>
-    <p class="subtitle">Laudo Visual — Isotank</p>
+  <div class="login-wrap">
+    <img src="/images/logo_cesari.png" alt="Cesari" class="cesari-logo">
+    <main class="card">
+      <div class="logo-wrap">
+        <img src="/logo-ceinspec.png" alt="CEINSPEC" class="logo">
+      </div>
+      <h1>Acesso ao sistema</h1>
+      <p class="subtitle">Laudo Visual — Isotank</p>
 
-    <form id="loginForm" novalidate>
-      <div class="field">
-        <label for="email">E-mail</label>
-        <input id="email" name="email" type="email" autocomplete="username" required>
-      </div>
-      <div class="field">
-        <label for="password">Senha</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required>
-      </div>
-      <button type="submit" class="btn" id="btnLogin">Entrar</button>
-      <p class="error" id="loginError"></p>
-    </form>
-  </main>
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn" id="btnLogin">Entrar</button>
+        <p class="error" id="loginError"></p>
+      </form>
+    </main>
+  </div>
+  <p class="footer-note">Desenvolvido pela Célula Inovação - SI · 2026</p>
 
   <script>
     'use strict';
