@@ -20,6 +20,8 @@ const dashboardRoutes = require('./src/routes/dashboard');
 const equipamentosRoutes = require('./src/routes/equipamentos');
 const clientesRoutes = require('./src/routes/clientes');
 const authRoutes = require('./src/routes/auth');
+const configuracoesRoutes = require('./src/routes/configuracoes');
+const { getConfig } = require('./src/lib/config');
 const { checkVencimentos } = require('./src/services/alertaVencimento');
 
 const app = express();
@@ -226,6 +228,7 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/equipamentos', equipamentosRoutes);
 app.use('/clientes', clientesRoutes);
 app.use('/auth', authRoutes);
+app.use('/configuracoes', configuracoesRoutes);
 
 function buildTemplateData(formData, cfg, dataPt) {
   return {
@@ -574,26 +577,79 @@ async function ensureDefaultUsers() {
   console.log('Usuários padrão garantidos automaticamente.');
 }
 
+async function ensureDefaultConfigs() {
+  const defaults = [
+    { chave: 'smtp_host', valor: '', descricao: 'Servidor SMTP' },
+    { chave: 'smtp_port', valor: '587', descricao: 'Porta SMTP' },
+    { chave: 'smtp_user', valor: '', descricao: 'Usuário SMTP' },
+    { chave: 'smtp_pass', valor: '', descricao: 'Senha SMTP' },
+    { chave: 'smtp_from', valor: 'CEINSPEC <noreply@ceinspec.com.br>', descricao: 'Remetente SMTP' },
+    { chave: 'alert_email', valor: '', descricao: 'E-mail para alertas de vencimento' },
+    { chave: 'alert_hora', valor: '08:00', descricao: 'Horário diário para verificar alertas' },
+    { chave: 'vencimento_meses', valor: '12', descricao: 'Periodicidade de vencimento em meses' },
+  ];
+
+  for (const item of defaults) {
+    await prisma.configuracao.upsert({
+      where: { chave: item.chave },
+      update: {},
+      create: item,
+    });
+  }
+}
+
+function parseAlertHour(value) {
+  const str = String(value || '').trim();
+  const match = str.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return { hours: 8, minutes: 0 };
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return { hours: 8, minutes: 0 };
+  return { hours, minutes };
+}
+
+function msUntilNextSchedule(alertHour) {
+  const now = new Date();
+  const { hours, minutes } = parseAlertHour(alertHour);
+  const next = new Date(now);
+  next.setHours(hours, minutes, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
+
+async function scheduleAlertChecks() {
+  const runAlertCheck = async () => {
+    try {
+      const result = await checkVencimentos();
+      const hhmm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      console.log(`Verificação de vencimentos executada: ${hhmm}`, result);
+    } catch (err) {
+      console.error('Falha na verificação de vencimentos:', err.message);
+    }
+  };
+
+  await runAlertCheck();
+
+  const alertHour = await getConfig('alert_hora');
+  const firstDelay = msUntilNextSchedule(alertHour);
+
+  setTimeout(() => {
+    runAlertCheck();
+    setInterval(runAlertCheck, 86400000);
+  }, firstDelay);
+}
+
 async function bootstrap() {
   try {
     await ensureDefaultUsers();
+    await ensureDefaultConfigs();
 
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`\n  CEINSPEC Isotank — Laudo Generator`);
       console.log(`  Servidor rodando na porta ${PORT}\n`);
-
-      const runAlertCheck = async () => {
-        try {
-          const result = await checkVencimentos();
-          const hhmm = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-          console.log(`Verificação de vencimentos executada: ${hhmm}`, result);
-        } catch (err) {
-          console.error('Falha na verificação de vencimentos:', err.message);
-        }
-      };
-
-      runAlertCheck();
-      setInterval(runAlertCheck, 86400000);
+      scheduleAlertChecks().catch((err) => {
+        console.error('Falha ao agendar verificação de vencimentos:', err.message);
+      });
     });
   } catch (err) {
     console.error('Falha ao inicializar aplicação:', err);

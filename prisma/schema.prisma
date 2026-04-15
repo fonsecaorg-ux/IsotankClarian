@@ -96,6 +96,14 @@ model Equipamento {
   @@index([ativo])
 }
 
+model Configuracao {
+  id        String   @id @default(uuid())
+  chave     String   @unique
+  valor     String
+  descricao String?
+  updatedAt DateTime @updatedAt
+}
+
 model AuditLog {
   id          String       @id @default(cuid())
   action      String

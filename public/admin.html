@@ -185,6 +185,48 @@
       font-size: 12px;
       margin-top: 8px;
     }
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .config-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .config-help {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .toast {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      opacity: 0;
+      transition: all .2s;
+      z-index: 1200;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: #92c353; color: var(--success); }
+    .toast.error { border-color: #f7d6d9; color: var(--danger); }
+    .password-wrap {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
     @media (max-width: 767px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar {
@@ -204,6 +246,7 @@
       .table-wrap td { border: 0; padding: 4px 6px; }
       .table-wrap td::before { content: attr(data-label); color: var(--muted); font-weight: 700; display: inline-block; width: 120px; }
       .grid2 { grid-template-columns: 1fr; }
+      .config-grid { grid-template-columns: 1fr; }
     }
     @media (min-width: 768px) and (max-width: 1024px) {
       .layout { grid-template-columns: 72px 1fr; }
@@ -235,6 +278,7 @@
       <button class="nav-btn active" id="tabLaudosBtn" data-short="L" title="Laudos">Laudos</button>
       <a href="/dashboard" class="btn" data-short="D" title="Dashboard" style="display:inline-block;text-decoration:none;margin-top:4px;">Dashboard</a>
       <a href="/painel-admin#usuarios" class="btn" data-short="U" title="Usuários" style="display:inline-block;text-decoration:none;margin-top:4px;">Usuários</a>
+      <a href="/painel-admin#configuracoes" class="btn" data-short="CFG" title="Configurações" style="display:inline-block;text-decoration:none;margin-top:4px;">Configurações</a>
       <p class="nav-group">Cadastros</p>
       <a href="/equipamentos" class="btn" data-short="I" title="Isotanks" style="display:inline-block;text-decoration:none;margin-top:4px;">Isotanks</a>
       <a href="/clientes" class="btn" data-short="C" title="Clientes" style="display:inline-block;text-decoration:none;margin-top:4px;">Clientes</a>
@@ -309,6 +353,57 @@
         </div>
         <p id="usersError" class="error"></p>
       </section>
+
+      <section id="configSection" class="panel hidden">
+        <h2 style="font-size:16px;color:var(--accent);margin-bottom:8px;">Configurações do Sistema</h2>
+        <p class="config-help">Edite SMTP, e-mail de alertas e regras de vencimento.</p>
+        <div class="config-grid">
+          <div class="field">
+            <label for="cfgSmtpHost">Servidor SMTP</label>
+            <input id="cfgSmtpHost" type="text">
+          </div>
+          <div class="field">
+            <label for="cfgSmtpPort">Porta</label>
+            <input id="cfgSmtpPort" type="text">
+          </div>
+          <div class="field">
+            <label for="cfgSmtpUser">Usuário SMTP</label>
+            <input id="cfgSmtpUser" type="text">
+          </div>
+          <div class="field">
+            <label for="cfgSmtpPass">Senha SMTP</label>
+            <div class="password-wrap">
+              <input id="cfgSmtpPass" type="password" placeholder="***">
+              <button class="btn" id="btnToggleSmtpPass" type="button">Mostrar</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="cfgSmtpFrom">Remetente</label>
+            <input id="cfgSmtpFrom" type="text">
+          </div>
+          <div class="field">
+            <label for="cfgAlertEmail">E-mail para alertas</label>
+            <input id="cfgAlertEmail" type="text">
+          </div>
+          <div class="field">
+            <label for="cfgVencimentoMeses">Periodicidade (meses)</label>
+            <select id="cfgVencimentoMeses">
+              <option value="6">6</option>
+              <option value="12">12</option>
+              <option value="24">24</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="cfgAlertHora">Horário do alerta diário</label>
+            <input id="cfgAlertHora" type="time">
+          </div>
+        </div>
+        <div class="config-row">
+          <button class="btn" id="btnTestMail" type="button">Testar envio</button>
+          <button class="btn accent" id="btnSaveConfigs" type="button">Salvar Configurações</button>
+        </div>
+        <p id="configError" class="error"></p>
+      </section>
     </main>
   </div>
 
@@ -321,6 +416,8 @@
       <div id="detailContent"></div>
     </div>
   </div>
+
+  <div id="toast" class="toast"></div>
 
   <div class="modal-bg" id="newUserModalBg">
     <div class="modal" style="max-width:560px;">
@@ -353,6 +450,7 @@
       user: null,
       laudos: [],
       users: [],
+      configs: {},
       tab: 'laudos',
     };
 
@@ -363,6 +461,7 @@
       tabLaudosBtn: document.getElementById('tabLaudosBtn'),
       laudosSection: document.getElementById('laudosSection'),
       usersSection: document.getElementById('usersSection'),
+      configSection: document.getElementById('configSection'),
       searchInput: document.getElementById('searchInput'),
       statusFilter: document.getElementById('statusFilter'),
       dateStart: document.getElementById('dateStart'),
@@ -379,7 +478,27 @@
       closeUserModal: document.getElementById('closeUserModal'),
       newUserForm: document.getElementById('newUserForm'),
       newUserError: document.getElementById('newUserError'),
+      cfgSmtpHost: document.getElementById('cfgSmtpHost'),
+      cfgSmtpPort: document.getElementById('cfgSmtpPort'),
+      cfgSmtpUser: document.getElementById('cfgSmtpUser'),
+      cfgSmtpPass: document.getElementById('cfgSmtpPass'),
+      cfgSmtpFrom: document.getElementById('cfgSmtpFrom'),
+      cfgAlertEmail: document.getElementById('cfgAlertEmail'),
+      cfgVencimentoMeses: document.getElementById('cfgVencimentoMeses'),
+      cfgAlertHora: document.getElementById('cfgAlertHora'),
+      btnToggleSmtpPass: document.getElementById('btnToggleSmtpPass'),
+      btnTestMail: document.getElementById('btnTestMail'),
+      btnSaveConfigs: document.getElementById('btnSaveConfigs'),
+      configError: document.getElementById('configError'),
+      toast: document.getElementById('toast'),
     };
+
+    function showToast(message, type = 'success') {
+      el.toast.textContent = message;
+      el.toast.className = `toast ${type} show`;
+      clearTimeout(el.toast._t);
+      el.toast._t = setTimeout(() => el.toast.classList.remove('show'), 3000);
+    }
 
     function fmtDate(dateValue) {
       if (!dateValue) return '-';
@@ -527,15 +646,65 @@
       el.tabLaudosBtn.classList.toggle('active', tab === 'laudos');
       el.laudosSection.classList.toggle('hidden', tab !== 'laudos');
       el.usersSection.classList.toggle('hidden', tab !== 'users');
+      el.configSection.classList.toggle('hidden', tab !== 'config');
     }
 
     async function syncTabFromHash() {
       if (window.location.hash === '#usuarios') {
         switchTab('users');
         if (!state.users.length) await loadUsers();
+      } else if (window.location.hash === '#configuracoes') {
+        switchTab('config');
+        await loadConfigs();
       } else {
         switchTab('laudos');
       }
+    }
+
+    function getConfigValue(chave) {
+      return state.configs[chave] || '';
+    }
+
+    function setConfigValue(chave, valor) {
+      state.configs[chave] = String(valor ?? '');
+    }
+
+    function hydrateConfigForm() {
+      el.cfgSmtpHost.value = getConfigValue('smtp_host');
+      el.cfgSmtpPort.value = getConfigValue('smtp_port');
+      el.cfgSmtpUser.value = getConfigValue('smtp_user');
+      el.cfgSmtpPass.value = '';
+      el.cfgSmtpFrom.value = getConfigValue('smtp_from');
+      el.cfgAlertEmail.value = getConfigValue('alert_email');
+      el.cfgVencimentoMeses.value = getConfigValue('vencimento_meses') || '12';
+      el.cfgAlertHora.value = getConfigValue('alert_hora') || '08:00';
+    }
+
+    async function loadConfigs() {
+      el.configError.textContent = '';
+      const rows = await api('/configuracoes');
+      state.configs = {};
+      rows.forEach((r) => {
+        setConfigValue(r.chave, r.chave === 'smtp_pass' ? '' : r.valor);
+      });
+      hydrateConfigForm();
+    }
+
+    function getConfigPayloads() {
+      const next = {
+        smtp_host: el.cfgSmtpHost.value.trim(),
+        smtp_port: el.cfgSmtpPort.value.trim(),
+        smtp_user: el.cfgSmtpUser.value.trim(),
+        smtp_from: el.cfgSmtpFrom.value.trim(),
+        alert_email: el.cfgAlertEmail.value.trim(),
+        alert_hora: el.cfgAlertHora.value.trim(),
+        vencimento_meses: el.cfgVencimentoMeses.value.trim(),
+      };
+      if (el.cfgSmtpPass.value.trim()) next.smtp_pass = el.cfgSmtpPass.value.trim();
+
+      return Object.entries(next)
+        .filter(([key, value]) => String(getConfigValue(key)) !== String(value))
+        .map(([chave, valor]) => ({ chave, valor }));
     }
 
     async function showLaudoDetail(laudoId) {
@@ -608,6 +777,7 @@
     el.btnRefresh.addEventListener('click', async () => {
       if (state.tab === 'laudos') await loadLaudos();
       if (state.tab === 'users') await loadUsers();
+      if (state.tab === 'config') await loadConfigs();
     });
 
     el.btnLogout.addEventListener('click', async () => {
@@ -719,6 +889,43 @@
     el.closeUserModal.addEventListener('click', () => el.newUserModalBg.classList.remove('active'));
     el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) el.detailModalBg.classList.remove('active'); });
     el.newUserModalBg.addEventListener('click', (ev) => { if (ev.target === el.newUserModalBg) el.newUserModalBg.classList.remove('active'); });
+    el.btnToggleSmtpPass.addEventListener('click', () => {
+      const nextType = el.cfgSmtpPass.type === 'password' ? 'text' : 'password';
+      el.cfgSmtpPass.type = nextType;
+      el.btnToggleSmtpPass.textContent = nextType === 'password' ? 'Mostrar' : 'Ocultar';
+    });
+    el.btnTestMail.addEventListener('click', async () => {
+      el.configError.textContent = '';
+      try {
+        const res = await api('/configuracoes/testar-email', { method: 'POST' });
+        if (res && res.sucesso) showToast('E-mail de teste enviado com sucesso', 'success');
+      } catch (err) {
+        el.configError.textContent = `Falha: ${err.message}`;
+        showToast(`Falha: ${err.message}`, 'error');
+      }
+    });
+    el.btnSaveConfigs.addEventListener('click', async () => {
+      el.configError.textContent = '';
+      const payloads = getConfigPayloads();
+      if (!payloads.length) {
+        showToast('Nenhuma alteração para salvar', 'success');
+        return;
+      }
+      try {
+        for (const payload of payloads) {
+          await api('/configuracoes', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+        await loadConfigs();
+        showToast('Configurações salvas com sucesso', 'success');
+      } catch (err) {
+        el.configError.textContent = err.message;
+        showToast(err.message, 'error');
+      }
+    });
     window.addEventListener('hashchange', () => { syncTabFromHash().catch(() => {}); });
 
     (async () => {

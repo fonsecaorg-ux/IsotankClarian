@@ -2,6 +2,7 @@
 
 const prisma = require('../lib/prisma');
 const { sendMail } = require('../lib/mailer');
+const { getConfig } = require('../lib/config');
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -56,7 +57,8 @@ function buildEmailHtml({ dias, rows }) {
 }
 
 async function checkVencimentos() {
-  const alertEmail = process.env.ALERT_EMAIL;
+  const alertEmail = String(await getConfig('alert_email') || '').trim();
+  const vencimentoMeses = Number(await getConfig('vencimento_meses') || 12) || 12;
   if (!alertEmail) {
     console.warn('[alerta-vencimento] ALERT_EMAIL não configurado. Verificação concluída sem envio.');
     return { enviados: 0, detalhes: [{ ok: false, motivo: 'alert_email_not_configured' }] };
@@ -76,7 +78,7 @@ async function checkVencimentos() {
   const hoje = new Date();
   const groups = { 30: [], 15: [], 7: [] };
   laudos.forEach((l) => {
-    const vencimento = addMonths(l.dataInspecao, 12);
+    const vencimento = addMonths(l.dataInspecao, vencimentoMeses);
     const diff = daysDiff(hoje, vencimento);
     if (diff === 30 || diff === 15 || diff === 7) {
       groups[diff].push({
