@@ -21,6 +21,7 @@ const equipamentosRoutes = require('./src/routes/equipamentos');
 const clientesRoutes = require('./src/routes/clientes');
 const authRoutes = require('./src/routes/auth');
 const configuracoesRoutes = require('./src/routes/configuracoes');
+const documentosRoutes = require('./src/routes/documentos');
 const { getConfig } = require('./src/lib/config');
 const { checkVencimentos } = require('./src/services/alertaVencimento');
 
@@ -251,6 +252,7 @@ app.use('/equipamentos', equipamentosRoutes);
 app.use('/clientes', clientesRoutes);
 app.use('/auth', authRoutes);
 app.use('/configuracoes', configuracoesRoutes);
+app.use('/documentos', documentosRoutes);
 
 function buildTemplateData(formData, cfg, dataPt) {
   return {

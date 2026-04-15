@@ -30,6 +30,7 @@ model User {
 
   laudos       Laudo[]    @relation("LaudoCreatedBy")
   auditLogs    AuditLog[]
+  documentos   Documento[] @relation("DocumentoUploadedBy")
 }
 
 model Laudo {
@@ -138,4 +139,25 @@ model AuditLog {
   @@index([laudoId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model Documento {
+  id             String   @id @default(uuid())
+  nome           String
+  descricao      String?
+  categoria      String
+  nomeArquivo    String
+  mimeType       String
+  tamanho        Int
+  caminhoArquivo String?
+  dados          Bytes?
+  ativo          Boolean  @default(true)
+  uploadedById   String
+  uploadedBy     User     @relation("DocumentoUploadedBy", fields: [uploadedById], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([categoria])
+  @@index([ativo])
+  @@index([uploadedById])
 }

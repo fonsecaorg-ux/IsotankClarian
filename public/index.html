@@ -314,6 +314,46 @@
   }
   .photo-slot.captured .photo-badge { display: flex; }
 
+  .docs-panel {
+    margin: 10px 12px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    padding: 12px;
+  }
+  .docs-panel h2 {
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .docs-panel p { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .docs-group { margin-top: 8px; }
+  .docs-group h3 { font-size: 12px; color: var(--accent); margin-bottom: 6px; }
+  .docs-list { display: grid; gap: 8px; }
+  .doc-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .doc-title { font-size: 12px; font-weight: 700; color: var(--text); }
+  .doc-meta { font-size: 11px; color: var(--muted); }
+  .doc-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 36px;
+  }
+
   /* ── Exame buttons ────────────────────────────────────────────────────────── */
   .exam-row {
     display: flex;
@@ -497,6 +537,13 @@
   <div class="tab" data-sec="4">Exames Realizados + Fotos</div>
   <div class="tab" data-sec="5">Conclusão</div>
 </nav>
+
+<section class="docs-panel">
+  <h2>Documentos de referência para a inspeção</h2>
+  <p>Baixe instruções técnicas e formulários administrativos.</p>
+  <div id="docsRefError" class="inline-error"></div>
+  <div id="docsRefGroups"></div>
+</section>
 
 <!-- ── Form ───────────────────────────────────────────────────────────────── -->
 <form id="laudoForm" novalidate>
@@ -913,6 +960,8 @@ const overlay = document.getElementById('overlay');
 const retryWrap = document.getElementById('retryWrap');
 const btnRetryGenerate = document.getElementById('btnRetryGenerate');
 const offlineBanner = document.getElementById('offlineBanner');
+const docsRefError = document.getElementById('docsRefError');
+const docsRefGroups = document.getElementById('docsRefGroups');
 
 function formatBytes(bytes) {
   if (!bytes) return '0 B';
@@ -924,6 +973,52 @@ function formatBytes(bytes) {
     idx += 1;
   }
   return `${size.toFixed(size >= 100 || idx === 0 ? 0 : 1)} ${units[idx]}`;
+}
+
+function categoryLabel(categoria) {
+  return (
+    {
+      IT: 'IT',
+      FORM_ADM: 'FORM ADM',
+      FORM_TEC: 'FORM TEC',
+      OUTRO: 'Outro',
+    }[categoria] || categoria
+  );
+}
+
+function renderDocumentosRef(items) {
+  const groups = ['IT', 'FORM_ADM', 'FORM_TEC', 'OUTRO'];
+  docsRefGroups.innerHTML = groups.map((categoria) => {
+    const docs = items.filter((d) => d.categoria === categoria);
+    return `
+      <section class="docs-group">
+        <h3>${categoryLabel(categoria)}</h3>
+        <div class="docs-list">
+          ${docs.length ? docs.map((d) => `
+            <article class="doc-item">
+              <div>
+                <p class="doc-title">${d.nome || '-'}</p>
+                <p class="doc-meta">${d.nomeArquivo || '-'} • ${formatBytes(d.tamanho)} • ${new Date(d.createdAt).toLocaleDateString('pt-BR')}</p>
+              </div>
+              <button type="button" class="doc-btn" data-doc-id="${d.id}">Baixar</button>
+            </article>
+          `).join('') : '<p class="doc-meta">Nenhum documento nesta categoria.</p>'}
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+async function loadDocumentosRef() {
+  try {
+    docsRefError.textContent = '';
+    const res = await fetch('/documentos', { credentials: 'include' });
+    if (!res.ok) throw new Error('Falha ao carregar documentos');
+    const docs = await res.json();
+    renderDocumentosRef(Array.isArray(docs) ? docs : []);
+  } catch (err) {
+    docsRefError.textContent = err.message || 'Falha ao carregar documentos';
+  }
 }
 
 function showToast(msg, type = '') {
@@ -1204,6 +1299,12 @@ async function submitGenerate() {
 btnSubmit.addEventListener('click', submitGenerate);
 btnRetryGenerate.addEventListener('click', submitGenerate);
 
+docsRefGroups.addEventListener('click', (ev) => {
+  const id = ev.target?.dataset?.docId;
+  if (!id) return;
+  window.open(`/documentos/${id}/download`, '_blank');
+});
+
 form.addEventListener('input', (event) => {
   if (event.target && event.target.name) clearFieldError(event.target.name);
   saveDraft();
@@ -1234,6 +1335,7 @@ document.querySelector('input[name="data_inspecao"]').value = new Date().toISOSt
   try {
     const ok = await ensureAuthenticated();
     if (!ok) return;
+    await loadDocumentosRef();
     restoreDraftIfAny();
     goTo(0);
   } catch (err) {

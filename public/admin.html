@@ -270,6 +270,54 @@
       gap: 8px;
       align-items: center;
     }
+    .docs-upload-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .docs-list-group { margin-top: 10px; }
+    .docs-list-group h3 { font-size: 13px; color: var(--accent); margin-bottom: 6px; }
+    .docs-list { display: grid; gap: 8px; }
+    .doc-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .doc-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .doc-icon {
+      width: 30px; height: 30px; border-radius: 8px;
+      border: 1px solid var(--border);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; color: var(--accent);
+      background: #faf9f8; flex-shrink: 0;
+    }
+    .doc-title { font-size: 12px; font-weight: 700; color: var(--text); }
+    .doc-desc { font-size: 11px; color: var(--muted); }
+    .doc-meta { font-size: 11px; color: var(--muted); }
+    .progress-wrap {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #faf9f8;
+      overflow: hidden;
+      margin: 8px 0 4px;
+      display: none;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width .1s linear;
+    }
+    .progress-text { font-size: 11px; color: var(--muted); min-height: 14px; }
     @media (max-width: 767px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar {
@@ -291,6 +339,7 @@
       .grid2 { grid-template-columns: 1fr; }
       .config-grid { grid-template-columns: 1fr; }
       .photos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .docs-upload-grid { grid-template-columns: 1fr; }
     }
     @media (min-width: 768px) and (max-width: 1024px) {
       .layout { grid-template-columns: 72px 1fr; }
@@ -326,6 +375,7 @@
       <p class="nav-group">Cadastros</p>
       <a href="/equipamentos" class="btn" data-short="I" title="Isotanks" style="display:inline-block;text-decoration:none;margin-top:4px;">Isotanks</a>
       <a href="/clientes" class="btn" data-short="C" title="Clientes" style="display:inline-block;text-decoration:none;margin-top:4px;">Clientes</a>
+      <a href="/painel-admin#documentos" class="btn" data-short="DOC" title="Documentos" style="display:inline-block;text-decoration:none;margin-top:4px;">Documentos</a>
       <p class="nav-group">Operação</p>
       <a href="/kanban" class="btn" data-short="K" title="Kanban" style="display:inline-block;text-decoration:none;margin-top:4px;">Kanban</a>
       <a href="/" class="btn" data-short="F" title="Formulário" style="display:inline-block;text-decoration:none;margin-top:8px;">Voltar ao formulário</a>
@@ -448,6 +498,46 @@
         </div>
         <p id="configError" class="error"></p>
       </section>
+
+      <section id="docsSection" class="panel hidden">
+        <h2 style="font-size:16px;color:var(--accent);margin-bottom:8px;">Documentos</h2>
+        <p class="config-help">Biblioteca de documentos de referência para inspeção.</p>
+
+        <form id="docUploadForm">
+          <div class="docs-upload-grid">
+            <div class="field">
+              <label for="docNome">Nome do documento *</label>
+              <input id="docNome" name="nome" type="text" required>
+            </div>
+            <div class="field">
+              <label for="docCategoria">Categoria *</label>
+              <select id="docCategoria" name="categoria" required>
+                <option value="IT">IT</option>
+                <option value="FORM_ADM">FORM ADM</option>
+                <option value="FORM_TEC">FORM TEC</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+            </div>
+            <div class="field" style="grid-column:1 / -1;">
+              <label for="docDescricao">Descrição</label>
+              <input id="docDescricao" name="descricao" type="text">
+            </div>
+            <div class="field" style="grid-column:1 / -1;">
+              <label for="docArquivo">Arquivo * (máx. 20MB)</label>
+              <input id="docArquivo" name="arquivo" type="file" required accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
+            </div>
+          </div>
+          <div class="progress-wrap" id="docUploadProgressWrap">
+            <div class="progress-bar-fill" id="docUploadProgressBar"></div>
+          </div>
+          <p class="progress-text" id="docUploadProgressText"></p>
+          <div class="config-row">
+            <button type="submit" class="btn accent" id="btnDocUpload">Fazer Upload</button>
+          </div>
+        </form>
+        <p id="docsError" class="error"></p>
+        <div id="docsGroups"></div>
+      </section>
     </main>
   </div>
 
@@ -519,6 +609,7 @@
       laudos: [],
       users: [],
       configs: {},
+      documentos: [],
       galleryPhotos: [],
       galleryIndex: 0,
       tab: 'laudos',
@@ -532,6 +623,7 @@
       laudosSection: document.getElementById('laudosSection'),
       usersSection: document.getElementById('usersSection'),
       configSection: document.getElementById('configSection'),
+      docsSection: document.getElementById('docsSection'),
       searchInput: document.getElementById('searchInput'),
       statusFilter: document.getElementById('statusFilter'),
       dateStart: document.getElementById('dateStart'),
@@ -560,6 +652,13 @@
       btnTestMail: document.getElementById('btnTestMail'),
       btnSaveConfigs: document.getElementById('btnSaveConfigs'),
       configError: document.getElementById('configError'),
+      docUploadForm: document.getElementById('docUploadForm'),
+      btnDocUpload: document.getElementById('btnDocUpload'),
+      docUploadProgressWrap: document.getElementById('docUploadProgressWrap'),
+      docUploadProgressBar: document.getElementById('docUploadProgressBar'),
+      docUploadProgressText: document.getElementById('docUploadProgressText'),
+      docsError: document.getElementById('docsError'),
+      docsGroups: document.getElementById('docsGroups'),
       toast: document.getElementById('toast'),
       lightboxBg: document.getElementById('lightboxBg'),
       lightboxImg: document.getElementById('lightboxImg'),
@@ -696,6 +795,69 @@
       `).join('');
     }
 
+    function formatBytes(bytes) {
+      const n = Number(bytes || 0);
+      if (!n) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let size = n;
+      let idx = 0;
+      while (size >= 1024 && idx < units.length - 1) {
+        size /= 1024;
+        idx += 1;
+      }
+      return `${size.toFixed(size >= 100 || idx === 0 ? 0 : 1)} ${units[idx]}`;
+    }
+
+    function getDocIcon(name) {
+      const ext = String(name || '').toLowerCase();
+      if (ext.endsWith('.pdf')) return 'PDF';
+      if (ext.endsWith('.doc') || ext.endsWith('.docx')) return 'DOC';
+      if (ext.endsWith('.xls') || ext.endsWith('.xlsx')) return 'XLS';
+      if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg')) return 'IMG';
+      return 'ARQ';
+    }
+
+    function categoryLabel(categoria) {
+      return (
+        {
+          IT: 'IT',
+          FORM_ADM: 'FORM ADM',
+          FORM_TEC: 'FORM TEC',
+          OUTRO: 'Outro',
+        }[categoria] || categoria
+      );
+    }
+
+    function renderDocsGroups() {
+      const groups = ['IT', 'FORM_ADM', 'FORM_TEC', 'OUTRO'];
+      el.docsGroups.innerHTML = groups.map((categoria) => {
+        const items = state.documentos.filter((d) => d.categoria === categoria);
+        return `
+          <section class="docs-list-group">
+            <h3>${categoryLabel(categoria)}</h3>
+            <div class="docs-list">
+              ${items.length ? items.map((d) => `
+                <article class="doc-item">
+                  <div class="doc-info">
+                    <span class="doc-icon">${getDocIcon(d.nomeArquivo)}</span>
+                    <div>
+                      <p class="doc-title">${escapeHtml(d.nome)}</p>
+                      <p class="doc-desc">${escapeHtml(d.descricao || '-')}</p>
+                      <p class="doc-meta">${escapeHtml(d.nomeArquivo)} • ${formatBytes(d.tamanho)} • ${fmtDate(d.createdAt)}</p>
+                    </div>
+                  </div>
+                  <div class="row-actions">
+                    <button class="btn" data-doc-action="download" data-id="${escapeHtml(d.id)}">Baixar</button>
+                    <button class="btn" data-doc-action="remove" data-id="${escapeHtml(d.id)}">Remover</button>
+                  </div>
+                </article>
+              `).join('') : '<p class="doc-desc">Nenhum documento nesta categoria.</p>'}
+            </div>
+          </section>
+        `;
+      }).join('');
+    }
+
     async function loadLaudos() {
       el.laudosError.textContent = '';
       try {
@@ -722,6 +884,7 @@
       el.laudosSection.classList.toggle('hidden', tab !== 'laudos');
       el.usersSection.classList.toggle('hidden', tab !== 'users');
       el.configSection.classList.toggle('hidden', tab !== 'config');
+      el.docsSection.classList.toggle('hidden', tab !== 'docs');
     }
 
     async function syncTabFromHash() {
@@ -731,6 +894,9 @@
       } else if (window.location.hash === '#configuracoes') {
         switchTab('config');
         await loadConfigs();
+      } else if (window.location.hash === '#documentos') {
+        switchTab('docs');
+        await loadDocumentos();
       } else {
         switchTab('laudos');
       }
@@ -771,6 +937,35 @@
         setConfigValue(r.chave, r.chave === 'smtp_pass' ? '' : r.valor);
       });
       hydrateConfigForm();
+    }
+
+    async function loadDocumentos() {
+      el.docsError.textContent = '';
+      state.documentos = await api('/documentos');
+      renderDocsGroups();
+    }
+
+    function uploadDocumentoWithProgress(formData) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/documentos');
+        xhr.withCredentials = true;
+        xhr.upload.onprogress = (event) => {
+          if (!event.lengthComputable) return;
+          const pct = Math.round((event.loaded / event.total) * 100);
+          el.docUploadProgressWrap.style.display = 'block';
+          el.docUploadProgressBar.style.width = `${pct}%`;
+          el.docUploadProgressText.textContent = `Upload: ${pct}%`;
+        };
+        xhr.onerror = () => reject(new Error('Falha de rede no upload'));
+        xhr.onload = () => {
+          let payload = null;
+          try { payload = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (_) { payload = null; }
+          if (xhr.status >= 200 && xhr.status < 300) return resolve(payload);
+          return reject(new Error(payload?.error || `HTTP ${xhr.status}`));
+        };
+        xhr.send(formData);
+      });
     }
 
     function getConfigPayloads() {
@@ -922,6 +1117,7 @@
       if (state.tab === 'laudos') await loadLaudos();
       if (state.tab === 'users') await loadUsers();
       if (state.tab === 'config') await loadConfigs();
+      if (state.tab === 'docs') await loadDocumentos();
     });
 
     el.btnLogout.addEventListener('click', async () => {
@@ -1003,6 +1199,59 @@
         }
       } catch (err) {
         el.usersError.textContent = err.message;
+      }
+    });
+
+    el.docsGroups.addEventListener('click', async (ev) => {
+      const action = ev.target?.dataset?.docAction;
+      const id = ev.target?.dataset?.id;
+      if (!action || !id) return;
+
+      try {
+        if (action === 'download') {
+          window.open(`/documentos/${id}/download`, '_blank');
+          return;
+        }
+        if (action === 'remove') {
+          if (!window.confirm('Deseja remover este documento?')) return;
+          await api(`/documentos/${id}`, { method: 'DELETE' });
+          await loadDocumentos();
+          showToast('Documento removido', 'success');
+        }
+      } catch (err) {
+        el.docsError.textContent = err.message;
+      }
+    });
+
+    el.docUploadForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      el.docsError.textContent = '';
+      el.docUploadProgressWrap.style.display = 'none';
+      el.docUploadProgressBar.style.width = '0%';
+      el.docUploadProgressText.textContent = '';
+
+      const fd = new FormData(el.docUploadForm);
+      const arquivo = fd.get('arquivo');
+      if (!arquivo || !(arquivo instanceof File) || !arquivo.size) {
+        el.docsError.textContent = 'Selecione um arquivo.';
+        return;
+      }
+      if (arquivo.size > 20 * 1024 * 1024) {
+        el.docsError.textContent = 'Arquivo excede 20MB.';
+        return;
+      }
+
+      el.btnDocUpload.disabled = true;
+      try {
+        await uploadDocumentoWithProgress(fd);
+        el.docUploadProgressText.textContent = 'Upload concluído';
+        el.docUploadForm.reset();
+        await loadDocumentos();
+        showToast('Documento enviado com sucesso', 'success');
+      } catch (err) {
+        el.docsError.textContent = err.message;
+      } finally {
+        el.btnDocUpload.disabled = false;
       }
     });
 
