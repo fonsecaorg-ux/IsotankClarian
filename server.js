@@ -87,6 +87,27 @@ const PHOTO_MEDIA_MAP = {
   foto_placa_identificacao: 'word/media/image10.png',
 };
 
+const PHOTO_LABEL_MAP = {
+  foto_frontal: 'Frontal',
+  foto_traseira: 'Traseira',
+  foto_lateral1: 'Lateral 1',
+  foto_lateral2: 'Lateral 2',
+  foto_superior: 'Superior',
+  foto_termometro: 'Termômetro',
+  foto_tampa_boca_visita: 'Tampa Boca de Visita',
+  foto_valvula_alivio: 'Válvula de Alívio',
+  foto_valvula_descarga: 'Válvula de Descarga',
+  foto_placa_identificacao: 'Placa de Identificação',
+};
+
+const STORAGE_MODE = String(process.env.STORAGE_MODE || 'database').trim().toLowerCase() === 'disk'
+  ? 'disk'
+  : 'database';
+const STORAGE_PATH_RAW = String(process.env.STORAGE_PATH || './storage/fotos').trim() || './storage/fotos';
+const STORAGE_ROOT = path.isAbsolute(STORAGE_PATH_RAW)
+  ? STORAGE_PATH_RAW
+  : path.join(__dirname, STORAGE_PATH_RAW);
+
 // memoryStorage → file.buffer disponível diretamente, nada gravado em disco
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -416,9 +437,18 @@ app.post(
       zip.file('word/document.xml', docXml);
 
       // ── Injetar fotos no zip (buffer em memória — sem acesso a disco) ────────
+      const fotoRecords = [];
       for (const field of PHOTO_FIELDS) {
         if (files[field] && files[field][0]) {
-          zip.file(PHOTO_MEDIA_MAP[field], files[field][0].buffer);
+          const file = files[field][0];
+          zip.file(PHOTO_MEDIA_MAP[field], file.buffer);
+          fotoRecords.push({
+            campo: field,
+            label: PHOTO_LABEL_MAP[field] || field,
+            dados: file.buffer,
+            mimeType: file.mimetype || 'image/jpeg',
+            tamanho: Number(file.size || file.buffer?.length || 0),
+          });
         }
       }
 
@@ -457,6 +487,56 @@ app.post(
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(outputBuffer);
+
+      // Persistência de fotos no banco (não crítica).
+      // Não deve quebrar o download do laudo.
+      try {
+        if (laudo?.id && fotoRecords.length) {
+          const isDiskMode = STORAGE_MODE === 'disk';
+          const laudoStorageDir = path.join(STORAGE_ROOT, laudo.id);
+
+          await prisma.fotoLaudo.deleteMany({
+            where: {
+              laudoId: laudo.id,
+              campo: { in: fotoRecords.map((r) => r.campo) },
+            },
+          });
+
+          if (isDiskMode) {
+            fs.mkdirSync(laudoStorageDir, { recursive: true });
+          }
+
+          await prisma.fotoLaudo.createMany({
+            data: fotoRecords.map((r) => {
+              if (isDiskMode) {
+                const filePath = path.join(laudoStorageDir, `${r.campo}.jpg`);
+                fs.writeFileSync(filePath, r.dados);
+                return {
+                  laudoId: laudo.id,
+                  campo: r.campo,
+                  label: r.label,
+                  caminhoArquivo: filePath,
+                  mimeType: r.mimeType,
+                  tamanho: r.tamanho,
+                  dados: null,
+                };
+              }
+
+              return {
+                laudoId: laudo.id,
+                campo: r.campo,
+                label: r.label,
+                dados: r.dados,
+                caminhoArquivo: null,
+                mimeType: r.mimeType,
+                tamanho: r.tamanho,
+              };
+            }),
+          });
+        }
+      } catch (errFotos) {
+        console.error('Erro ao salvar fotos do laudo (não crítico):', errFotos);
+      }
 
       // Cadastro automático de cliente/equipamento (não crítico).
       // Este bloco roda após o download ser disparado e nunca deve quebrar a resposta.
@@ -648,6 +728,23 @@ async function bootstrap() {
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`\n  CEINSPEC Isotank — Laudo Generator`);
       console.log(`  Servidor rodando na porta ${PORT}\n`);
+
+      const storageMode = process.env.STORAGE_MODE || 'database';
+      const storagePath = path.resolve(process.env.STORAGE_PATH || './storage/fotos');
+
+      console.log(`[storage] Modo: ${storageMode}`);
+
+      if (storageMode === 'disk') {
+        console.log(`[storage] Caminho: ${storagePath}`);
+        try {
+          fs.mkdirSync(storagePath, { recursive: true });
+          fs.accessSync(storagePath, fs.constants.W_OK);
+          console.log('[storage] Pasta com permissão de escrita ✓');
+        } catch (err) {
+          console.error('[storage] AVISO: sem permissão de escrita na pasta de fotos:', err.message);
+        }
+      }
+
       scheduleAlertChecks().catch((err) => {
         console.error('Falha ao agendar verificação de vencimentos:', err.message);
       });

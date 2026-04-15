@@ -63,6 +63,13 @@
     .kv { border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--surface); font-size: 12px; }
     .kv b { color: var(--accent); display: block; margin-bottom: 4px; }
     .audit-item { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; font-size: 12px; background: var(--surface); }
+    .photos-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+    .photo-cell { border: 1px solid var(--border); border-radius: 8px; background: #faf9f8; padding: 6px; }
+    .photo-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; min-height: 28px; }
+    .photo-thumb { width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); cursor: pointer; background: #fff; }
+    .photo-placeholder { width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; border: 1px dashed var(--border); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:24px; background:#f3f2f1; }
+    .lightbox-img { max-width: min(90vw, 1000px); max-height: 80vh; border-radius: 10px; border: 1px solid var(--border); background: #000; }
+    .lightbox-toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
     @media (max-width: 767px) {
       .actions { width: 100%; }
       .actions .btn { flex: 1; text-align: center; }
@@ -75,6 +82,7 @@
       }
       .col { min-width: 86vw; min-height: auto; }
       .grid2 { grid-template-columns: 1fr; }
+      .photos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (min-width: 768px) and (max-width: 1024px) {
       .filters { grid-template-columns: 1fr 1fr; }
@@ -146,11 +154,43 @@
     </div>
   </div>
 
+  <div class="modal-bg" id="lightboxBg">
+    <div class="modal" style="width:auto;max-width:95vw;">
+      <div class="lightbox-toolbar">
+        <button class="btn" id="lightboxPrev">‹ Anterior</button>
+        <button class="btn" id="lightboxClose">Fechar</button>
+        <button class="btn" id="lightboxNext">Próxima ›</button>
+      </div>
+      <img id="lightboxImg" class="lightbox-img" alt="Foto do laudo">
+    </div>
+  </div>
+
   <script>
     'use strict';
 
     const STATUS = ['PENDENTE', 'GERADO', 'ASSINADO'];
-    const state = { user: null, laudos: [], filtered: [], currentDetailId: null, dragOrigin: null, timer: null };
+    const PHOTO_ORDER = [
+      { campo: 'foto_frontal', label: 'Frontal' },
+      { campo: 'foto_traseira', label: 'Traseira' },
+      { campo: 'foto_lateral1', label: 'Lateral 1' },
+      { campo: 'foto_lateral2', label: 'Lateral 2' },
+      { campo: 'foto_superior', label: 'Superior' },
+      { campo: 'foto_termometro', label: 'Termômetro' },
+      { campo: 'foto_tampa_boca_visita', label: 'Tampa Boca de Visita' },
+      { campo: 'foto_valvula_alivio', label: 'Válvula de Alívio' },
+      { campo: 'foto_valvula_descarga', label: 'Válvula de Descarga' },
+      { campo: 'foto_placa_identificacao', label: 'Placa de Identificação' },
+    ];
+    const state = {
+      user: null,
+      laudos: [],
+      filtered: [],
+      currentDetailId: null,
+      dragOrigin: null,
+      timer: null,
+      galleryPhotos: [],
+      galleryIndex: 0,
+    };
 
     const el = {
       sessionMeta: document.getElementById('sessionMeta'),
@@ -172,6 +212,11 @@
       detailContent: document.getElementById('detailContent'),
       closeDetailModal: document.getElementById('closeDetailModal'),
       btnReprocessModal: document.getElementById('btnReprocessModal'),
+      lightboxBg: document.getElementById('lightboxBg'),
+      lightboxImg: document.getElementById('lightboxImg'),
+      lightboxPrev: document.getElementById('lightboxPrev'),
+      lightboxNext: document.getElementById('lightboxNext'),
+      lightboxClose: document.getElementById('lightboxClose'),
     };
 
     function escapeHtml(v) {
@@ -319,9 +364,69 @@
       renderBoard();
     }
 
+    function renderPhotoGallery(fotos, laudoId) {
+      const byCampo = new Map((fotos || []).map((f) => [f.campo, f]));
+      const ordered = PHOTO_ORDER.map((item) => {
+        const foto = byCampo.get(item.campo);
+        return foto ? { ...foto, expectedLabel: item.label } : { campo: item.campo, expectedLabel: item.label };
+      });
+
+      state.galleryPhotos = ordered.filter((f) => f && f.id).map((f) => ({
+        src: `/laudos/${laudoId}/fotos/${f.id}`,
+        label: f.label || f.expectedLabel || f.campo,
+      }));
+
+      return `
+        <h3 style="font-size:14px;color:var(--accent);margin:12px 0 8px;">Registro Fotográfico</h3>
+        <div class="photos-grid">
+          ${ordered.map((f) => {
+            if (f.id) {
+              const idx = state.galleryPhotos.findIndex((p) => p.src.endsWith(`/${f.id}`));
+              return `
+                <div class="photo-cell">
+                  <div class="photo-label">${escapeHtml(f.label || f.expectedLabel || f.campo)}</div>
+                  <img class="photo-thumb" data-photo-index="${idx}" src="/laudos/${laudoId}/fotos/${f.id}" alt="${escapeHtml(f.label || f.expectedLabel || f.campo)}">
+                </div>
+              `;
+            }
+            return `
+              <div class="photo-cell">
+                <div class="photo-label">${escapeHtml(f.expectedLabel || f.campo)}</div>
+                <div class="photo-placeholder" title="Foto não enviada">📷</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function updateLightbox() {
+      if (!state.galleryPhotos.length) return;
+      const current = state.galleryPhotos[state.galleryIndex];
+      el.lightboxImg.src = current.src;
+      el.lightboxImg.alt = current.label;
+    }
+
+    function openLightbox(index) {
+      if (!state.galleryPhotos.length) return;
+      state.galleryIndex = index < 0 ? 0 : (index >= state.galleryPhotos.length ? 0 : index);
+      updateLightbox();
+      el.lightboxBg.classList.add('active');
+    }
+
+    function closeLightbox() {
+      el.lightboxBg.classList.remove('active');
+    }
+
     async function openDetailModal(laudoId) {
       state.currentDetailId = laudoId;
       const detail = await api(`/laudos/${laudoId}`);
+      let fotos = [];
+      try {
+        fotos = await api(`/laudos/${laudoId}/fotos`);
+      } catch (_) {
+        fotos = [];
+      }
 
       const formEntries = Object.entries(detail.formData || {}).map(([k, v]) => `
         <div class="kv"><b>${escapeHtml(k)}</b>${escapeHtml(v)}</div>
@@ -349,6 +454,7 @@
         <div class="grid2">${formEntries || '<p>Sem dados.</p>'}</div>
         <h3 style="font-size:14px;color:var(--accent);margin:12px 0 8px;">Histórico de Movimentações</h3>
         ${auditEntries}
+        ${renderPhotoGallery(fotos, laudoId)}
       `;
       el.detailModalBg.classList.add('active');
     }
@@ -412,8 +518,27 @@
       try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {}
       window.location.replace('/login');
     });
+    el.detailContent.addEventListener('click', (ev) => {
+      const idxRaw = ev.target?.dataset?.photoIndex;
+      if (idxRaw == null) return;
+      const idx = Number(idxRaw);
+      if (Number.isNaN(idx)) return;
+      openLightbox(idx);
+    });
     el.closeDetailModal.addEventListener('click', () => el.detailModalBg.classList.remove('active'));
     el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) el.detailModalBg.classList.remove('active'); });
+    el.lightboxClose.addEventListener('click', closeLightbox);
+    el.lightboxBg.addEventListener('click', (ev) => { if (ev.target === el.lightboxBg) closeLightbox(); });
+    el.lightboxPrev.addEventListener('click', () => {
+      if (!state.galleryPhotos.length) return;
+      state.galleryIndex = (state.galleryIndex - 1 + state.galleryPhotos.length) % state.galleryPhotos.length;
+      updateLightbox();
+    });
+    el.lightboxNext.addEventListener('click', () => {
+      if (!state.galleryPhotos.length) return;
+      state.galleryIndex = (state.galleryIndex + 1) % state.galleryPhotos.length;
+      updateLightbox();
+    });
     el.btnReprocessModal.addEventListener('click', async () => {
       try {
         await reprocessCurrentDetail();

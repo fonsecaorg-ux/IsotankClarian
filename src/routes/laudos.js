@@ -1,12 +1,21 @@
 'use strict';
 
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/requireRole');
 
 const router = express.Router();
 const ALLOWED_STATUS = ['PENDENTE', 'GERADO', 'ASSINADO'];
+const STORAGE_MODE = String(process.env.STORAGE_MODE || 'database').trim().toLowerCase() === 'disk'
+  ? 'disk'
+  : 'database';
+const STORAGE_PATH_RAW = String(process.env.STORAGE_PATH || './storage/fotos').trim() || './storage/fotos';
+const STORAGE_ROOT = path.isAbsolute(STORAGE_PATH_RAW)
+  ? STORAGE_PATH_RAW
+  : path.join(process.cwd(), STORAGE_PATH_RAW);
 
 function canAccessLaudo(user, laudo) {
   if (user.role === 'ADMIN') return true;
@@ -118,6 +127,94 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar laudo:', err);
     return res.status(500).json({ error: 'Erro ao buscar laudo' });
+  }
+});
+
+router.get('/:id/fotos', async (req, res) => {
+  try {
+    const laudo = await prisma.laudo.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, createdById: true },
+    });
+
+    if (!laudo) {
+      return res.status(404).json({ error: 'Laudo não encontrado' });
+    }
+
+    if (!canAccessLaudo(req.user, laudo)) {
+      return res.status(403).json({ error: 'Sem permissão para este laudo' });
+    }
+
+    const fotos = await prisma.fotoLaudo.findMany({
+      where: { laudoId: laudo.id },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        campo: true,
+        label: true,
+        tamanho: true,
+      },
+    });
+
+    return res.json(fotos);
+  } catch (err) {
+    console.error('Erro ao listar fotos do laudo:', err);
+    return res.status(500).json({ error: 'Erro ao listar fotos do laudo' });
+  }
+});
+
+router.get('/:id/fotos/:fotoId', async (req, res) => {
+  try {
+    const laudo = await prisma.laudo.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, createdById: true },
+    });
+
+    if (!laudo) {
+      return res.status(404).json({ error: 'Laudo não encontrado' });
+    }
+
+    if (!canAccessLaudo(req.user, laudo)) {
+      return res.status(403).json({ error: 'Sem permissão para este laudo' });
+    }
+
+    const foto = await prisma.fotoLaudo.findFirst({
+      where: {
+        id: req.params.fotoId,
+        laudoId: laudo.id,
+      },
+      select: {
+        dados: true,
+        mimeType: true,
+        caminhoArquivo: true,
+      },
+    });
+
+    if (!foto) {
+      return res.status(404).json({ error: 'Foto não encontrada' });
+    }
+
+    res.setHeader('Content-Type', foto.mimeType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+
+    if (STORAGE_MODE === 'disk') {
+      const absoluteFilePath = foto.caminhoArquivo
+        ? (path.isAbsolute(foto.caminhoArquivo) ? foto.caminhoArquivo : path.join(STORAGE_ROOT, foto.caminhoArquivo))
+        : null;
+      if (!absoluteFilePath || !fs.existsSync(absoluteFilePath)) {
+        return res.status(404).json({ error: 'Arquivo da foto não encontrado no disco' });
+      }
+      const fileBuffer = fs.readFileSync(absoluteFilePath);
+      return res.send(fileBuffer);
+    }
+
+    if (!foto.dados) {
+      return res.status(404).json({ error: 'Dados da foto não encontrados no banco' });
+    }
+    return res.send(foto.dados);
+  } catch (err) {
+    console.error('Erro ao servir foto do laudo:', err);
+    return res.status(500).json({ error: 'Erro ao servir foto do laudo' });
   }
 });
 

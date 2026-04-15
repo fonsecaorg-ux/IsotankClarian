@@ -51,12 +51,29 @@ model Laudo {
   equipamento       Equipamento? @relation(fields: [equipamentoId], references: [id])
 
   auditLogs         AuditLog[]
+  fotos             FotoLaudo[]
 
   @@index([createdById])
   @@index([status])
   @@index([numeroIdentificacao])
   @@index([dataInspecao])
   @@index([equipamentoId])
+}
+
+model FotoLaudo {
+  id        String   @id @default(uuid())
+  laudoId   String
+  laudo     Laudo    @relation(fields: [laudoId], references: [id], onDelete: Cascade)
+  campo     String
+  label     String
+  dados     Bytes?
+  caminhoArquivo String?
+  mimeType  String   @default("image/jpeg")
+  tamanho   Int
+  createdAt DateTime @default(now())
+
+  @@index([laudoId])
+  @@index([campo])
 }
 
 model Cliente {
