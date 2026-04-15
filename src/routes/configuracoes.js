@@ -50,12 +50,19 @@ router.get('/', async (req, res) => {
 
 router.patch('/', async (req, res) => {
   try {
-    const { chave, valor } = req.body || {};
+    const { chave } = req.body || {};
+    let { valor } = req.body || {};
     if (!chave || valor === undefined) {
       return res.status(400).json({ error: 'Informe chave e valor.' });
     }
     if (!ALLOWED_KEYS.has(chave)) {
       return res.status(400).json({ error: 'Chave de configuração inválida.' });
+    }
+
+    if (chave === 'smtp_from') {
+      valor = String(valor)
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
     }
 
     const updated = await setConfig(chave, valor);

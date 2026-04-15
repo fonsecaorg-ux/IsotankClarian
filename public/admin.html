@@ -669,12 +669,20 @@
       state.configs[chave] = String(valor ?? '');
     }
 
+    function decodeSmtpFromValue(value) {
+      return String(value || '')
+        .replace(/&amp;lt;/g, '<')
+        .replace(/&amp;gt;/g, '>')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+    }
+
     function hydrateConfigForm() {
       el.cfgSmtpHost.value = getConfigValue('smtp_host');
       el.cfgSmtpPort.value = getConfigValue('smtp_port');
       el.cfgSmtpUser.value = getConfigValue('smtp_user');
       el.cfgSmtpPass.value = '';
-      el.cfgSmtpFrom.value = getConfigValue('smtp_from');
+      el.cfgSmtpFrom.value = decodeSmtpFromValue(getConfigValue('smtp_from'));
       el.cfgAlertEmail.value = getConfigValue('alert_email');
       el.cfgVencimentoMeses.value = getConfigValue('vencimento_meses') || '12';
       el.cfgAlertHora.value = getConfigValue('alert_hora') || '08:00';
