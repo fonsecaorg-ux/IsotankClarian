@@ -97,7 +97,7 @@ router.post('/testar-email', async (req, res) => {
             <table style="width:100%;border-collapse:collapse;font-size:13px;">
               <thead>
                 <tr style="background:#faf9f8;">
-                  <th style="padding:8px;border:1px solid #edebe9;text-align:left;">Container</th>
+                  <th style="padding:8px;border:1px solid #edebe9;text-align:left;">Isotank</th>
                   <th style="padding:8px;border:1px solid #edebe9;text-align:left;">Cliente</th>
                   <th style="padding:8px;border:1px solid #edebe9;text-align:left;">Inspetor</th>
                   <th style="padding:8px;border:1px solid #edebe9;text-align:left;">Data Inspeção</th>

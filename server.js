@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const xss = require('xss');
+const nodemailer = require('nodemailer');
 const fs   = require('fs');
 const path = require('path');
 const prisma = require('./src/lib/prisma');
@@ -243,6 +244,90 @@ app.get('/auth/me', authMiddleware, (req, res) => {
 
 app.get('/auth/admin/ping', authMiddleware, requireRole('ADMIN'), (req, res) => {
   return res.json({ ok: true });
+});
+
+app.post('/admin/test-email', authMiddleware, requireRole('ADMIN'), async (req, res) => {
+  try {
+    const smtpHost = String(await getConfig('smtp_host') || '').trim();
+    const smtpPort = Number(await getConfig('smtp_port') || 587);
+    const smtpUser = String(await getConfig('smtp_user') || '').trim();
+    const smtpPass = String(await getConfig('smtp_pass') || '');
+    const smtpFrom = String(await getConfig('smtp_from') || '').trim();
+    const alertEmail = String(await getConfig('alert_email') || '').trim();
+
+    if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom || !alertEmail) {
+      return res.status(400).json({
+        error: 'Configurações SMTP incompletas (smtp_host, smtp_user, smtp_pass, smtp_from, alert_email).',
+      });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
+    await transporter.sendMail({
+      from: smtpFrom,
+      to: alertEmail,
+      subject: '[CEINSPEC] Teste de configuração de e-mail',
+      text: `Confirmação de SMTP configurado corretamente.
+Data/hora: ${new Date().toLocaleString('pt-BR')}
+Disparado por: ${req.user?.nome || 'Usuário não identificado'}
+SMTP host: ${smtpHost}
+SMTP port: ${smtpPort}
+SMTP user: ${smtpUser}
+Este é um e-mail automático de teste — nenhuma ação é necessária.`,
+      html: `
+        <div style="font-family:'Segoe UI',system-ui,sans-serif;padding:16px;background:#f3f2f1;">
+          <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #edebe9;border-radius:10px;padding:16px;">
+            <h2 style="margin:0 0 10px;color:#0078d4;">Teste de configuração de e-mail</h2>
+            <p style="margin:0 0 12px;color:#323130;">
+              Confirmação de que o SMTP está configurado corretamente.
+            </p>
+
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <tbody>
+                <tr>
+                  <td style="padding:8px;border:1px solid #edebe9;background:#faf9f8;"><b>Data e hora do envio</b></td>
+                  <td style="padding:8px;border:1px solid #edebe9;">${new Date().toLocaleString('pt-BR')}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px;border:1px solid #edebe9;background:#faf9f8;"><b>Disparado por</b></td>
+                  <td style="padding:8px;border:1px solid #edebe9;">${String(req.user?.nome || 'Usuário não identificado')}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px;border:1px solid #edebe9;background:#faf9f8;"><b>SMTP Host</b></td>
+                  <td style="padding:8px;border:1px solid #edebe9;">${smtpHost}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px;border:1px solid #edebe9;background:#faf9f8;"><b>SMTP Port</b></td>
+                  <td style="padding:8px;border:1px solid #edebe9;">${smtpPort}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px;border:1px solid #edebe9;background:#faf9f8;"><b>SMTP User</b></td>
+                  <td style="padding:8px;border:1px solid #edebe9;">${smtpUser}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p style="margin:12px 0 0;color:#605e5c;font-size:12px;">
+              Este é um e-mail automático de teste — nenhuma ação é necessária.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+
+    return res.json({ ok: true, destinatario: alertEmail });
+  } catch (err) {
+    console.error('Erro em /admin/test-email:', err);
+    return res.status(500).json({ error: err.message || 'Falha ao enviar e-mail de teste' });
+  }
 });
 
 app.use('/laudos', laudosRoutes);

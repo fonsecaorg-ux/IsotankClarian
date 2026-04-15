@@ -119,7 +119,7 @@
     </header>
 
     <section class="filters">
-      <input type="text" id="searchInput" placeholder="Buscar por container ou cliente">
+      <input type="text" id="searchInput" placeholder="Buscar por isotank ou cliente">
       <select id="inspetorFilter"><option value="">Todos os inspetores</option></select>
       <input type="date" id="dateStart">
       <input type="date" id="dateEnd">
@@ -302,7 +302,7 @@
       card.dataset.id = laudo.id;
       card.dataset.status = laudo.status;
       card.innerHTML = `
-        <div class="card-title">${escapeHtml(laudo.numeroIdentificacao || 'Sem container')}</div>
+        <div class="card-title">${escapeHtml(laudo.numeroIdentificacao || 'Sem isotank')}</div>
         <div class="card-line">${escapeHtml(laudo.cliente || '-')}</div>
         <div class="card-muted">Inspetor: ${escapeHtml(laudo.createdBy?.nome || '-')}</div>
         <div class="card-muted">Inspeção: ${fmtDate(laudo.dataInspecao)}</div>
@@ -447,7 +447,7 @@
         <div class="grid2" style="margin-bottom:10px;">
           <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
           <div class="kv"><b>Status</b>${escapeHtml(detail.status)}</div>
-          <div class="kv"><b>Container</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
+          <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
           <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
           <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>
           <div class="kv"><b>Data da inspeção</b>${fmtDate(detail.dataInspecao)}</div>

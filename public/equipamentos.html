@@ -99,7 +99,7 @@
       <h2 class="panel-title">Equipamentos Ativos</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Container</th><th>Fabricante</th><th>Cliente</th><th>Últ. Inspeção</th><th>Próximo Vencimento</th><th>Total Inspeções</th><th>Status</th><th>Ações</th></tr></thead>
+          <thead><tr><th>Isotank</th><th>Fabricante</th><th>Cliente</th><th>Últ. Inspeção</th><th>Próximo Vencimento</th><th>Total Inspeções</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody id="equipBody"></tbody>
         </table>
       </div>
@@ -172,7 +172,7 @@
       if (!state.equipamentos.length) { el.equipBody.innerHTML = '<tr><td colspan="8">Nenhum equipamento ativo.</td></tr>'; return; }
       el.equipBody.innerHTML = state.equipamentos.map((e) => `
         <tr>
-          <td data-label="Container">${esc(e.numeroIdentificacao)}</td>
+          <td data-label="Isotank">${esc(e.numeroIdentificacao)}</td>
           <td data-label="Fabricante">${esc(e.fabricante || '-')}</td>
           <td data-label="Cliente">${esc(e.cliente?.nome || '-')}</td>
           <td data-label="Últ. Inspeção">${fmtDate(e.ultimaInspecao)}</td>
@@ -200,7 +200,7 @@
       `).join('') || '<tr><td colspan="4">Sem histórico de laudos.</td></tr>';
       el.historyContent.innerHTML = `
         <div class="grid2" style="margin-bottom:10px;">
-          <div class="kv"><b>Container</b>${esc(detail.numeroIdentificacao)}</div>
+          <div class="kv"><b>Isotank</b>${esc(detail.numeroIdentificacao)}</div>
           <div class="kv"><b>Fabricante</b>${esc(detail.fabricante || '-')}</div>
           <div class="kv"><b>Cliente</b>${esc(detail.cliente?.nome || '-')}</div>
           <div class="kv"><b>Total Inspeções</b>${Number(detail.totalInspecoes || 0)}</div>

@@ -395,7 +395,7 @@
 
       <section id="laudosSection" class="panel">
         <div class="filters">
-          <input type="text" id="searchInput" placeholder="Buscar por container ou cliente">
+          <input type="text" id="searchInput" placeholder="Buscar por isotank ou cliente">
           <select id="statusFilter">
             <option value="">Todos os status</option>
             <option value="PENDENTE">PENDENTE</option>
@@ -410,7 +410,7 @@
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Container</th>
+                <th>Isotank</th>
                 <th>Cliente</th>
                 <th>Inspetor</th>
                 <th>Status</th>
@@ -749,7 +749,7 @@
       el.laudosBody.innerHTML = items.map((l) => `
         <tr>
           <td data-label="ID">${escapeHtml(l.id)}</td>
-          <td data-label="Container">${escapeHtml(l.numeroIdentificacao || '-')}</td>
+          <td data-label="Isotank">${escapeHtml(l.numeroIdentificacao || '-')}</td>
           <td data-label="Cliente">${escapeHtml(l.cliente || '-')}</td>
           <td data-label="Inspetor">${escapeHtml(l.createdBy?.nome || '-')}</td>
           <td data-label="Status"><span class="badge ${escapeHtml(l.status)}">${escapeHtml(l.status)}</span></td>
@@ -1065,7 +1065,7 @@
         <div class="grid2" style="margin-bottom:10px;">
           <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
           <div class="kv"><b>Status</b><span class="badge ${escapeHtml(detail.status)}">${escapeHtml(detail.status)}</span></div>
-          <div class="kv"><b>Container</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
+          <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
           <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
           <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>
           <div class="kv"><b>Criado em</b>${fmtDate(detail.createdAt)}</div>

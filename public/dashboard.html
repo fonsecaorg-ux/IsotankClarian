@@ -191,7 +191,7 @@
       </div>
       <div class="actions">
         <button class="btn" id="btnRefresh">Atualizar</button>
-        <button class="btn" id="btnCheckAlerts">Verificar agora</button>
+        <button class="btn" id="btnCheckAlerts">Verificar vencidos</button>
         <a class="btn" href="/painel-admin#laudos">Laudos</a>
         <a class="btn" href="/painel-admin#usuarios">Usuários</a>
         <a class="btn" href="/painel-admin#configuracoes">Configurações</a>
@@ -256,7 +256,7 @@
         <table>
           <thead>
             <tr>
-              <th>Container</th>
+              <th>Isotank</th>
               <th>Cliente</th>
               <th>Inspetor</th>
               <th>Data Inspeção</th>
@@ -512,7 +512,7 @@
       }
       el.vencimentosBody.innerHTML = rows.map((r) => `
         <tr>
-          <td data-label="Container">${r.container || '-'}</td>
+          <td data-label="Isotank">${r.container || '-'}</td>
           <td data-label="Cliente">${r.cliente || '-'}</td>
           <td data-label="Inspetor">${r.inspetor || '-'}</td>
           <td data-label="Data Inspeção">${fmtDate(r.dataInspecao)}</td>
@@ -575,8 +575,8 @@
           .join(', ');
         showToast(
           result.enviados > 0
-            ? `Alertas enviados (${grupos || 'sem grupos'})`
-            : 'Verificação concluída sem envios',
+            ? `Vencidos verificados e alertas enviados (${grupos || 'sem grupos'})`
+            : 'Verificação de vencidos concluída sem envios',
           result.enviados > 0 ? 'success' : 'warn'
         );
       } catch (err) {
