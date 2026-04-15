@@ -25,6 +25,7 @@ const { getConfig } = require('./src/lib/config');
 const { checkVencimentos } = require('./src/services/alertaVencimento');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const JWT_EXPIRES_IN = '8h';
 const COOKIE_NAME = 'auth_token';
