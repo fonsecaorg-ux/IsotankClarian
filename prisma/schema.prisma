@@ -23,6 +23,8 @@ model User {
   nome         String
   email        String     @unique
   passwordHash String
+  assinatura   Bytes?
+  assinaturaMimeType String?
   role         UserRole   @default(INSPETOR)
   ativo        Boolean    @default(true)
   createdAt    DateTime   @default(now())

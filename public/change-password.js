@@ -114,6 +114,30 @@
         font-size: 12px;
         color: #a80000;
       }
+      .cp-divider {
+        margin: 12px 0;
+        border-top: 1px solid var(--color-border, #edebe9);
+      }
+      .cp-sign-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--color-primary, #0078d4);
+        margin-bottom: 8px;
+      }
+      .cp-sign-preview {
+        width: 100%;
+        max-height: 110px;
+        object-fit: contain;
+        border: 1px dashed var(--color-border, #edebe9);
+        border-radius: 8px;
+        background: #faf9f8;
+        margin-top: 8px;
+      }
+      .cp-sign-note {
+        font-size: 11px;
+        color: var(--color-text-muted, #605e5c);
+        margin-top: 4px;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -181,6 +205,18 @@
             <input id="cpConfirmarSenha" type="password" autocomplete="new-password" required>
             <p class="cp-inline-error" id="cpErrConfirmar"></p>
           </div>
+          <div class="cp-divider"></div>
+          <div class="cp-sign-title">Minha Assinatura</div>
+          <div class="cp-field">
+            <label for="cpAssinaturaFile">Upload de assinatura (PNG/JPG, máx. 2MB)</label>
+            <input id="cpAssinaturaFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+            <p class="cp-inline-error" id="cpErrAssinatura"></p>
+            <p class="cp-sign-note">A assinatura será usada na geração do laudo conforme o usuário criador.</p>
+            <img id="cpAssinaturaPreview" class="cp-sign-preview" alt="Preview da assinatura">
+          </div>
+          <div class="cp-actions" style="margin-top:0;">
+            <button type="button" class="cp-btn" id="cpSaveAssinatura">Salvar assinatura</button>
+          </div>
           <p class="cp-global-error" id="cpGlobalError"></p>
           <div class="cp-actions">
             <button type="button" class="cp-btn" id="cpCancel">Cancelar</button>
@@ -204,6 +240,30 @@
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Erro ao alterar senha.');
+    return data;
+  }
+
+  async function fetchAssinaturaPreviewUrl() {
+    const res = await fetch('/auth/me/assinatura', {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  }
+
+  async function uploadAssinatura(file) {
+    const fd = new FormData();
+    fd.set('assinatura', file);
+    const res = await fetch('/auth/me/assinatura', {
+      method: 'PUT',
+      credentials: 'include',
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar assinatura.');
     return data;
   }
 
@@ -231,14 +291,20 @@
     const cpErrAtual = modalBg.querySelector('#cpErrAtual');
     const cpErrNova = modalBg.querySelector('#cpErrNova');
     const cpErrConfirmar = modalBg.querySelector('#cpErrConfirmar');
+    const cpErrAssinatura = modalBg.querySelector('#cpErrAssinatura');
     const cpGlobalError = modalBg.querySelector('#cpGlobalError');
     const cpStrengthFill = modalBg.querySelector('#cpStrengthFill');
     const cpStrengthLabel = modalBg.querySelector('#cpStrengthLabel');
+    const cpAssinaturaFile = modalBg.querySelector('#cpAssinaturaFile');
+    const cpAssinaturaPreview = modalBg.querySelector('#cpAssinaturaPreview');
+    const cpSaveAssinatura = modalBg.querySelector('#cpSaveAssinatura');
+    let assinaturaPreviewUrl = null;
 
     function clearErrors() {
       cpErrAtual.textContent = '';
       cpErrNova.textContent = '';
       cpErrConfirmar.textContent = '';
+      cpErrAssinatura.textContent = '';
       cpGlobalError.textContent = '';
     }
 
@@ -246,15 +312,30 @@
       modalBg.classList.remove('active');
       cpForm.reset();
       clearErrors();
+      if (assinaturaPreviewUrl) {
+        URL.revokeObjectURL(assinaturaPreviewUrl);
+        assinaturaPreviewUrl = null;
+      }
+      cpAssinaturaPreview.removeAttribute('src');
       const meta = strengthMeta(0);
       cpStrengthFill.style.width = meta.width;
       cpStrengthFill.style.background = meta.color;
       cpStrengthLabel.textContent = meta.label;
     }
 
-    function openModal() {
+    async function openModal() {
       modalBg.classList.add('active');
       cpSenhaAtual.focus();
+      if (assinaturaPreviewUrl) {
+        URL.revokeObjectURL(assinaturaPreviewUrl);
+        assinaturaPreviewUrl = null;
+      }
+      assinaturaPreviewUrl = await fetchAssinaturaPreviewUrl();
+      if (assinaturaPreviewUrl) {
+        cpAssinaturaPreview.src = assinaturaPreviewUrl;
+      } else {
+        cpAssinaturaPreview.removeAttribute('src');
+      }
     }
 
     cpNovaSenha.addEventListener('input', () => {
@@ -264,7 +345,9 @@
       cpStrengthLabel.textContent = meta.label;
     });
 
-    openBtn.addEventListener('click', openModal);
+    openBtn.addEventListener('click', () => {
+      openModal().catch(() => {});
+    });
     cpClose.addEventListener('click', closeModal);
     cpCancel.addEventListener('click', closeModal);
     modalBg.addEventListener('click', (ev) => {
@@ -303,6 +386,44 @@
         cpGlobalError.textContent = err.message;
       } finally {
         cpSave.disabled = false;
+      }
+    });
+
+    cpAssinaturaFile.addEventListener('change', () => {
+      cpErrAssinatura.textContent = '';
+      const file = cpAssinaturaFile.files && cpAssinaturaFile.files[0];
+      if (!file) return;
+      if (assinaturaPreviewUrl) {
+        URL.revokeObjectURL(assinaturaPreviewUrl);
+      }
+      assinaturaPreviewUrl = URL.createObjectURL(file);
+      cpAssinaturaPreview.src = assinaturaPreviewUrl;
+    });
+
+    cpSaveAssinatura.addEventListener('click', async () => {
+      cpErrAssinatura.textContent = '';
+      const file = cpAssinaturaFile.files && cpAssinaturaFile.files[0];
+      if (!file) {
+        cpErrAssinatura.textContent = 'Selecione um arquivo.';
+        return;
+      }
+      if (!['image/png', 'image/jpeg'].includes(file.type)) {
+        cpErrAssinatura.textContent = 'Formato inválido. Use PNG ou JPG.';
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        cpErrAssinatura.textContent = 'Arquivo excede 2MB.';
+        return;
+      }
+
+      cpSaveAssinatura.disabled = true;
+      try {
+        await uploadAssinatura(file);
+        showToast('Assinatura salva com sucesso', 'success');
+      } catch (err) {
+        cpErrAssinatura.textContent = err.message;
+      } finally {
+        cpSaveAssinatura.disabled = false;
       }
     });
   }

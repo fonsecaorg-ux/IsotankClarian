@@ -101,6 +101,11 @@ const PHOTO_LABEL_MAP = {
   foto_valvula_descarga: 'Válvula de Descarga',
   foto_placa_identificacao: 'Placa de Identificação',
 };
+const SIGNATURE_MEDIA_PATHS = {
+  inspetor: 'word/media/assinatura_inspetor.png',
+  engenheiro: 'word/media/assinatura_engenheiro.png',
+};
+const ENGENHEIRO_FALLBACK_EMAIL = String(process.env.ENGENHEIRO_EMAIL || 'diego.fonseca@grupocesari.com.br').trim().toLowerCase();
 
 const STORAGE_MODE = String(process.env.STORAGE_MODE || 'database').trim().toLowerCase() === 'disk'
   ? 'disk'
@@ -339,10 +344,7 @@ app.use('/auth', authRoutes);
 app.use('/configuracoes', configuracoesRoutes);
 app.use('/documentos', documentosRoutes);
 
-function buildTemplateData(formData, cfg, dataPt, encarregadoNome) {
-  const enc = encarregadoNome != null && String(encarregadoNome).trim()
-    ? String(encarregadoNome).trim()
-    : cfg.encarregado;
+function buildTemplateData(formData, cfg, dataPt) {
   return {
     // Identificação
     numero_identificacao: formData.numero_identificacao || '',
@@ -417,10 +419,11 @@ function buildTemplateData(formData, cfg, dataPt, encarregadoNome) {
     // Conclusão / Recomendação / Rodapé
     conclusao:      formData.conclusao      || '',
     recomendacao:   formData.recomendacao   || '',
-    // encarregado: usuário logado (req.user.name || nome); fallback cfg.encarregado
-    encarregado:    enc,
-    // engenheiro / crea_info: só config.json — nome e linha cargo+CREA (pós-process XML no /generate)
+    // Campos de assinatura/rodapé via docxtemplater (sem pós-processamento de XML)
+    encarregado:    cfg.encarregado,
+    encarregado_nome: cfg.encarregado,
     engenheiro:     cfg.engenheiro,
+    engenheiro_nome: cfg.engenheiro,
     crea_info:      cfg.crea_info,
     cidade_data:    `${cfg.cidade}, ${dataPt}`,
   };
@@ -446,6 +449,14 @@ app.post(
             id: true,
             status: true,
             formData: true,
+            createdById: true,
+            createdBy: {
+              select: {
+                id: true,
+                assinatura: true,
+                assinaturaMimeType: true,
+              },
+            },
           },
         });
 
@@ -461,8 +472,7 @@ app.post(
         ? formatDatePt(sourceData.data_inspecao)
         : '';
 
-      const encarregadoNome = (req.user && (req.user.name || req.user.nome)) || cfg.encarregado;
-      const templateData = buildTemplateData(sourceData, cfg, dataPt, encarregadoNome);
+      const templateData = buildTemplateData(sourceData, cfg, dataPt);
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
@@ -473,76 +483,43 @@ app.post(
       });
       doc.render(templateData);
 
-      // ── Substituições diretas para assinaturas e data ─────────────────────
-      // (estes campos não passam pelo docxtemplater — substituição pós-render)
-      let docXml = zip.file('word/document.xml').asText();
-
-      function escapeXml(s) {
-        return String(s)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;');
-      }
-
-      // Diego Aparecido de Lima → cfg.engenheiro (somente o nome; cargo/CREA ficam em crea_info)
-      docXml = docXml.replace(/<w:t[^>]*>\s*Diego Aparecido de Lima\s*<\/w:t>/g,
-        `<w:t>${escapeXml(cfg.engenheiro)}</w:t>`);
-
-      // Bloco fixo "Engenheiro Mecânico" + " – " + "CREA:506..." (vários <w:r>) → um único texto cfg.crea_info
-      // (substituir só o último <w:t> duplicava o prefixo com cfg.crea_info completo)
-      docXml = docXml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, (para) => {
-        const texts = [];
-        para.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (m, t) => texts.push(t));
-        const normalized = texts.join('').replace(/\s+/g, ' ').trim();
-        const isQualificacao =
-          normalized.includes('Engenheiro Mecânico') &&
-          normalized.includes('CREA:506.927.6941-S') &&
-          !normalized.includes('Responsável pela Inspeção');
-        if (isQualificacao) {
-          const pPrMatch = para.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
-          const pPr = pPrMatch ? pPrMatch[0] : '';
-          return `<w:p>${pPr}<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/></w:rPr><w:t>${escapeXml(cfg.crea_info)}</w:t></w:r></w:p>`;
+      // ── Injetar assinaturas (inspetor e engenheiro) com fallback seguro ────
+      try {
+        // Assinatura do inspetor que criou o laudo.
+        const assinaturaInspetor = laudo?.createdBy?.assinatura || null;
+        if (assinaturaInspetor) {
+          zip.file(SIGNATURE_MEDIA_PATHS.inspetor, assinaturaInspetor);
         }
-        return para;
-      });
 
-      // Elton Vieira → encarregado (corre em múltiplos runs — tratar parágrafo)
-      docXml = docXml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, (para) => {
-        const texts = [];
-        para.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (m, t) => texts.push(t));
-        const full = texts.join('').trim();
-        if (full.includes('Elton Vieira') || full.includes('Elton Vie')) {
-          const pPrMatch = para.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
-          const pPr = pPrMatch ? pPrMatch[0] : '';
-          const rPrMatch = para.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
-          const rPr = rPrMatch ? rPrMatch[0] : '';
-          return `<w:p>${pPr}<w:r>${rPr}<w:t>${escapeXml(encarregadoNome)}</w:t></w:r></w:p>`;
+        // Assinatura do engenheiro via cfg.engenheiro_user_id ou e-mail fallback.
+        let engenheiroAssinatura = null;
+        const engenheiroUserId = String(cfg.engenheiro_user_id || '').trim();
+        if (engenheiroUserId) {
+          const userEng = await prisma.user.findUnique({
+            where: { id: engenheiroUserId },
+            select: {
+              assinatura: true,
+              assinaturaMimeType: true,
+            },
+          });
+          engenheiroAssinatura = userEng?.assinatura || null;
+        } else {
+          const userEng = await prisma.user.findUnique({
+            where: { email: ENGENHEIRO_FALLBACK_EMAIL },
+            select: {
+              assinatura: true,
+              assinaturaMimeType: true,
+            },
+          });
+          engenheiroAssinatura = userEng?.assinatura || null;
         }
-        return para;
-      });
 
-      // Data no rodapé: encontrar parágrafo que agrega "Cubatão, ...de...de 20XX"
-      // e substituir todo o conteúdo por cidade + data formatada
-      if (dataPt) {
-        const cidadeData = `${cfg.cidade}, ${dataPt}`;
-        docXml = docXml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, (para) => {
-          const texts = [];
-          para.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (m, t) => texts.push(t));
-          const full = texts.join('').trim();
-          // Só substituir o parágrafo que parece a linha de data+cidade
-          if (/Cubat[aã]o,/.test(full) && /de\s+\d{4}$/.test(full)) {
-            const pPrMatch = para.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
-            const pPr = pPrMatch ? pPrMatch[0] : '';
-            const rPrMatch = para.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
-            const rPr = rPrMatch ? rPrMatch[0] : '';
-            return `<w:p>${pPr}<w:r>${rPr}<w:t>${escapeXml(cidadeData)}</w:t></w:r></w:p>`;
-          }
-          return para;
-        });
+        if (engenheiroAssinatura) {
+          zip.file(SIGNATURE_MEDIA_PATHS.engenheiro, engenheiroAssinatura);
+        }
+      } catch (errAssinaturas) {
+        console.error('Erro ao injetar assinaturas no laudo (não crítico):', errAssinaturas);
       }
-
-      zip.file('word/document.xml', docXml);
 
       // ── Injetar fotos no zip (buffer em memória — sem acesso a disco) ────────
       const fotoRecords = [];
