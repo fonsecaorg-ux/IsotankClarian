@@ -618,7 +618,8 @@ app.use('/auth', authRoutes);
 app.use('/configuracoes', configuracoesRoutes);
 app.use('/documentos', documentosRoutes);
 
-function buildTemplateData(formData, cfg, dataPt) {
+function buildTemplateData(formData, cfg, dataPt, encarregadoNome) {
+  const enc = encarregadoNome || cfg.encarregado;
   return {
     // Identificação
     numero_identificacao: formData.numero_identificacao || '',
@@ -693,9 +694,9 @@ function buildTemplateData(formData, cfg, dataPt) {
     // Conclusão / Recomendação / Rodapé
     conclusao:      formData.conclusao      || '',
     recomendacao:   formData.recomendacao   || '',
-    // Campos de assinatura/rodapé via docxtemplater (sem pós-processamento de XML)
-    encarregado:    cfg.encarregado,
-    encarregado_nome: cfg.encarregado,
+    // Campos de assinatura/rodapé via docxtemplater (+ Elton no XML após render)
+    encarregado:      enc,
+    encarregado_nome: enc,
     engenheiro:     cfg.engenheiro,
     engenheiro_nome: cfg.engenheiro,
     crea_info:      cfg.crea_info,
@@ -746,7 +747,7 @@ app.post(
         ? formatDatePt(sourceData.data_inspecao)
         : '';
 
-      const templateData = buildTemplateData(sourceData, cfg, dataPt);
+      const templateData = buildTemplateData(sourceData, cfg, dataPt, req.user?.nome);
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
@@ -756,6 +757,35 @@ app.post(
         nullGetter: () => '',
       });
       doc.render(templateData);
+
+      // Pós-processamento: texto fixo "Elton Vieira" no modelo → nome do inspetor logado
+      try {
+        let docXml = zip.file('word/document.xml').asText();
+        function escapeXml(s) {
+          return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+        docXml = docXml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, (para) => {
+          const texts = [];
+          para.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (m, t) => texts.push(t));
+          const full = texts.join('').trim();
+          if (full.includes('Elton Vieira') || full.includes('Elton Vie')) {
+            const pPrMatch = para.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
+            const pPr = pPrMatch ? pPrMatch[0] : '';
+            const rPrMatch = para.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
+            const rPr = rPrMatch ? rPrMatch[0] : '';
+            return `<w:p>${pPr}<w:r>${rPr}<w:t>${escapeXml(templateData.encarregado_nome)}</w:t></w:r></w:p>`;
+          }
+          return para;
+        });
+        zip.file('word/document.xml', docXml);
+      } catch (errXml) {
+        console.error('Falha ao pós-processar document.xml (Elton → encarregado):', errXml.message);
+      }
+
       sanitizeZipForWordOnline(zip);
 
       // ── Injetar assinaturas (inspetor e engenheiro) com fallback seguro ────
