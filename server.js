@@ -133,6 +133,29 @@ function formatDatePt(iso) {
   return `${parseInt(d)} de ${MESES[parseInt(m) - 1]} de ${y}`;
 }
 
+function sanitizeZipForWordOnline(zip) {
+  // Remove mídia WDP legada (incompatível com Word Online/SharePoint).
+  zip.remove('word/media/hdphoto1.wdp');
+
+  // Remove qualquer override .wdp remanescente no [Content_Types].xml.
+  const contentTypesPath = '[Content_Types].xml';
+  const contentTypesFile = zip.file(contentTypesPath);
+  if (!contentTypesFile) return;
+
+  try {
+    const contentTypesXml = contentTypesFile.asText();
+    const sanitizedXml = contentTypesXml.replace(
+      /<Override[^>]*PartName="[^"]*\.wdp"[^>]*\/>/gi,
+      ''
+    );
+    if (sanitizedXml !== contentTypesXml) {
+      zip.file(contentTypesPath, sanitizedXml);
+    }
+  } catch (err) {
+    console.error('Falha ao sanitizar [Content_Types].xml para Word Online:', err.message);
+  }
+}
+
 // ─── Static files ─────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(cookieParser());
@@ -476,6 +499,7 @@ app.post(
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
+      sanitizeZipForWordOnline(zip);
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
