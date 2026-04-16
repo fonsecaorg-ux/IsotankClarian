@@ -94,9 +94,13 @@ Isotank Clariant/
 │   └── sw.js                        # Service worker
 │
 ├── scripts/
-│   ├── prepare-template.js          # Gera template/template.docx (rodar 1x)
-│   ├── verify-template.js           # Valida tags no template
-│   └── test-generate.js             # Teste end-to-end via HTTP
+│   ├── prepare-template.js                 # Gera template/template.docx (rodar 1x)
+│   ├── rebuild_template_from_original_safe.py  # Rebuild seguro do template (Python + lxml)
+│   ├── verify-template.js                # Valida tags no template
+│   ├── test-generate.js                  # Teste end-to-end via HTTP
+│   ├── check_docx_rels.py                # Valida r:embed / r:id vs ficheiros no ZIP
+│   ├── find_bad_xmlns.py                 # Deteta chaves { } dentro de xmlns (XML inválido)
+│   └── inspect_document_xml.py         # Contagens rápidas + parse Expat do document.xml
 │
 ├── uploads/                         # Fotos temporárias (limpas após cada geração)
 ├── output/                          # Laudos gerados (para testes locais)
@@ -188,6 +192,35 @@ node scripts/test-generate.js
 1. Abra o Chrome e acesse `http://<IP-da-maquina>:3000`
 2. Toque no menu ⋮ → **"Adicionar à tela inicial"**
 3. O app fica disponível como ícone, sem precisar digitar o endereço novamente
+
+---
+
+## Desafios na geração do `.docx` (e como foram resolvidos)
+
+Durante a evolução do projeto apareceu um problema grave: **o ficheiro gerado não abria de forma consistente** — nem no Word Online / SharePoint, nem em alguns fluxos de upload (por exemplo Google Drive), e em casos extremos o Word deixava de reconhecer o pacote como documento válido.
+
+### O que estava na origem do problema
+
+1. **Sanitização para Word Online (ficheiro `.wdp` / HD Photo)**  
+   O template antigo incluía mídia **WDP** (`hdphoto1.wdp`), pouco suportada no Word na web. Ao remover o ficheiro do ZIP era obrigatório remover também a **relação** em `word/_rels/document.xml.rels` e trechos do `word/document.xml` que ainda referenciassem o `rId` — caso contrário o pacote OOXML ficava **inconsistente**.
+
+2. **Bug crítico na regex das `<Relationship>`**  
+   O código usava um padrão do tipo `[^/>]+` para capturar os atributos das relações. Isso **falhava sempre** que o atributo `Type` continha `http://…` (há uma `/` logo no início do URL). Resultado: **nenhuma** relação era processada, o `.wdp` era apagado do ZIP **mas a entrada no `.rels` continuava** → ficheiro **corrompido** (não abre “de jeito nenhum”).
+
+3. **`{ano_fabricacao}` dentro de `xmlns` (XML inválido)**  
+   Substituições globais do texto `2018` (ano de exemplo) por `{ano_fabricacao}` acabaram por alterar também URIs de namespace do Office (`…/word/2018/wordml`). Em XML, o valor de `xmlns` tem de ser um URI válido — **chaves `{` `}` não são permitidas** aí. Isso invalidava o `document.xml` de forma silenciosa até parsers mais estritos (e o Word Online).
+
+4. **Reparo agressivo do XML (“recover”)**  
+   Tentativas de “reparar” o `document.xml` com bibliotecas em modo *recover* reescreviam a árvore e **destruíam o layout** (páginas em branco, legendas de fotos desalinhadas, etc.). Ou seja: **abria**, mas **visualmente quebrado**.
+
+### Como chegámos a uma solução estável
+
+- **Correção da regex** em `server.js` para processar corretamente todas as `<Relationship …/>` (incluindo `Type` com `http://`).
+- Manter a sanitização do ZIP **depois** do `doc.render()`, com remoção controlada de `.wdp`, `.rels`, `[Content_Types].xml` e referências no `document.xml` (sem cortar blocos ao acaso).
+- **Reconstruir o `template/template.docx` a partir do original** com o script `scripts/rebuild_template_from_original_safe.py`: aplica placeholders **apenas em texto** (`w:t` via `lxml`), **sem** substituições cegas no XML inteiro — preserva **layout** e mantém o **OOXML válido**.
+- Scripts de apoio para diagnóstico: `scripts/find_bad_xmlns.py`, `scripts/inspect_document_xml.py`, `scripts/check_docx_rels.py`.
+
+> **Resumo:** o “não abre” vinha sobretudo de **pacote OOXML inconsistente** e de **XML inválido no `document.xml`**; o “abre mas quebrado” vinha de **reparos agressivos**. A solução final passa por **regex correcta**, **sanitização coerente** e **rebuild seguro do template**.
 
 ---
 
