@@ -133,26 +133,128 @@ function formatDatePt(iso) {
   return `${parseInt(d)} de ${MESES[parseInt(m) - 1]} de ${y}`;
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function sanitizeZipForWordOnline(zip) {
-  // Remove mídia WDP legada (incompatível com Word Online/SharePoint).
-  zip.remove('word/media/hdphoto1.wdp');
-
-  // Remove qualquer override .wdp remanescente no [Content_Types].xml.
+  const relsPath = 'word/_rels/document.xml.rels';
+  const docPath = 'word/document.xml';
   const contentTypesPath = '[Content_Types].xml';
-  const contentTypesFile = zip.file(contentTypesPath);
-  if (!contentTypesFile) return;
 
-  try {
-    const contentTypesXml = contentTypesFile.asText();
-    const sanitizedXml = contentTypesXml.replace(
-      /<Override[^>]*PartName="[^"]*\.wdp"[^>]*\/>/gi,
-      ''
-    );
-    if (sanitizedXml !== contentTypesXml) {
-      zip.file(contentTypesPath, sanitizedXml);
+  /** @type {string[]} */
+  const removedRelationshipIds = [];
+
+  // 1) Remover relações que apontam para hdphoto / .wdp e coletar os rId afetados.
+  const relsFile = zip.file(relsPath);
+  if (relsFile) {
+    try {
+      let relsXml = relsFile.asText();
+      const before = relsXml;
+      relsXml = relsXml.replace(/<Relationship\s+([^/>]+)\/>/g, (full, attrs) => {
+        const idMatch = attrs.match(/\bId="([^"]+)"/i);
+        const targetMatch = attrs.match(/\bTarget="([^"]+)"/i);
+        const id = idMatch ? idMatch[1] : '';
+        const target = targetMatch ? targetMatch[1] : '';
+        const lowerTarget = target.toLowerCase();
+        const lowerAttrs = attrs.toLowerCase();
+        const isHdPhotoRel =
+          lowerAttrs.includes('hdphoto') ||
+          lowerTarget.includes('hdphoto') ||
+          /\.wdp$/i.test(target);
+        if (isHdPhotoRel) {
+          if (id) removedRelationshipIds.push(id);
+          return '';
+        }
+        return full;
+      });
+      if (relsXml !== before) {
+        zip.file(relsPath, relsXml);
+      }
+    } catch (err) {
+      console.error('Falha ao sanitizar document.xml.rels para Word Online:', err.message);
     }
+  }
+
+  // Remove mídia WDP do pacote (incompatível com Word Online/SharePoint).
+  try {
+    zip.remove('word/media/hdphoto1.wdp');
+    Object.keys(zip.files).forEach((name) => {
+      if (name.startsWith('word/media/') && name.toLowerCase().endsWith('.wdp')) {
+        zip.remove(name);
+      }
+    });
   } catch (err) {
-    console.error('Falha ao sanitizar [Content_Types].xml para Word Online:', err.message);
+    console.error('Falha ao remover arquivos .wdp do zip:', err.message);
+  }
+
+  // 3) Remover desenhos / blips que ainda referenciem os rId removidos (evita relação órfã).
+  const docFile = zip.file(docPath);
+  if (docFile && removedRelationshipIds.length) {
+    try {
+      let docXml = docFile.asText();
+      for (const rid of removedRelationshipIds) {
+        const ridEsc = escapeRegExp(rid);
+        const embedRe = new RegExp(`r:embed="${ridEsc}"`);
+        const idRe = new RegExp(`r:id="${ridEsc}"`);
+        // Repete até não haver mais ocorrências dentro de <w:drawing>.
+        for (;;) {
+          let idx = docXml.search(embedRe);
+          if (idx === -1) idx = docXml.search(idRe);
+          if (idx === -1) break;
+          const start = docXml.lastIndexOf('<w:drawing', idx);
+          if (start !== -1) {
+            const end = docXml.indexOf('</w:drawing>', idx);
+            if (end !== -1) {
+              docXml =
+                docXml.slice(0, start) +
+                docXml.slice(end + '</w:drawing>'.length);
+              continue;
+            }
+          }
+          // Fallback: remover <a:blip ... r:embed="rId" .../> (self-closing ou com filhos curtos)
+          const blipOpen = docXml.lastIndexOf('<a:blip', idx);
+          if (blipOpen !== -1) {
+            const blipClose = docXml.indexOf('/>', blipOpen);
+            const blipClose2 = docXml.indexOf('</a:blip>', blipOpen);
+            if (blipClose !== -1 && blipClose < idx + 400) {
+              docXml = docXml.slice(0, blipOpen) + docXml.slice(blipClose + 2);
+              continue;
+            }
+            if (blipClose2 !== -1) {
+              docXml = docXml.slice(0, blipOpen) + docXml.slice(blipClose2 + '</a:blip>'.length);
+              continue;
+            }
+          }
+          break;
+        }
+      }
+      zip.file(docPath, docXml);
+    } catch (err) {
+      console.error('Falha ao sanitizar word/document.xml para Word Online:', err.message);
+    }
+  }
+
+  // 2) [Content_Types].xml — remover Default wdp e Overrides .wdp
+  const contentTypesFile = zip.file(contentTypesPath);
+  if (contentTypesFile) {
+    try {
+      let contentTypesXml = contentTypesFile.asText();
+      const beforeCt = contentTypesXml;
+      contentTypesXml = contentTypesXml.replace(
+        /<Default\s+Extension="wdp"\s+ContentType="image\/vnd\.ms-photo"\s*\/>/gi,
+        ''
+      );
+      contentTypesXml = contentTypesXml.replace(
+        /<Override[^>]*PartName="[^"]*\.wdp"[^>]*\/>/gi,
+        ''
+      );
+      if (contentTypesXml !== beforeCt) {
+        zip.file(contentTypesPath, contentTypesXml);
+      }
+    } catch (err) {
+      console.error('Falha ao sanitizar [Content_Types].xml para Word Online:', err.message);
+    }
   }
 }
 
