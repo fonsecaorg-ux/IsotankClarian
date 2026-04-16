@@ -431,7 +431,9 @@
     opacity: 0;
     transition: all .3s;
     pointer-events: none;
-    white-space: nowrap;
+    white-space: pre-line;
+    text-align: center;
+    max-width: min(420px, 92vw);
     z-index: 999;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -1021,12 +1023,12 @@ async function loadDocumentosRef() {
   }
 }
 
-function showToast(msg, type = '') {
+function showToast(msg, type = '', durationMs = 3000) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.className = `toast ${type} show`;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => toast.classList.remove('show'), 3000);
+  toast._t = setTimeout(() => toast.classList.remove('show'), durationMs);
 }
 
 function setFieldError(fieldName, message) {
@@ -1169,6 +1171,51 @@ function clearDraft() {
   draftMeta.textContent = '';
 }
 
+function resetPhotoSlots() {
+  document.querySelectorAll('.photo-slot').forEach((slot) => {
+    const preview = slot.querySelector('.photo-preview');
+    const input = slot.querySelector('input[type="file"]');
+    if (preview && preview.src && preview.src.startsWith('blob:')) {
+      URL.revokeObjectURL(preview.src);
+    }
+    if (preview) preview.removeAttribute('src');
+    slot.classList.remove('captured');
+    if (input) input.value = '';
+    const sz = slot.querySelector('.photo-size');
+    if (sz) sz.textContent = '';
+  });
+}
+
+function syncExamButtonsFromHidden() {
+  document.querySelectorAll('.exam-btns').forEach((group) => {
+    const hidden = group.querySelector('input[type="hidden"]');
+    if (!hidden) return;
+    const val = hidden.value || 'NA';
+    group.querySelectorAll('.btn-exam').forEach((b) => {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+  });
+}
+
+/** Após laudo baixado: limpar formulário, rascunho, fotos e voltar à seção 1. */
+function resetFormAfterSuccessfulLaudo() {
+  clearDraft();
+  form.reset();
+  document.querySelectorAll('.field.has-error').forEach((field) => {
+    field.classList.remove('has-error');
+    const err = field.querySelector('.inline-error');
+    if (err) err.textContent = '';
+  });
+  resetPhotoSlots();
+  syncExamButtonsFromHidden();
+  const di = document.querySelector('input[name="data_inspecao"]');
+  if (di) di.value = new Date().toISOString().split('T')[0];
+  visitedSections.clear();
+  visitedSections.add(0);
+  goTo(0);
+  updateSectionUI();
+}
+
 async function compressImageFile(file) {
   const imageBitmap = await createImageBitmap(file);
   const maxSide = 1280;
@@ -1284,8 +1331,12 @@ async function submitGenerate() {
     link.click();
     URL.revokeObjectURL(url);
 
-    clearDraft();
-    showToast('Laudo gerado com sucesso!', 'success');
+    resetFormAfterSuccessfulLaudo();
+    showToast(
+      'Laudo gerado com sucesso!\nFormulário limpo para nova inspeção.',
+      'success',
+      4500
+    );
   } catch (err) {
     retryWrap.classList.add('show');
     showToast(err.message || 'Erro ao gerar laudo. Tente novamente.', 'error');

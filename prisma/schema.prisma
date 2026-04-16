@@ -13,9 +13,9 @@ enum UserRole {
 }
 
 enum LaudoStatus {
-  PENDENTE
-  GERADO
-  ASSINADO
+  EM_INSPECAO
+  AGUARDANDO_APROVACAO
+  CONCLUIDO
 }
 
 model User {
@@ -35,7 +35,7 @@ model User {
 
 model Laudo {
   id                String      @id @default(cuid())
-  status            LaudoStatus @default(PENDENTE)
+  status            LaudoStatus @default(EM_INSPECAO)
   numeroIdentificacao String?
   cliente           String?
   endereco          String?

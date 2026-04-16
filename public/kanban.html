@@ -38,9 +38,9 @@
     .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
     .col { border: 1px solid var(--border); border-radius: 10px; background: var(--card); min-height: 65vh; display: flex; flex-direction: column; }
     .col-head { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); font-weight: 800; font-size: 12px; }
-    .col-head.PENDENTE { color: var(--warn); }
-    .col-head.GERADO { color: var(--info); }
-    .col-head.ASSINADO { color: var(--success); }
+    .col-head.EM_INSPECAO { color: #835c00; }
+    .col-head.AGUARDANDO_APROVACAO { color: #0078d4; }
+    .col-head.CONCLUIDO { color: #107c10; }
     .col-count { font-size: 11px; color: var(--muted); }
     .col-body { padding: 8px; display: grid; gap: 8px; min-height: 120px; }
     .col-body.drag-over { outline: 2px dashed var(--accent); outline-offset: -6px; border-radius: 8px; }
@@ -50,9 +50,9 @@
     .card-line { font-size: 12px; color: var(--text); margin-bottom: 2px; }
     .card-muted { font-size: 11px; color: var(--muted); }
     .status-badge { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 800; padding: 3px 6px; border-radius: 999px; }
-    .status-badge.PENDENTE { color: var(--color-badge-pendente-txt); background: var(--color-badge-pendente-bg); }
-    .status-badge.GERADO { color: var(--color-badge-gerado-txt); background: var(--color-badge-gerado-bg); }
-    .status-badge.ASSINADO { color: var(--color-badge-assinado-txt); background: var(--color-badge-assinado-bg); }
+    .status-badge.EM_INSPECAO { color: #835c00; background: #fff4ce; }
+    .status-badge.AGUARDANDO_APROVACAO { color: #0078d4; background: #dce6f7; }
+    .status-badge.CONCLUIDO { color: #107c10; background: #dff6dd; }
     .msg { margin-top: 8px; font-size: 12px; color: var(--danger); min-height: 18px; }
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 50; }
     .modal-bg.active { display: flex; }
@@ -126,17 +126,17 @@
     </section>
 
     <section class="board">
-      <article class="col" data-status="PENDENTE">
-        <header class="col-head PENDENTE"><span>PENDENTE</span><span class="col-count" id="countPendente">0</span></header>
-        <div class="col-body" id="colPendente"></div>
+      <article class="col" data-status="EM_INSPECAO">
+        <header class="col-head EM_INSPECAO"><span>Em Inspeção</span><span class="col-count" id="countEmInspecao">0</span></header>
+        <div class="col-body" id="colEmInspecao"></div>
       </article>
-      <article class="col" data-status="GERADO">
-        <header class="col-head GERADO"><span>GERADO</span><span class="col-count" id="countGerado">0</span></header>
-        <div class="col-body" id="colGerado"></div>
+      <article class="col" data-status="AGUARDANDO_APROVACAO">
+        <header class="col-head AGUARDANDO_APROVACAO"><span>Aguardando Aprovação</span><span class="col-count" id="countAguardando">0</span></header>
+        <div class="col-body" id="colAguardando"></div>
       </article>
-      <article class="col" data-status="ASSINADO">
-        <header class="col-head ASSINADO"><span>ASSINADO</span><span class="col-count" id="countAssinado">0</span></header>
-        <div class="col-body" id="colAssinado"></div>
+      <article class="col" data-status="CONCLUIDO">
+        <header class="col-head CONCLUIDO"><span>Concluído</span><span class="col-count" id="countConcluido">0</span></header>
+        <div class="col-body" id="colConcluido"></div>
       </article>
     </section>
 
@@ -170,7 +170,6 @@
   <script>
     'use strict';
 
-    const STATUS = ['PENDENTE', 'GERADO', 'ASSINADO'];
     const PHOTO_ORDER = [
       { campo: 'foto_frontal', label: 'Frontal' },
       { campo: 'foto_traseira', label: 'Traseira' },
@@ -204,12 +203,12 @@
       dateStart: document.getElementById('dateStart'),
       dateEnd: document.getElementById('dateEnd'),
       errorMsg: document.getElementById('errorMsg'),
-      colPendente: document.getElementById('colPendente'),
-      colGerado: document.getElementById('colGerado'),
-      colAssinado: document.getElementById('colAssinado'),
-      countPendente: document.getElementById('countPendente'),
-      countGerado: document.getElementById('countGerado'),
-      countAssinado: document.getElementById('countAssinado'),
+      colEmInspecao: document.getElementById('colEmInspecao'),
+      colAguardando: document.getElementById('colAguardando'),
+      colConcluido: document.getElementById('colConcluido'),
+      countEmInspecao: document.getElementById('countEmInspecao'),
+      countAguardando: document.getElementById('countAguardando'),
+      countConcluido: document.getElementById('countConcluido'),
       detailModalBg: document.getElementById('detailModalBg'),
       detailContent: document.getElementById('detailContent'),
       closeDetailModal: document.getElementById('closeDetailModal'),
@@ -228,6 +227,16 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    /** Rótulo amigável para enum LaudoStatus (API + AuditLog). */
+    function laudoStatusLabel(s) {
+      const m = {
+        EM_INSPECAO: 'Em Inspeção',
+        AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+        CONCLUIDO: 'Concluído',
+      };
+      return m[s] || s || '-';
     }
 
     function fmtDate(v) {
@@ -307,7 +316,7 @@
         <div class="card-muted">Inspetor: ${escapeHtml(laudo.createdBy?.nome || '-')}</div>
         <div class="card-muted">Inspeção: ${fmtDate(laudo.dataInspecao)}</div>
         <div class="card-muted">${timeAgo(laudo.updatedAt || laudo.createdAt)}</div>
-        <span class="status-badge ${escapeHtml(laudo.status)}">${escapeHtml(laudo.status)}</span>
+        <span class="status-badge ${escapeHtml(laudo.status)}">${escapeHtml(laudoStatusLabel(laudo.status))}</span>
       `;
 
       card.addEventListener('dragstart', () => {
@@ -320,20 +329,20 @@
     }
 
     function renderBoard() {
-      el.colPendente.innerHTML = '';
-      el.colGerado.innerHTML = '';
-      el.colAssinado.innerHTML = '';
+      el.colEmInspecao.innerHTML = '';
+      el.colAguardando.innerHTML = '';
+      el.colConcluido.innerHTML = '';
 
-      const byStatus = { PENDENTE: [], GERADO: [], ASSINADO: [] };
+      const byStatus = { EM_INSPECAO: [], AGUARDANDO_APROVACAO: [], CONCLUIDO: [] };
       state.filtered.forEach((l) => byStatus[l.status]?.push(l));
 
-      byStatus.PENDENTE.forEach((l) => el.colPendente.appendChild(createCard(l)));
-      byStatus.GERADO.forEach((l) => el.colGerado.appendChild(createCard(l)));
-      byStatus.ASSINADO.forEach((l) => el.colAssinado.appendChild(createCard(l)));
+      byStatus.EM_INSPECAO.forEach((l) => el.colEmInspecao.appendChild(createCard(l)));
+      byStatus.AGUARDANDO_APROVACAO.forEach((l) => el.colAguardando.appendChild(createCard(l)));
+      byStatus.CONCLUIDO.forEach((l) => el.colConcluido.appendChild(createCard(l)));
 
-      el.countPendente.textContent = String(byStatus.PENDENTE.length);
-      el.countGerado.textContent = String(byStatus.GERADO.length);
-      el.countAssinado.textContent = String(byStatus.ASSINADO.length);
+      el.countEmInspecao.textContent = String(byStatus.EM_INSPECAO.length);
+      el.countAguardando.textContent = String(byStatus.AGUARDANDO_APROVACAO.length);
+      el.countConcluido.textContent = String(byStatus.CONCLUIDO.length);
     }
 
     function updateUpdatedAt() {
@@ -437,7 +446,7 @@
       const auditEntries = (detail.auditLogs || []).map((a) => `
         <div class="audit-item">
           <b>${escapeHtml(a.action)}</b><br>
-          De: ${escapeHtml(a.fromStatus || '-')} → Para: ${escapeHtml(a.toStatus || '-')}<br>
+          De: ${escapeHtml(laudoStatusLabel(a.fromStatus))} → Para: ${escapeHtml(laudoStatusLabel(a.toStatus))}<br>
           Por: ${escapeHtml(a.user?.nome || 'Sistema')}<br>
           Em: ${fmtDate(a.createdAt)}
         </div>
@@ -446,7 +455,7 @@
       el.detailContent.innerHTML = `
         <div class="grid2" style="margin-bottom:10px;">
           <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
-          <div class="kv"><b>Status</b>${escapeHtml(detail.status)}</div>
+          <div class="kv"><b>Status</b><span class="status-badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusLabel(detail.status))}</span></div>
           <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
           <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
           <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>
@@ -496,7 +505,7 @@
           colBody.classList.remove('drag-over');
           if (!state.dragOrigin) return;
 
-          const toStatus = colBody.id === 'colPendente' ? 'PENDENTE' : (colBody.id === 'colGerado' ? 'GERADO' : 'ASSINADO');
+          const toStatus = colBody.id === 'colEmInspecao' ? 'EM_INSPECAO' : (colBody.id === 'colAguardando' ? 'AGUARDANDO_APROVACAO' : 'CONCLUIDO');
           const { id, status: fromStatus } = state.dragOrigin;
           state.dragOrigin = null;
           if (toStatus === fromStatus) return;

@@ -35,6 +35,10 @@
     th { background: #faf9f8; color: var(--color-text-muted); font-weight: 800; }
     .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .ld-status { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .ld-status.EM_INSPECAO { background: #fff4ce; color: #835c00; }
+    .ld-status.AGUARDANDO_APROVACAO { background: #dce6f7; color: #0078d4; }
+    .ld-status.CONCLUIDO { background: #dff6dd; color: #107c10; }
     .b-red { background: #fde7e9; color: var(--danger); }
     .b-yellow { background: var(--color-badge-pendente-bg); color: var(--color-badge-pendente-txt); }
     .b-orange { background: #fff4e5; color: var(--warning); }
@@ -147,6 +151,10 @@
     };
 
     function esc(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+    function laudoStatusLabel(s) {
+      const m = { EM_INSPECAO: 'Em Inspeção', AGUARDANDO_APROVACAO: 'Aguardando Aprovação', CONCLUIDO: 'Concluído' };
+      return m[s] || s || '-';
+    }
     function fmtDate(v) { if (!v) return '-'; const d = new Date(v); return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString('pt-BR'); }
     function toast(msg, type) { el.toast.textContent = msg; el.toast.className = `toast ${type || ''} show`; clearTimeout(el.toast._t); el.toast._t = setTimeout(() => el.toast.classList.remove('show'), 3000); }
     async function api(path, options = {}) { const r = await fetch(path, { credentials: 'include', ...options }); if (!r.ok) { const e = await r.json().catch(() => ({ error: `HTTP ${r.status}` })); throw new Error(e.error || `HTTP ${r.status}`); } return r.status === 204 ? null : r.json(); }
@@ -194,7 +202,7 @@
         <tr>
           <td data-label="Data Inspeção">${fmtDate(l.dataInspecao)}</td>
           <td data-label="Inspetor">${esc(l.createdBy?.nome || '-')}</td>
-          <td data-label="Status">${esc(l.status)}</td>
+          <td data-label="Status"><span class="ld-status ${esc(l.status)}">${esc(laudoStatusLabel(l.status))}</span></td>
           <td data-label="Ação"><button class="btn" data-a="download" data-laudo="${esc(l.id)}">Baixar docx</button></td>
         </tr>
       `).join('') || '<tr><td colspan="4">Sem histórico de laudos.</td></tr>';

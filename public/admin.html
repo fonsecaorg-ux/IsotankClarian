@@ -137,9 +137,9 @@
       font-size: 11px;
       font-weight: 800;
     }
-    .badge.PENDENTE { background: rgba(245, 158, 11, .2); color: var(--warn); }
-    .badge.GERADO { background: rgba(59, 130, 246, .2); color: var(--info); }
-    .badge.ASSINADO { background: rgba(34, 197, 94, .2); color: var(--success); }
+    .badge.EM_INSPECAO { background: #fff4ce; color: #835c00; }
+    .badge.AGUARDANDO_APROVACAO { background: #dce6f7; color: #0078d4; }
+    .badge.CONCLUIDO { background: #dff6dd; color: #107c10; }
     .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .hidden { display: none !important; }
     .modal-bg {
@@ -398,9 +398,9 @@
           <input type="text" id="searchInput" placeholder="Buscar por isotank ou cliente">
           <select id="statusFilter">
             <option value="">Todos os status</option>
-            <option value="PENDENTE">PENDENTE</option>
-            <option value="GERADO">GERADO</option>
-            <option value="ASSINADO">ASSINADO</option>
+            <option value="EM_INSPECAO">Em Inspeção</option>
+            <option value="AGUARDANDO_APROVACAO">Aguardando Aprovação</option>
+            <option value="CONCLUIDO">Concluído</option>
           </select>
           <input type="date" id="dateStart">
           <input type="date" id="dateEnd">
@@ -690,6 +690,15 @@
         .replace(/'/g, '&#039;');
     }
 
+    function laudoStatusLabel(s) {
+      const m = {
+        EM_INSPECAO: 'Em Inspeção',
+        AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+        CONCLUIDO: 'Concluído',
+      };
+      return m[s] || s || '-';
+    }
+
     async function api(path, options = {}) {
       const res = await fetch(path, {
         credentials: 'include',
@@ -752,16 +761,16 @@
           <td data-label="Isotank">${escapeHtml(l.numeroIdentificacao || '-')}</td>
           <td data-label="Cliente">${escapeHtml(l.cliente || '-')}</td>
           <td data-label="Inspetor">${escapeHtml(l.createdBy?.nome || '-')}</td>
-          <td data-label="Status"><span class="badge ${escapeHtml(l.status)}">${escapeHtml(l.status)}</span></td>
+          <td data-label="Status"><span class="badge ${escapeHtml(l.status)}">${escapeHtml(laudoStatusLabel(l.status))}</span></td>
           <td data-label="Data Inspeção">${fmtDate(l.dataInspecao)}</td>
           <td data-label="Data Criação">${fmtDate(l.createdAt)}</td>
           <td data-label="Ações">
             <div class="row-actions">
               <button class="btn" data-action="detail" data-id="${escapeHtml(l.id)}">Ver detalhe</button>
               <select data-action="status" data-id="${escapeHtml(l.id)}">
-                <option value="PENDENTE" ${l.status === 'PENDENTE' ? 'selected' : ''}>PENDENTE</option>
-                <option value="GERADO" ${l.status === 'GERADO' ? 'selected' : ''}>GERADO</option>
-                <option value="ASSINADO" ${l.status === 'ASSINADO' ? 'selected' : ''}>ASSINADO</option>
+                <option value="EM_INSPECAO" ${l.status === 'EM_INSPECAO' ? 'selected' : ''}>Em Inspeção</option>
+                <option value="AGUARDANDO_APROVACAO" ${l.status === 'AGUARDANDO_APROVACAO' ? 'selected' : ''}>Aguardando Aprovação</option>
+                <option value="CONCLUIDO" ${l.status === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
               </select>
               <button class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar docx</button>
             </div>
@@ -1055,7 +1064,7 @@
       const auditEntries = (detail.auditLogs || []).map((a) => `
         <div class="audit-item">
           <b>${escapeHtml(a.action)}</b><br>
-          De: ${escapeHtml(a.fromStatus || '-')} → Para: ${escapeHtml(a.toStatus || '-')}<br>
+          De: ${escapeHtml(laudoStatusLabel(a.fromStatus))} → Para: ${escapeHtml(laudoStatusLabel(a.toStatus))}<br>
           Por: ${escapeHtml(a.user?.nome || 'Sistema')}<br>
           Em: ${fmtDate(a.createdAt)}
         </div>
@@ -1064,7 +1073,7 @@
       el.detailContent.innerHTML = `
         <div class="grid2" style="margin-bottom:10px;">
           <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
-          <div class="kv"><b>Status</b><span class="badge ${escapeHtml(detail.status)}">${escapeHtml(detail.status)}</span></div>
+          <div class="kv"><b>Status</b><span class="badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusLabel(detail.status))}</span></div>
           <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
           <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
           <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>

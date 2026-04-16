@@ -209,7 +209,7 @@
     <section class="cards">
       <article class="card"><p class="card-label">Total de Laudos</p><p class="card-value" id="kpiTotal">0</p></article>
       <article class="card"><p class="card-label">Laudos este mês</p><p class="card-value" id="kpiMes">0</p></article>
-      <article class="card"><p class="card-label">Aguardando Assinatura</p><p class="card-value" id="kpiGerado">0</p></article>
+      <article class="card"><p class="card-label">Aguardando Aprovação</p><p class="card-value" id="kpiGerado">0</p></article>
       <article class="card"><p class="card-label">Taxa de Aprovação</p><p class="card-value" id="kpiTaxa">0%</p></article>
     </section>
 
@@ -310,6 +310,15 @@
       const d = new Date(v);
       if (Number.isNaN(d.getTime())) return '-';
       return d.toLocaleDateString('pt-BR');
+    }
+
+    function laudoStatusLabel(s) {
+      const m = {
+        EM_INSPECAO: 'Em Inspeção',
+        AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+        CONCLUIDO: 'Concluído',
+      };
+      return m[s] || s || '-';
     }
 
     async function api(path) {
@@ -471,16 +480,16 @@
     function renderStatusChart(stats) {
       const status = stats.laudosPorStatus || {};
       const data = [
-        { key: 'PENDENTE', value: status.PENDENTE || 0, color: '#fff4ce' },
-        { key: 'GERADO', value: status.GERADO || 0, color: '#0078d4' },
-        { key: 'ASSINADO', value: status.ASSINADO || 0, color: '#107c10' },
+        { key: 'EM_INSPECAO', value: status.EM_INSPECAO || 0, color: '#fff4ce' },
+        { key: 'AGUARDANDO_APROVACAO', value: status.AGUARDANDO_APROVACAO || 0, color: '#dce6f7' },
+        { key: 'CONCLUIDO', value: status.CONCLUIDO || 0, color: '#dff6dd' },
       ];
       const ctx = el.canvasStatus.getContext('2d');
       drawPie(ctx, el.canvasStatus.width, el.canvasStatus.height, data);
       el.statusLegend.innerHTML = data.map((d) => `
         <div class="legend-item">
           <span class="dot" style="background:${d.color};"></span>
-          <span>${d.key}: ${d.value}</span>
+          <span>${laudoStatusLabel(d.key)}: ${d.value}</span>
         </div>
       `).join('');
     }

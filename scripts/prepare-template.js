@@ -3,11 +3,15 @@
  * Gera template/template.docx a partir do laudo exemplo,
  * substituindo valores reais por tags {tag} do docxtemplater.
  * Execute UMA VEZ antes de iniciar o servidor: node scripts/prepare-template.js
+ *
+ * Placeholders de foto (400×300, #CCCCCC) são gerados com pngjs (JS puro);
+ * em máquinas x64, sharp também serve, mas não há binário win32-arm64.
  */
 
 const PizZip = require('pizzip');
 const fs = require('fs');
 const path = require('path');
+const { PNG } = require('pngjs');
 
 const SRC = path.join(__dirname, '..', 'LAUDO ESTRUTURAL_ISOTANK_SUTU258026-0.docx');
 const DEST = path.join(__dirname, '..', 'template', 'template.docx');
@@ -168,12 +172,35 @@ xml = replaceParagraphContaining(xml, 'Recomenda-se que o equipamento', '');
 // Assinaturas e data de emissão são tratadas diretamente no server.js,
 // pois mesclam valores fixos de config com a data da inspeção.
 
+// ─── 3c. Rodapé: remover run com desenho "Imagem 12" (elemento corrompido) ─────
+xml = xml.replace(
+  /<w:r(?:\s[^>]*)?>[\s\S]*?<wp:docPr[^>]*\bname="Imagem 12"[\s\S]*?<\/w:r>/g,
+  ''
+);
+
 // ─── 4. Salvar template ───────────────────────────────────────────────────────
-zip.file('word/document.xml', xml);
+(function writeTemplate() {
+  const png = new PNG({ width: 400, height: 300, colorType: 2 });
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      const idx = (png.width * y + x) << 2;
+      png.data[idx] = 204;
+      png.data[idx + 1] = 204;
+      png.data[idx + 2] = 204;
+      png.data[idx + 3] = 255;
+    }
+  }
+  const placeholderPng = PNG.sync.write(png);
 
-const outDir = path.dirname(DEST);
-if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+  zip.file('word/document.xml', xml);
+  for (let i = 1; i <= 10; i += 1) {
+    zip.file(`word/media/image${i}.png`, placeholderPng);
+  }
 
-const buffer = zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
-fs.writeFileSync(DEST, buffer);
-console.log('Template gerado com sucesso:', DEST);
+  const outDir = path.dirname(DEST);
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+  const buffer = zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
+  fs.writeFileSync(DEST, buffer);
+  console.log('Template gerado com sucesso:', DEST);
+})();

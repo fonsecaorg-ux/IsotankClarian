@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
+    "pngjs": "^7.0.0",
     "prisma": "^6.6.0"
   }
 }

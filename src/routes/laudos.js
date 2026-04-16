@@ -8,7 +8,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/requireRole');
 
 const router = express.Router();
-const ALLOWED_STATUS = ['PENDENTE', 'GERADO', 'ASSINADO'];
+const ALLOWED_STATUS = ['EM_INSPECAO', 'AGUARDANDO_APROVACAO', 'CONCLUIDO'];
 const STORAGE_MODE = String(process.env.STORAGE_MODE || 'database').trim().toLowerCase() === 'disk'
   ? 'disk'
   : 'database';
@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
         cliente: formData.cliente || null,
         endereco: formData.endereco || null,
         dataInspecao: dataInspecao && !Number.isNaN(dataInspecao.getTime()) ? dataInspecao : null,
-        status: 'PENDENTE',
+        status: 'EM_INSPECAO',
         createdById: req.user.id,
       },
       select: {

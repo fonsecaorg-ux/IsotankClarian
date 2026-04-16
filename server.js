@@ -339,7 +339,10 @@ app.use('/auth', authRoutes);
 app.use('/configuracoes', configuracoesRoutes);
 app.use('/documentos', documentosRoutes);
 
-function buildTemplateData(formData, cfg, dataPt) {
+function buildTemplateData(formData, cfg, dataPt, encarregadoNome) {
+  const enc = encarregadoNome != null && String(encarregadoNome).trim()
+    ? String(encarregadoNome).trim()
+    : cfg.encarregado;
   return {
     // Identificação
     numero_identificacao: formData.numero_identificacao || '',
@@ -414,7 +417,7 @@ function buildTemplateData(formData, cfg, dataPt) {
     // Conclusão / Recomendação / Rodapé
     conclusao:      formData.conclusao      || '',
     recomendacao:   formData.recomendacao   || '',
-    encarregado:    cfg.encarregado,
+    encarregado:    enc,
     engenheiro:     cfg.engenheiro,
     crea_info:      cfg.crea_info,
     cidade_data:    `${cfg.cidade}, ${dataPt}`,
@@ -424,6 +427,7 @@ function buildTemplateData(formData, cfg, dataPt) {
 // ─── Rota: POST /generate ────────────────────────────────────────────────────
 app.post(
   '/generate',
+  authMiddleware,
   upload.fields(PHOTO_FIELDS.map(f => ({ name: f, maxCount: 1 }))),
   async (req, res) => {
     try {
@@ -455,7 +459,8 @@ app.post(
         ? formatDatePt(sourceData.data_inspecao)
         : '';
 
-      const templateData = buildTemplateData(sourceData, cfg, dataPt);
+      const encarregadoNome = (req.user && (req.user.nome || req.user.name)) || cfg.encarregado;
+      const templateData = buildTemplateData(sourceData, cfg, dataPt, encarregadoNome);
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
@@ -492,7 +497,7 @@ app.post(
           const pPr = pPrMatch ? pPrMatch[0] : '';
           const rPrMatch = para.match(/<w:rPr>[\s\S]*?<\/w:rPr>/);
           const rPr = rPrMatch ? rPrMatch[0] : '';
-          return `<w:p>${pPr}<w:r>${rPr}<w:t>${escapeXml(cfg.encarregado)}</w:t></w:r></w:p>`;
+          return `<w:p>${pPr}<w:r>${rPr}<w:t>${escapeXml(encarregadoNome)}</w:t></w:r></w:p>`;
         }
         return para;
       });
@@ -553,7 +558,7 @@ app.post(
         await prisma.laudo.update({
           where: { id: laudo.id },
           data: {
-            status: 'GERADO',
+            status: 'AGUARDANDO_APROVACAO',
             generatedAt: new Date(),
             generatedFileName: filename,
           },
@@ -564,7 +569,7 @@ app.post(
             action: 'STATUS_CHANGED',
             laudoId: laudo.id,
             fromStatus: laudo.status,
-            toStatus: 'GERADO',
+            toStatus: 'AGUARDANDO_APROVACAO',
             metadata: { source: 'generate' },
           },
         });

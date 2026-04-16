@@ -1,9 +1,9 @@
 /**
  * Teste rápido do endpoint POST /generate
- * Envia dados de formulário sem fotos e verifica se o .docx é devolvido.
+ * Autentica como inspetor seed, envia dados de formulário sem fotos e verifica se o .docx é devolvido.
  */
 const http = require('http');
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 const boundary = '----TestBoundary' + Date.now();
@@ -80,43 +80,100 @@ const formFields = {
   recomendacao:           'Recomenda-se vistoria periódica conforme normas vigentes.',
 };
 
-let body = '';
-for (const [k, v] of Object.entries(formFields)) body += field(k, v);
-body += `--${boundary}--\r\n`;
-
-const bodyBuffer = Buffer.from(body, 'utf8');
-
-const options = {
-  hostname: 'localhost',
-  port: 3000,
-  path: '/generate',
-  method: 'POST',
-  headers: {
-    'Content-Type': `multipart/form-data; boundary=${boundary}`,
-    'Content-Length': bodyBuffer.length,
-  },
-};
-
-const req = http.request(options, (res) => {
-  console.log('Status:', res.statusCode);
-  console.log('Content-Type:', res.headers['content-type']);
-  console.log('Content-Disposition:', res.headers['content-disposition']);
-
-  const chunks = [];
-  res.on('data', c => chunks.push(c));
-  res.on('end', () => {
-    const buf = Buffer.concat(chunks);
-    if (res.statusCode === 200) {
-      const outFile = path.join(__dirname, '..', 'output', 'test_output.docx');
-      fs.writeFileSync(outFile, buf);
-      console.log(`\n✅ Laudo gerado com sucesso: ${outFile}`);
-      console.log(`   Tamanho: ${buf.length} bytes`);
-    } else {
-      console.error('❌ Erro:', buf.toString());
-    }
+function httpRequest(options, body) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        resolve({
+          statusCode: res.statusCode,
+          headers: res.headers,
+          body: Buffer.concat(chunks),
+        });
+      });
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
   });
-});
+}
 
-req.on('error', (e) => console.error('Erro de conexão:', e.message));
-req.write(bodyBuffer);
-req.end();
+function cookieHeaderFromSetCookie(setCookie) {
+  if (!setCookie) return '';
+  const list = Array.isArray(setCookie) ? setCookie : [setCookie];
+  return list.map((c) => c.split(';')[0]).filter(Boolean).join('; ');
+}
+
+async function main() {
+  const loginBody = JSON.stringify({
+    email: 'inspetor@ceinspec.local',
+    password: 'Inspetor@123',
+  });
+
+  const loginRes = await httpRequest(
+    {
+      hostname: 'localhost',
+      port: 3000,
+      path: '/auth/login',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(loginBody, 'utf8'),
+      },
+    },
+    loginBody
+  );
+
+  if (loginRes.statusCode !== 200) {
+    console.error('Login falhou:', loginRes.statusCode, loginRes.body.toString());
+    process.exit(1);
+  }
+
+  const cookie = cookieHeaderFromSetCookie(loginRes.headers['set-cookie']);
+  if (!cookie) {
+    console.error('Login OK mas sem cookie auth_token.');
+    process.exit(1);
+  }
+
+  let multipartBody = '';
+  for (const [k, v] of Object.entries(formFields)) multipartBody += field(k, v);
+  multipartBody += `--${boundary}--\r\n`;
+
+  const bodyBuffer = Buffer.from(multipartBody, 'utf8');
+
+  const genRes = await httpRequest(
+    {
+      hostname: 'localhost',
+      port: 3000,
+      path: '/generate',
+      method: 'POST',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': bodyBuffer.length,
+        Cookie: cookie,
+      },
+    },
+    bodyBuffer
+  );
+
+  console.log('Status:', genRes.statusCode);
+  console.log('Content-Type:', genRes.headers['content-type']);
+  console.log('Content-Disposition:', genRes.headers['content-disposition']);
+
+  const buf = genRes.body;
+  if (genRes.statusCode === 200) {
+    const outFile = path.join(__dirname, '..', 'output', 'test_output.docx');
+    fs.writeFileSync(outFile, buf);
+    console.log(`\n✅ Laudo gerado com sucesso: ${outFile}`);
+    console.log(`   Tamanho: ${buf.length} bytes`);
+  } else {
+    console.error('❌ Erro:', buf.toString());
+    process.exit(1);
+  }
+}
+
+main().catch((e) => {
+  console.error('Erro:', e.message);
+  process.exit(1);
+});
