@@ -333,7 +333,9 @@ function sanitizeZipForWordOnline(zip) {
     try {
       let relsXml = relsFile.asText();
       const before = relsXml;
-      relsXml = relsXml.replace(/<Relationship\s+([^/>]+)\/>/g, (full, attrs) => {
+      // Não usar [^/>]+ aqui: o atributo Type contém "http://", o que quebrava o match e
+      // impedia remover a relação hdphoto — o .wdp era apagado do zip e o .docx ficava inválido.
+      relsXml = relsXml.replace(/<Relationship\s+([^>]+)\/>/g, (full, attrs) => {
         const idMatch = attrs.match(/\bId="([^"]+)"/i);
         const targetMatch = attrs.match(/\bTarget="([^"]+)"/i);
         const id = idMatch ? idMatch[1] : '';
