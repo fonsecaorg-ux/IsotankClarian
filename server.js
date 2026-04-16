@@ -751,6 +751,13 @@ async function ensureDefaultUsers() {
 }
 
 async function ensureDefaultConfigs() {
+  if (!prisma.configuracao || typeof prisma.configuracao.upsert !== 'function') {
+    throw new Error(
+      'Prisma Client sem o model Configuracao (client desatualizado). ' +
+      'Execute `npx prisma generate` após migrations; em produção use `npm start`, que roda migrate deploy e generate antes do servidor.'
+    );
+  }
+
   const defaults = [
     { chave: 'smtp_host', valor: '', descricao: 'Servidor SMTP' },
     { chave: 'smtp_port', valor: '587', descricao: 'Porta SMTP' },
