@@ -601,13 +601,13 @@ app.post(
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
-      sanitizeZipForWordOnline(zip);
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
         nullGetter: () => '',
       });
       doc.render(templateData);
+      sanitizeZipForWordOnline(zip);
 
       // ── Injetar assinaturas (inspetor e engenheiro) com fallback seguro ────
       try {
