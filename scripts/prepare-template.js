@@ -117,18 +117,70 @@ const multiReplacements = {
 // Contadores de ocorrência por texto
 const counters = {};
 
-xml = xml.replace(/<w:tc>([\s\S]*?)<\/w:tc>/g, (match, cellContent) => {
+/** Abertura de célula <w:tc> (não confundir com <w:tcW>, <w:tcPr>, etc.). */
+function tcOpenTokenLen(xmlStr, j) {
+  if (!xmlStr.startsWith('<w:tc', j)) return 0;
+  const boundary = xmlStr[j + 5];
+  if (boundary && /[A-Za-z]/.test(boundary)) return 0;
+  const gt = xmlStr.indexOf('>', j);
+  return gt === -1 ? 0 : gt - j + 1;
+}
+
+/** Percorre <w:tc>…</w:tc> com profundidade (células com tabela aninhada). */
+function replaceTableCells(xmlStr, cellCallback) {
+  let out = '';
+  let i = 0;
+  while (i < xmlStr.length) {
+    let open = xmlStr.indexOf('<w:tc', i);
+    while (open !== -1 && tcOpenTokenLen(xmlStr, open) === 0) {
+      open = xmlStr.indexOf('<w:tc', open + 1);
+    }
+    if (open === -1) {
+      out += xmlStr.slice(i);
+      break;
+    }
+    out += xmlStr.slice(i, open);
+    let depth = 0;
+    let j = open;
+    while (j < xmlStr.length) {
+      const openLen = tcOpenTokenLen(xmlStr, j);
+      if (openLen > 0) {
+        depth += 1;
+        j += openLen;
+      } else if (xmlStr.startsWith('</w:tc>', j)) {
+        depth -= 1;
+        const end = j + 8;
+        if (depth === 0) {
+          const cellXml = xmlStr.slice(open, end);
+          out += cellCallback(cellXml);
+          i = end;
+          break;
+        }
+        j += 8;
+      } else {
+        j += 1;
+      }
+    }
+    if (j >= xmlStr.length && depth !== 0) {
+      out += xmlStr.slice(open);
+      break;
+    }
+  }
+  return out;
+}
+
+xml = replaceTableCells(xml, (match) => {
+  const innerStart = match.indexOf('>') + 1;
+  const cellContent = match.slice(innerStart, -8);
   const fullText = getCellText(cellContent);
   if (!fullText) return match;
 
-  // Tenta substituição única
   for (const [src, tag] of uniqueReplacements) {
     if (fullText === src) {
       return buildReplacedCell(cellContent, tag);
     }
   }
 
-  // Tenta substituição múltipla
   if (multiReplacements[fullText] !== undefined) {
     const tags = multiReplacements[fullText];
     counters[fullText] = (counters[fullText] || 0) + 1;
@@ -136,7 +188,6 @@ xml = xml.replace(/<w:tc>([\s\S]*?)<\/w:tc>/g, (match, cellContent) => {
     if (idx < tags.length && tags[idx] !== null) {
       return buildReplacedCell(cellContent, tags[idx]);
     }
-    // null = manter célula original (ex: cabeçalho da tabela de exames)
     return match;
   }
 
@@ -173,8 +224,9 @@ xml = replaceParagraphContaining(xml, 'Recomenda-se que o equipamento', '');
 // pois mesclam valores fixos de config com a data da inspeção.
 
 // ─── 3c. Rodapé: remover run com desenho "Imagem 12" (elemento corrompido) ─────
+// Não usar [\s\S]*? logo após <w:r> — atravessa outros </w:r> e apaga o documento.
 xml = xml.replace(
-  /<w:r(?:\s[^>]*)?>[\s\S]*?<wp:docPr[^>]*\bname="Imagem 12"[\s\S]*?<\/w:r>/g,
+  /<w:r(?:\s[^>]*)?>((?:(?!<\/w:r>).)*?)<wp:docPr[^>]*\bname="Imagem 12"[\s\S]*?<\/w:r>/g,
   ''
 );
 

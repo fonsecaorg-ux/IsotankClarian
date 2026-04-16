@@ -417,7 +417,9 @@ function buildTemplateData(formData, cfg, dataPt, encarregadoNome) {
     // Conclusão / Recomendação / Rodapé
     conclusao:      formData.conclusao      || '',
     recomendacao:   formData.recomendacao   || '',
+    // encarregado: usuário logado (req.user.name || nome); fallback cfg.encarregado
     encarregado:    enc,
+    // engenheiro / crea_info: só config.json — nome e linha cargo+CREA (pós-process XML no /generate)
     engenheiro:     cfg.engenheiro,
     crea_info:      cfg.crea_info,
     cidade_data:    `${cfg.cidade}, ${dataPt}`,
@@ -459,7 +461,7 @@ app.post(
         ? formatDatePt(sourceData.data_inspecao)
         : '';
 
-      const encarregadoNome = (req.user && (req.user.nome || req.user.name)) || cfg.encarregado;
+      const encarregadoNome = (req.user && (req.user.name || req.user.nome)) || cfg.encarregado;
       const templateData = buildTemplateData(sourceData, cfg, dataPt, encarregadoNome);
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
@@ -483,9 +485,27 @@ app.post(
           .replace(/"/g, '&quot;');
       }
 
-      // Diego Aparecido de Lima → engenheiro (run único)
+      // Diego Aparecido de Lima → cfg.engenheiro (somente o nome; cargo/CREA ficam em crea_info)
       docXml = docXml.replace(/<w:t[^>]*>\s*Diego Aparecido de Lima\s*<\/w:t>/g,
         `<w:t>${escapeXml(cfg.engenheiro)}</w:t>`);
+
+      // Bloco fixo "Engenheiro Mecânico" + " – " + "CREA:506..." (vários <w:r>) → um único texto cfg.crea_info
+      // (substituir só o último <w:t> duplicava o prefixo com cfg.crea_info completo)
+      docXml = docXml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, (para) => {
+        const texts = [];
+        para.replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, (m, t) => texts.push(t));
+        const normalized = texts.join('').replace(/\s+/g, ' ').trim();
+        const isQualificacao =
+          normalized.includes('Engenheiro Mecânico') &&
+          normalized.includes('CREA:506.927.6941-S') &&
+          !normalized.includes('Responsável pela Inspeção');
+        if (isQualificacao) {
+          const pPrMatch = para.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
+          const pPr = pPrMatch ? pPrMatch[0] : '';
+          return `<w:p>${pPr}<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/></w:rPr><w:t>${escapeXml(cfg.crea_info)}</w:t></w:r></w:p>`;
+        }
+        return para;
+      });
 
       // Elton Vieira → encarregado (corre em múltiplos runs — tratar parágrafo)
       docXml = docXml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, (para) => {
@@ -501,10 +521,6 @@ app.post(
         }
         return para;
       });
-
-      // CREA → crea_info
-      docXml = docXml.replace(/<w:t[^>]*>\s*CREA:506\.927\.6941-S\s*<\/w:t>/g,
-        `<w:t>${escapeXml(cfg.crea_info)}</w:t>`);
 
       // Data no rodapé: encontrar parágrafo que agrega "Cubatão, ...de...de 20XX"
       // e substituir todo o conteúdo por cidade + data formatada
