@@ -218,13 +218,14 @@ def main():
     xml = replace_paragraph_containing(xml, "CREA:506.927.6941-S", "{crea_info}")
     xml = replace_paragraph_containing(xml, "Cubatão, 17 de Março de 2026", "{cidade_data}")
 
+    # Não substituir "2018" globalmente: a primeira ocorrência pode estar em xmlns:w16
+    # (…/word/2018/wordml) e quebraria o XML. O ano de fabricação já é tratado nas células.
     direct_unique = [
         ("17/03/2026", "{data_inspecao}"),
         ("CIMC", "{fabricante}"),
         ("NCTE18T 15447", "{numero_serie}"),
         ("CHINA", "{pais_fabricacao}"),
         ("25000 L", "{capacidade_liquida}"),
-        ("2018", "{ano_fabricacao}"),
         ("SUTU 258026-0", "{numero_identificacao}"),
     ]
     for src, tag in direct_unique:
