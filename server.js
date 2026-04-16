@@ -66,7 +66,7 @@ const TEMPLATE_PATH = path.join(__dirname, 'template', 'template.docx');
 
 // ─── Cache em memória: template carregado uma única vez no startup ────────────
 // Evita leitura de disco a cada requisição e é compatível com Render (efêmero).
-const TEMPLATE_BINARY = fs.readFileSync(TEMPLATE_PATH, 'binary');
+const TEMPLATE_BINARY = fs.readFileSync(TEMPLATE_PATH);
 
 // ─── Multer: armazenamento 100% em memória (sem disco) ───────────────────────
 const PHOTO_FIELDS = [
@@ -230,6 +230,11 @@ function removeNearestXmlElementAtOrBefore(xml, idx) {
 
     const openFull = xml.slice(lt, gt + 1);
     if (/\/\s*>$/.test(openFull)) {
+      // Só remove tag vazia se a referência estiver nos atributos desta tag.
+      if (idx <= lt || idx > gt) {
+        searchBefore = lt;
+        continue;
+      }
       return xml.slice(0, lt) + xml.slice(gt + 1);
     }
 
@@ -250,7 +255,13 @@ function removeNearestXmlElementAtOrBefore(xml, idx) {
       } else {
         depth -= 1;
         if (depth === 0) {
-          return xml.slice(0, lt) + xml.slice(nextClose + closeStr.length);
+          const blockEnd = nextClose + closeStr.length;
+          // Só remove se a referência (idx) estiver realmente dentro deste elemento.
+          if (idx < lt || idx >= blockEnd) {
+            searchBefore = lt;
+            break;
+          }
+          return xml.slice(0, lt) + xml.slice(blockEnd);
         }
         pos = nextClose + closeStr.length;
       }
@@ -285,6 +296,12 @@ function stripDocumentXmlForRemovedRels(docXml, removedRelationshipIds) {
       }
 
       next = removeBalancedXmlBlockContaining(xml, 'a14:imgProps', idx);
+      if (next) {
+        xml = next;
+        continue;
+      }
+
+      next = removeBalancedXmlBlockContaining(xml, 'a14:imgLayer', idx);
       if (next) {
         xml = next;
         continue;
