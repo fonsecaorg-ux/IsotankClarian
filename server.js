@@ -137,6 +137,171 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function indexOfClosingAngleForOpenTag(xml, openStart) {
+  let gt = xml.indexOf('>', openStart);
+  while (gt !== -1) {
+    const slice = xml.slice(openStart, gt + 1);
+    if ((((slice.match(/"/g) || []).length) % 2) === 0) return gt;
+    gt = xml.indexOf('>', gt + 1);
+  }
+  return -1;
+}
+
+/**
+ * Remove um bloco balanceado `<tagName>...</tagName>` que envolve `idx`.
+ * @param {string} xml
+ * @param {string} tagName ex.: 'w:drawing', 'a14:imgProps'
+ * @param {number} idx
+ * @returns {string|null}
+ */
+function removeBalancedXmlBlockContaining(xml, tagName, idx) {
+  const openNeedle = `<${tagName}`;
+  const start = xml.lastIndexOf(openNeedle, idx);
+  if (start === -1) return null;
+  const boundary = xml[start + openNeedle.length];
+  if (boundary && !/[\s/>]/.test(boundary)) return null;
+
+  const openGt = indexOfClosingAngleForOpenTag(xml, start);
+  if (openGt === -1) return null;
+
+  const closeStr = `</${tagName}>`;
+  let depth = 1;
+  let pos = openGt + 1;
+  const openRe = new RegExp(`<${escapeRegExp(tagName)}\\b`, 'g');
+
+  while (depth > 0 && pos < xml.length) {
+    openRe.lastIndex = pos;
+    const openMatch = openRe.exec(xml);
+    const nextOpen = openMatch ? openMatch.index : -1;
+    const nextClose = xml.indexOf(closeStr, pos);
+    if (nextClose === -1) return null;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth += 1;
+      pos = nextOpen + 1;
+    } else {
+      depth -= 1;
+      if (depth === 0) {
+        const blockEnd = nextClose + closeStr.length;
+        if (idx < start || idx >= blockEnd) return null;
+        return xml.slice(0, start) + xml.slice(blockEnd);
+      }
+      pos = nextClose + closeStr.length;
+    }
+  }
+  return null;
+}
+
+/**
+ * Retrocede a partir de `idx` até achar uma tag de abertura e remove o elemento balanceado.
+ * @param {string} xml
+ * @param {number} idx
+ * @returns {string|null}
+ */
+function removeNearestXmlElementAtOrBefore(xml, idx) {
+  let searchBefore = idx + 1;
+  for (let tries = 0; tries < 120; tries += 1) {
+    const lt = xml.lastIndexOf('<', searchBefore - 1);
+    if (lt < 0) return null;
+
+    if (xml.startsWith('</', lt) || xml.startsWith('<?', lt) || xml.startsWith('<!--', lt)) {
+      searchBefore = lt;
+      continue;
+    }
+    if (xml.startsWith('<![CDATA[', lt)) {
+      searchBefore = lt;
+      continue;
+    }
+
+    const tagMatch = xml.slice(lt).match(/^<([\w:-]+)\b/);
+    if (!tagMatch) {
+      searchBefore = lt;
+      continue;
+    }
+    const tagName = tagMatch[1];
+
+    let gt = xml.indexOf('>', lt);
+    while (gt !== -1) {
+      const openSlice = xml.slice(lt, gt + 1);
+      const quotes = (openSlice.match(/"/g) || []).length;
+      if (quotes % 2 === 0) break;
+      gt = xml.indexOf('>', gt + 1);
+    }
+    if (gt === -1) return null;
+
+    const openFull = xml.slice(lt, gt + 1);
+    if (/\/\s*>$/.test(openFull)) {
+      return xml.slice(0, lt) + xml.slice(gt + 1);
+    }
+
+    const closeStr = `</${tagName}>`;
+    let depth = 1;
+    let pos = gt + 1;
+    const openRe = new RegExp(`<${escapeRegExp(tagName)}\\b`, 'g');
+
+    while (depth > 0 && pos < xml.length) {
+      openRe.lastIndex = pos;
+      const openM = openRe.exec(xml);
+      const nextOpen = openM ? openM.index : -1;
+      const nextClose = xml.indexOf(closeStr, pos);
+      if (nextClose === -1) break;
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth += 1;
+        pos = nextOpen + 1;
+      } else {
+        depth -= 1;
+        if (depth === 0) {
+          return xml.slice(0, lt) + xml.slice(nextClose + closeStr.length);
+        }
+        pos = nextClose + closeStr.length;
+      }
+    }
+
+    searchBefore = lt;
+  }
+  return null;
+}
+
+/**
+ * Remove referências a relationship ids no document.xml (desenhos WDP, a14:imgProps, etc.).
+ * @param {string} docXml
+ * @param {string[]} removedRelationshipIds
+ * @returns {string}
+ */
+function stripDocumentXmlForRemovedRels(docXml, removedRelationshipIds) {
+  let xml = docXml;
+  for (const rid of removedRelationshipIds) {
+    const ridEsc = escapeRegExp(rid);
+    const refRe = new RegExp(`r:(?:embed|id)="${ridEsc}"`);
+
+    for (;;) {
+      const m = xml.match(refRe);
+      if (!m || m.index === undefined) break;
+      const idx = m.index;
+
+      let next = removeBalancedXmlBlockContaining(xml, 'w:drawing', idx);
+      if (next) {
+        xml = next;
+        continue;
+      }
+
+      next = removeBalancedXmlBlockContaining(xml, 'a14:imgProps', idx);
+      if (next) {
+        xml = next;
+        continue;
+      }
+
+      next = removeNearestXmlElementAtOrBefore(xml, idx);
+      if (next) {
+        xml = next;
+        continue;
+      }
+
+      break;
+    }
+  }
+  return xml;
+}
+
 function sanitizeZipForWordOnline(zip) {
   const relsPath = 'word/_rels/document.xml.rels';
   const docPath = 'word/document.xml';
@@ -192,44 +357,9 @@ function sanitizeZipForWordOnline(zip) {
   const docFile = zip.file(docPath);
   if (docFile && removedRelationshipIds.length) {
     try {
-      let docXml = docFile.asText();
-      for (const rid of removedRelationshipIds) {
-        const ridEsc = escapeRegExp(rid);
-        const embedRe = new RegExp(`r:embed="${ridEsc}"`);
-        const idRe = new RegExp(`r:id="${ridEsc}"`);
-        // Repete até não haver mais ocorrências dentro de <w:drawing>.
-        for (;;) {
-          let idx = docXml.search(embedRe);
-          if (idx === -1) idx = docXml.search(idRe);
-          if (idx === -1) break;
-          const start = docXml.lastIndexOf('<w:drawing', idx);
-          if (start !== -1) {
-            const end = docXml.indexOf('</w:drawing>', idx);
-            if (end !== -1) {
-              docXml =
-                docXml.slice(0, start) +
-                docXml.slice(end + '</w:drawing>'.length);
-              continue;
-            }
-          }
-          // Fallback: remover <a:blip ... r:embed="rId" .../> (self-closing ou com filhos curtos)
-          const blipOpen = docXml.lastIndexOf('<a:blip', idx);
-          if (blipOpen !== -1) {
-            const blipClose = docXml.indexOf('/>', blipOpen);
-            const blipClose2 = docXml.indexOf('</a:blip>', blipOpen);
-            if (blipClose !== -1 && blipClose < idx + 400) {
-              docXml = docXml.slice(0, blipOpen) + docXml.slice(blipClose + 2);
-              continue;
-            }
-            if (blipClose2 !== -1) {
-              docXml = docXml.slice(0, blipOpen) + docXml.slice(blipClose2 + '</a:blip>'.length);
-              continue;
-            }
-          }
-          break;
-        }
-      }
-      zip.file(docPath, docXml);
+      const docXml = docFile.asText();
+      const cleaned = stripDocumentXmlForRemovedRels(docXml, removedRelationshipIds);
+      zip.file(docPath, cleaned);
     } catch (err) {
       console.error('Falha ao sanitizar word/document.xml para Word Online:', err.message);
     }
