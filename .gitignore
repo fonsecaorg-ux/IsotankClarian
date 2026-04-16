@@ -4,6 +4,7 @@ node_modules/
 # Saídas locais de teste (não versionar)
 output/
 uploads/
+LAUDO_*.docx
 
 # Ambiente
 .env
