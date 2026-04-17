@@ -120,7 +120,7 @@ const STORAGE_ROOT = path.isAbsolute(STORAGE_PATH_RAW)
 // memoryStorage → file.buffer disponível diretamente, nada gravado em disco
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 // ─── Formatação de data em português ─────────────────────────────────────────
@@ -410,7 +410,8 @@ function sanitizeZipForWordOnline(zip) {
 }
 
 // ─── Static files ─────────────────────────────────────────────────────────────
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -833,17 +834,46 @@ app.post(
 
       // ── Injetar fotos no zip (buffer em memória — sem acesso a disco) ────────
       const fotoRecords = [];
+      const isDiskMode = STORAGE_MODE === 'disk';
+      const laudoStorageDir = isDiskMode && laudo?.id
+        ? path.join(STORAGE_ROOT, laudo.id)
+        : null;
+      
+      if (isDiskMode && laudoStorageDir) {
+        fs.mkdirSync(laudoStorageDir, { recursive: true });
+      }
+      
       for (const field of PHOTO_FIELDS) {
         if (files[field] && files[field][0]) {
           const file = files[field][0];
+          const tamanho = Number(file.size || file.buffer?.length || 0);
+          const mimeType = file.mimetype || 'image/jpeg';
+          
+          // Injetar foto no zip
           zip.file(PHOTO_MEDIA_MAP[field], file.buffer);
-          fotoRecords.push({
+          
+          // Preparar registro para persistência (evita duplicação)
+          let fotoRecord = {
             campo: field,
             label: PHOTO_LABEL_MAP[field] || field,
-            dados: file.buffer,
-            mimeType: file.mimetype || 'image/jpeg',
-            tamanho: Number(file.size || file.buffer?.length || 0),
-          });
+            mimeType,
+            tamanho,
+          };
+          
+          // Se disk mode: salvar em disco AGORA (libera memória)
+          if (isDiskMode && laudoStorageDir && laudo?.id) {
+            const filePath = path.join(laudoStorageDir, `${field}.jpg`);
+            fs.writeFileSync(filePath, file.buffer);
+            fotoRecord.caminhoArquivo = filePath;
+          } else {
+            // Database mode: guardar buffer para persistência posterior
+            fotoRecord.dados = file.buffer;
+          }
+          
+          fotoRecords.push(fotoRecord);
+          
+          // Liberar referência para coleta de lixo
+          file.buffer = null;
         }
       }
 
@@ -887,9 +917,6 @@ app.post(
       // Não deve quebrar o download do laudo.
       try {
         if (laudo?.id && fotoRecords.length) {
-          const isDiskMode = STORAGE_MODE === 'disk';
-          const laudoStorageDir = path.join(STORAGE_ROOT, laudo.id);
-
           await prisma.fotoLaudo.deleteMany({
             where: {
               laudoId: laudo.id,
@@ -897,36 +924,17 @@ app.post(
             },
           });
 
-          if (isDiskMode) {
-            fs.mkdirSync(laudoStorageDir, { recursive: true });
-          }
-
+          // Fotos já estão salvas em disco (se disk mode) ou em memória (se database mode)
           await prisma.fotoLaudo.createMany({
-            data: fotoRecords.map((r) => {
-              if (isDiskMode) {
-                const filePath = path.join(laudoStorageDir, `${r.campo}.jpg`);
-                fs.writeFileSync(filePath, r.dados);
-                return {
-                  laudoId: laudo.id,
-                  campo: r.campo,
-                  label: r.label,
-                  caminhoArquivo: filePath,
-                  mimeType: r.mimeType,
-                  tamanho: r.tamanho,
-                  dados: null,
-                };
-              }
-
-              return {
-                laudoId: laudo.id,
-                campo: r.campo,
-                label: r.label,
-                dados: r.dados,
-                caminhoArquivo: null,
-                mimeType: r.mimeType,
-                tamanho: r.tamanho,
-              };
-            }),
+            data: fotoRecords.map((r) => ({
+              laudoId: laudo.id,
+              campo: r.campo,
+              label: r.label,
+              caminhoArquivo: r.caminhoArquivo || null,
+              dados: r.dados || null,
+              mimeType: r.mimeType,
+              tamanho: r.tamanho,
+            })),
           });
         }
       } catch (errFotos) {
