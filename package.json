@@ -19,15 +19,18 @@
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6.6.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "docxtemplater": "^3.68.3",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "latest",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
     "nodemailer": "^7.0.5",
+    "pg": "^8.20.0",
     "pizzip": "^3.2.0",
     "xss": "latest"
   },

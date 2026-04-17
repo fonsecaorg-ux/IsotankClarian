@@ -1,9 +1,9 @@
 'use strict';
 
-const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
-const prisma = new PrismaClient();
+const bcrypt = require('bcryptjs');
+const prisma = require('../src/lib/prisma');
 
 async function upsertUser({ nome, email, senha, role }) {
   const passwordHash = await bcrypt.hash(senha, 10);
