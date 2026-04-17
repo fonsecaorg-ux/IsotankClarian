@@ -772,6 +772,9 @@ app.post(
         ? path.join(STORAGE_ROOT, laudo.id)
         : null;
       
+      console.log(`[FOTOS] Iniciando injeção. Total de PHOTO_FIELDS: ${PHOTO_FIELDS.length}`);
+      console.log(`[FOTOS] Campos recebidos em req.files: ${Object.keys(files || {}).join(', ') || '(nenhum)'}`);
+      
       if (isDiskMode && laudoStorageDir) {
         fs.mkdirSync(laudoStorageDir, { recursive: true });
       }
@@ -782,7 +785,15 @@ app.post(
           const tamanho = Number(file.size || file.buffer?.length || 0);
           const mimeType = file.mimetype || 'image/jpeg';
           
-          console.log(`Injetando foto ${field}: ${PHOTO_MEDIA_MAP[field]} (${tamanho} bytes)`);
+          console.log(`[FOTO] ${field} recebido: tamanho=${tamanho}, hasBuffer=${!!file.buffer}, bufferLength=${file.buffer?.length || 0}`);
+          
+          // ✅ VERIFICAÇÃO CRÍTICA: buffer deve ter dados
+          if (!file.buffer || file.buffer.length === 0) {
+            console.warn(`⚠️  AVISO: ${field} tem buffer vazio ou undefined!`);
+            continue;
+          }
+          
+          console.log(`✅ Injetando foto ${field}: ${PHOTO_MEDIA_MAP[field]} (${tamanho} bytes)`);
           
           // Injetar foto no zip ANTES de renderizar
           zip.file(PHOTO_MEDIA_MAP[field], file.buffer);
