@@ -1334,22 +1334,21 @@ async function submitGenerate() {
 
   try {
     const fd = new FormData(form);
-    
-    // 🔍 LOG: Verificar quais campos de foto foram enviados
-    // ⚠️ NÃO ITERAR FormData antes de usar! Em mobile isso corrompe os files.
-    // Apenas verificar contagem:
-    let fotoCount = 0;
-    for (const [key] of fd.entries()) {
-      if (key.startsWith('foto_')) fotoCount++;
-    }
-    console.log(`[FOTO-CLIENT] Fotos selecionadas: ${fotoCount}`);
+    console.log('[FOTO-CLIENT] FormData criado com fotos binárias');
     
     const laudoPayload = {};
-    // 🔴 BUG FIX: Criar um objeto auxiliar para iterar NOVAMENTE sem corromper fd
-    const fdAux = new FormData(form);
-    for (const [key, value] of fdAux.entries()) {
-      if (value instanceof File) continue;
-      laudoPayload[key] = value;
+    // Extrair apenas valores não-File do formulário para criar laudo
+    const inputs = form.querySelectorAll('input, select, textarea');
+    for (const input of inputs) {
+      if (input.name && !input.name.startsWith('foto_')) {
+        if (input.type === 'checkbox') {
+          if (input.checked) laudoPayload[input.name] = input.value;
+        } else if (input.type === 'radio') {
+          if (input.checked) laudoPayload[input.name] = input.value;
+        } else {
+          laudoPayload[input.name] = input.value;
+        }
+      }
     }
 
     const laudoRes = await fetch('/laudos', {
@@ -1364,11 +1363,10 @@ async function submitGenerate() {
     }
     const laudo = await laudoRes.json();
     
-    // 🔴 IMPORTANTE: Não usar fd.set() que pode corromper! Criar novo FormData ao invés
-    const fdFinal = new FormData(form);
-    fdFinal.set('laudoId', laudo.id);
+    // ✅ SOLUÇÃO: Adicionar laudoId ao FormData ORIGINAL (que já tem as fotos)
+    fd.set('laudoId', laudo.id);
 
-    const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fdFinal });
+    const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
     if (!res.ok) throw new Error('Erro ao gerar laudo. Tente novamente.');
 
     const blob = await res.blob();
@@ -1381,6 +1379,13 @@ async function submitGenerate() {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+
+    // ✅ Liberar memória de todas as URLs de preview de foto
+    document.querySelectorAll('.photo-preview').forEach((img) => {
+      if (img.src && img.src.startsWith('blob:')) {
+        URL.revokeObjectURL(img.src);
+      }
+    });
 
     resetFormAfterSuccessfulLaudo();
     showToast(
