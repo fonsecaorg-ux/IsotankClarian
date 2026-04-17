@@ -719,6 +719,13 @@ app.post(
   authMiddleware,
   upload.fields(PHOTO_FIELDS.map(f => ({ name: f, maxCount: 1 }))),
   async (req, res) => {
+    const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+    const requestId = `${timestamp}-${Math.random().toString(36).substr(2, 5)}`;
+    console.log(`\n[REQ-${requestId}] ─────────────────────────────────────────────`);
+    console.log(`[REQ-${requestId}] POST /generate recebido`);
+    console.log(`[REQ-${requestId}] User: ${req.user?.id} (${req.user?.nome})`);
+    console.log(`[REQ-${requestId}] Body.laudoId: ${req.body?.laudoId || 'undefined'}`);
+    
     try {
       const body  = req.body;
       const files = req.files || {};
@@ -933,7 +940,10 @@ app.post(
       res.setHeader('Content-Type',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      console.log(`[REQ-${requestId}] ✅ Enviando arquivo: ${filename} (${outputBuffer.length} bytes)`);
       res.send(outputBuffer);
+      console.log(`[REQ-${requestId}] ✅ Download completo`);
 
       // Persistência de fotos no banco (não crítica).
       // Não deve quebrar o download do laudo.
@@ -1036,7 +1046,8 @@ app.post(
       }
 
     } catch (err) {
-      console.error('Erro ao gerar laudo:', err);
+      console.error(`[REQ-${requestId}] ❌ Erro ao gerar laudo:`, err.message);
+      console.error(`[REQ-${requestId}] Stack:`, err.stack);
       res.status(500).json({ error: 'Erro ao gerar laudo', details: err.message });
     }
   }
