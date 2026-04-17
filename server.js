@@ -708,6 +708,12 @@ function buildTemplateData(formData, cfg, dataPt, encarregadoNome) {
 }
 
 // ─── Rota: POST /generate ────────────────────────────────────────────────────
+// Timeout maior para uploads de fotos
+app.use('/generate', (req, res, next) => {
+  req.setTimeout(120000); // 2 minutos
+  next();
+});
+
 app.post(
   '/generate',
   authMiddleware,

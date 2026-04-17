@@ -1234,7 +1234,7 @@ function resetFormAfterSuccessfulLaudo() {
 
 async function compressImageFile(file) {
   const imageBitmap = await createImageBitmap(file);
-  const maxSide = 640;
+  const maxSide = 400; // Reduzido de 640 para menor tamanho
   let targetW = imageBitmap.width;
   let targetH = imageBitmap.height;
   if (Math.max(targetW, targetH) > maxSide) {
@@ -1249,7 +1249,9 @@ async function compressImageFile(file) {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(imageBitmap, 0, 0, targetW, targetH);
 
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.5));
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.3)); // Qualidade reduzida de 0.5 para 0.3
+  // Limpar canvas para liberar memória
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
 }
 
@@ -1266,6 +1268,8 @@ async function handlePhotoInputChange(input, slot, preview) {
   const url = URL.createObjectURL(compressed);
   preview.src = url;
   slot.classList.add('captured');
+  // Liberar memória após usar a URL para preview
+  // (manter para exibição, mas revogará quando form for resetado)
 }
 
 async function ensureAuthenticated() {
