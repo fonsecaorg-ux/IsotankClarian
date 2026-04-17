@@ -774,6 +774,8 @@ app.post(
       // ── INJETAR FOTOS NO ZIP ANTES DE RENDERIZAR ────────────────────────────
       // (Importante: deve ser feito ANTES de doc.render() para que as imagens estejam presentes)
       const fotoRecords = [];
+      /** Campos já preenchidos pelo multipart desta requisição (evita sobrescrever com fallback). */
+      const fieldsFromUpload = new Set();
       const isDiskMode = STORAGE_MODE === 'disk';
       const laudoStorageDir = isDiskMode && laudo?.id
         ? path.join(STORAGE_ROOT, laudo.id)
@@ -804,6 +806,7 @@ app.post(
           
           // Injetar foto no zip ANTES de renderizar
           zip.file(PHOTO_MEDIA_MAP[field], file.buffer);
+          fieldsFromUpload.add(field);
           
           // Preparar registro para persistência (evita duplicação)
           let fotoRecord = {
@@ -827,6 +830,40 @@ app.post(
           
           // Liberar referência para coleta de lixo
           file.buffer = null;
+        }
+      }
+
+      // Re-geração só com laudoId (sem multipart): reutilizar fotos já persistidas no laudo.
+      if (laudo?.id) {
+        const needFallback = PHOTO_FIELDS.filter((f) => !fieldsFromUpload.has(f));
+        if (needFallback.length) {
+          try {
+            const storedFotos = await prisma.fotoLaudo.findMany({
+              where: { laudoId: laudo.id, campo: { in: needFallback } },
+            });
+            for (const row of storedFotos) {
+              const field = row.campo;
+              if (!PHOTO_MEDIA_MAP[field]) continue;
+              let buf = null;
+              if (row.dados && row.dados.length > 0) {
+                buf = Buffer.isBuffer(row.dados) ? row.dados : Buffer.from(row.dados);
+              } else if (row.caminhoArquivo) {
+                const abs = path.isAbsolute(row.caminhoArquivo)
+                  ? row.caminhoArquivo
+                  : path.join(STORAGE_ROOT, row.caminhoArquivo);
+                if (fs.existsSync(abs)) buf = fs.readFileSync(abs);
+              }
+              if (buf && buf.length) {
+                zip.file(PHOTO_MEDIA_MAP[field], buf);
+                console.log(`[FOTO] ${field} reutilizada do armazenamento (${buf.length} bytes)`);
+              }
+            }
+            if (storedFotos.length) {
+              console.log(`[FOTOS] Fallback armazenamento: ${storedFotos.length} registro(s) considerados para slots em falta`);
+            }
+          } catch (errFallback) {
+            console.error('[FOTOS] Falha ao carregar fotos salvas do laudo:', errFallback.message);
+          }
         }
       }
 
