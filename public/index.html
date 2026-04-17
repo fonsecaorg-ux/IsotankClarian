@@ -1350,7 +1350,13 @@ async function submitGenerate() {
 
   try {
     const fd = new FormData(form);
-    console.log(`[SUBMIT-${callId}] FormData criado com fotos binárias`);
+    
+    // 🔍 Verificar files no FormData LOGO APÓS criar
+    let fileCountAfterCreate = 0;
+    for (const [key, val] of fd.entries()) {
+      if (val instanceof File) fileCountAfterCreate++;
+    }
+    console.log(`[SUBMIT-${callId}] FormData criado: ${fileCountAfterCreate} files`);
     
     const laudoPayload = {};
     // Extrair apenas valores não-File do formulário para criar laudo
@@ -1383,6 +1389,13 @@ async function submitGenerate() {
     
     // ✅ SOLUÇÃO: Adicionar laudoId ao FormData ORIGINAL (que já tem as fotos)
     fd.set('laudoId', laudo.id);
+
+    // 🔍 Verificar files no FormData ANTES de enviar para /generate
+    let fileCountBeforeSend = 0;
+    for (const [key, val] of fd.entries()) {
+      if (val instanceof File) fileCountBeforeSend++;
+    }
+    console.log(`[SUBMIT-${callId}] Antes de /generate: ${fileCountBeforeSend} files (era ${fileCountAfterCreate})`);
 
     console.log(`[SUBMIT-${callId}] POST /generate...`);
     const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
