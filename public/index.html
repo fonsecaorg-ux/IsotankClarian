@@ -1336,15 +1336,18 @@ async function submitGenerate() {
     const fd = new FormData(form);
     
     // 🔍 LOG: Verificar quais campos de foto foram enviados
-    console.log('[FOTO-CLIENT] FormData enviado para /generate:');
-    for (const [key, value] of fd.entries()) {
-      if (value instanceof File) {
-        console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
-      }
+    // ⚠️ NÃO ITERAR FormData antes de usar! Em mobile isso corrompe os files.
+    // Apenas verificar contagem:
+    let fotoCount = 0;
+    for (const [key] of fd.entries()) {
+      if (key.startsWith('foto_')) fotoCount++;
     }
+    console.log(`[FOTO-CLIENT] Fotos selecionadas: ${fotoCount}`);
     
     const laudoPayload = {};
-    for (const [key, value] of fd.entries()) {
+    // 🔴 BUG FIX: Criar um objeto auxiliar para iterar NOVAMENTE sem corromper fd
+    const fdAux = new FormData(form);
+    for (const [key, value] of fdAux.entries()) {
       if (value instanceof File) continue;
       laudoPayload[key] = value;
     }
@@ -1360,9 +1363,12 @@ async function submitGenerate() {
       throw new Error(err.error || `Falha ao salvar laudo (HTTP ${laudoRes.status})`);
     }
     const laudo = await laudoRes.json();
-    fd.set('laudoId', laudo.id);
+    
+    // 🔴 IMPORTANTE: Não usar fd.set() que pode corromper! Criar novo FormData ao invés
+    const fdFinal = new FormData(form);
+    fdFinal.set('laudoId', laudo.id);
 
-    const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
+    const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fdFinal });
     if (!res.ok) throw new Error('Erro ao gerar laudo. Tente novamente.');
 
     const blob = await res.blob();
