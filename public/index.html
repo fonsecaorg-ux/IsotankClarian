@@ -1259,6 +1259,10 @@ async function handlePhotoInputChange(input, slot, preview) {
   if (!input.files || !input.files[0]) return;
   const original = input.files[0];
   const compressed = await compressImageFile(original);
+  
+  // 🔍 LOG: Verificar compressão
+  console.log(`[FOTO-CLIENT] ${input.name}: ${original.size} bytes → ${compressed.size} bytes (compressão: ${((1 - compressed.size/original.size) * 100).toFixed(1)}%)`);
+  
   const dt = new DataTransfer();
   dt.items.add(compressed);
   input.files = dt.files;
@@ -1318,6 +1322,15 @@ async function submitGenerate() {
 
   try {
     const fd = new FormData(form);
+    
+    // 🔍 LOG: Verificar quais campos de foto foram enviados
+    console.log('[FOTO-CLIENT] FormData enviado para /generate:');
+    for (const [key, value] of fd.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      }
+    }
+    
     const laudoPayload = {};
     for (const [key, value] of fd.entries()) {
       if (value instanceof File) continue;
