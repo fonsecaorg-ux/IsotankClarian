@@ -430,44 +430,48 @@
     }
 
     async function openDetailModal(laudoId) {
-      state.currentDetailId = laudoId;
-      const detail = await api(`/laudos/${laudoId}`);
-      let fotos = [];
       try {
-        fotos = await api(`/laudos/${laudoId}/fotos`);
-      } catch (_) {
-        fotos = [];
+        state.currentDetailId = laudoId;
+        const detail = await api(`/laudos/${laudoId}`);
+        let fotos = [];
+        try {
+          fotos = await api(`/laudos/${laudoId}/fotos`);
+        } catch (_) {
+          fotos = [];
+        }
+
+        const formEntries = Object.entries(detail.formData || {}).map(([k, v]) => `
+          <div class="kv"><b>${escapeHtml(k)}</b>${escapeHtml(v)}</div>
+        `).join('');
+
+        const auditEntries = (detail.auditLogs || []).map((a) => `
+          <div class="audit-item">
+            <b>${escapeHtml(a.action)}</b><br>
+            De: ${escapeHtml(laudoStatusLabel(a.fromStatus))} → Para: ${escapeHtml(laudoStatusLabel(a.toStatus))}<br>
+            Por: ${escapeHtml(a.user?.nome || 'Sistema')}<br>
+            Em: ${fmtDate(a.createdAt)}
+          </div>
+        `).join('') || '<p>Nenhuma movimentação registrada.</p>';
+
+        el.detailContent.innerHTML = `
+          <div class="grid2" style="margin-bottom:10px;">
+            <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
+            <div class="kv"><b>Status</b><span class="status-badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusLabel(detail.status))}</span></div>
+            <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
+            <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
+            <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>
+            <div class="kv"><b>Data da inspeção</b>${fmtDate(detail.dataInspecao)}</div>
+          </div>
+          <h3 style="font-size:14px;color:var(--accent);margin:8px 0;">Campos do Formulário</h3>
+          <div class="grid2">${formEntries || '<p>Sem dados.</p>'}</div>
+          <h3 style="font-size:14px;color:var(--accent);margin:12px 0 8px;">Histórico de Movimentações</h3>
+          ${auditEntries}
+          ${renderPhotoGallery(fotos, laudoId)}
+        `;
+        el.detailModalBg.classList.add('active');
+      } catch (err) {
+        el.errorMsg.textContent = err.message;
       }
-
-      const formEntries = Object.entries(detail.formData || {}).map(([k, v]) => `
-        <div class="kv"><b>${escapeHtml(k)}</b>${escapeHtml(v)}</div>
-      `).join('');
-
-      const auditEntries = (detail.auditLogs || []).map((a) => `
-        <div class="audit-item">
-          <b>${escapeHtml(a.action)}</b><br>
-          De: ${escapeHtml(laudoStatusLabel(a.fromStatus))} → Para: ${escapeHtml(laudoStatusLabel(a.toStatus))}<br>
-          Por: ${escapeHtml(a.user?.nome || 'Sistema')}<br>
-          Em: ${fmtDate(a.createdAt)}
-        </div>
-      `).join('') || '<p>Nenhuma movimentação registrada.</p>';
-
-      el.detailContent.innerHTML = `
-        <div class="grid2" style="margin-bottom:10px;">
-          <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
-          <div class="kv"><b>Status</b><span class="status-badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusLabel(detail.status))}</span></div>
-          <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
-          <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
-          <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>
-          <div class="kv"><b>Data da inspeção</b>${fmtDate(detail.dataInspecao)}</div>
-        </div>
-        <h3 style="font-size:14px;color:var(--accent);margin:8px 0;">Campos do Formulário</h3>
-        <div class="grid2">${formEntries || '<p>Sem dados.</p>'}</div>
-        <h3 style="font-size:14px;color:var(--accent);margin:12px 0 8px;">Histórico de Movimentações</h3>
-        ${auditEntries}
-        ${renderPhotoGallery(fotos, laudoId)}
-      `;
-      el.detailModalBg.classList.add('active');
     }
 
     async function reprocessCurrentDetail() {
