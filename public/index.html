@@ -1324,9 +1324,25 @@ btnNext.addEventListener('click', () => {
   if (currentSection < TOTAL_SECTIONS - 1) goTo(currentSection + 1);
 });
 
+let submitGenerateCallCount = 0; // Contador para diagnosticar double submit
+
 async function submitGenerate() {
-  if (isSubmitting) return;
-  if (!validateSection(currentSection)) return;
+  submitGenerateCallCount++;
+  const callId = submitGenerateCallCount;
+  const callTime = new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+  
+  console.log(`[SUBMIT-${callId}] ${callTime} - Chamada #${callId} de submitGenerate`);
+  
+  if (isSubmitting) {
+    console.log(`[SUBMIT-${callId}] ⚠️ Bloqueado: isSubmitting=true (requisição em andamento)`);
+    return;
+  }
+  if (!validateSection(currentSection)) {
+    console.log(`[SUBMIT-${callId}] ⚠️ Bloqueado: validação falhou`);
+    return;
+  }
+  
+  console.log(`[SUBMIT-${callId}] ✅ Iniciando submitGenerate`);
   isSubmitting = true;
   btnSubmit.disabled = true;
   retryWrap.classList.remove('show');
@@ -1334,7 +1350,7 @@ async function submitGenerate() {
 
   try {
     const fd = new FormData(form);
-    console.log('[FOTO-CLIENT] FormData criado com fotos binárias');
+    console.log(`[SUBMIT-${callId}] FormData criado com fotos binárias`);
     
     const laudoPayload = {};
     // Extrair apenas valores não-File do formulário para criar laudo
@@ -1351,6 +1367,7 @@ async function submitGenerate() {
       }
     }
 
+    console.log(`[SUBMIT-${callId}] POST /laudos...`);
     const laudoRes = await fetch('/laudos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1362,11 +1379,15 @@ async function submitGenerate() {
       throw new Error(err.error || `Falha ao salvar laudo (HTTP ${laudoRes.status})`);
     }
     const laudo = await laudoRes.json();
+    console.log(`[SUBMIT-${callId}] ✅ Laudo criado: ${laudo.id}`);
     
     // ✅ SOLUÇÃO: Adicionar laudoId ao FormData ORIGINAL (que já tem as fotos)
     fd.set('laudoId', laudo.id);
 
+    console.log(`[SUBMIT-${callId}] POST /generate...`);
     const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
+    console.log(`[SUBMIT-${callId}] Resposta /generate: ${res.status} ${res.statusText}`);
+    
     if (!res.ok) throw new Error('Erro ao gerar laudo. Tente novamente.');
 
     const blob = await res.blob();
@@ -1379,6 +1400,7 @@ async function submitGenerate() {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+    console.log(`[SUBMIT-${callId}] ✅ Download iniciado: ${filename}`);
 
     // ✅ Liberar memória de todas as URLs de preview de foto
     document.querySelectorAll('.photo-preview').forEach((img) => {
@@ -1393,10 +1415,13 @@ async function submitGenerate() {
       'success',
       4500
     );
+    console.log(`[SUBMIT-${callId}] ✅ Sucesso!`);
   } catch (err) {
+    console.error(`[SUBMIT-${callId}] ❌ Erro: ${err.message}`);
     retryWrap.classList.add('show');
     showToast(err.message || 'Erro ao gerar laudo. Tente novamente.', 'error');
   } finally {
+    console.log(`[SUBMIT-${callId}] Finalizando - liberando isSubmitting`);
     isSubmitting = false;
     btnSubmit.disabled = false;
     overlay.classList.remove('active');
