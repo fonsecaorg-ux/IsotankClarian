@@ -730,6 +730,7 @@ app.post(
             createdBy: {
               select: {
                 id: true,
+                nome: true,
                 assinatura: true,
                 assinaturaMimeType: true,
               },
@@ -749,7 +750,9 @@ app.post(
         ? formatDatePt(sourceData.data_inspecao)
         : '';
 
-      const templateData = buildTemplateData(sourceData, cfg, dataPt, req.user?.nome);
+      // Use o nome do inspetor que criou o laudo (se disponível), senão use o usuário logado
+      const encarregadoNome = laudo?.createdBy?.nome || req.user?.nome;
+      const templateData = buildTemplateData(sourceData, cfg, dataPt, encarregadoNome);
 
       // ── Gerar docx com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
