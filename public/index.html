@@ -1233,26 +1233,38 @@ function resetFormAfterSuccessfulLaudo() {
 }
 
 async function compressImageFile(file) {
-  const imageBitmap = await createImageBitmap(file);
-  const maxSide = 400; // Reduzido de 640 para menor tamanho
-  let targetW = imageBitmap.width;
-  let targetH = imageBitmap.height;
-  if (Math.max(targetW, targetH) > maxSide) {
-    const scale = maxSide / Math.max(targetW, targetH);
-    targetW = Math.round(targetW * scale);
-    targetH = Math.round(targetH * scale);
+  try {
+    const imageBitmap = await createImageBitmap(file);
+    const maxSide = 400; // Reduzido de 640 para menor tamanho
+    let targetW = imageBitmap.width;
+    let targetH = imageBitmap.height;
+    if (Math.max(targetW, targetH) > maxSide) {
+      const scale = maxSide / Math.max(targetW, targetH);
+      targetW = Math.round(targetW * scale);
+      targetH = Math.round(targetH * scale);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageBitmap, 0, 0, targetW, targetH);
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.3)); // Qualidade reduzida de 0.5 para 0.3
+    // Limpar canvas para liberar memória
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (!blob || blob.size === 0) {
+      console.warn('[FOTO-COMPRESS] Blob vazio, usando original');
+      return file;
+    }
+    
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch (err) {
+    console.error('[FOTO-COMPRESS] Falha na compressão, usando original:', err.message);
+    // Fallback: retornar arquivo original se compressão falhar
+    return file;
   }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = targetW;
-  canvas.height = targetH;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(imageBitmap, 0, 0, targetW, targetH);
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.3)); // Qualidade reduzida de 0.5 para 0.3
-  // Limpar canvas para liberar memória
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
 }
 
 async function handlePhotoInputChange(input, slot, preview) {
