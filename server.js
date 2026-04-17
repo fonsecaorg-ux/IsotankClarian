@@ -761,8 +761,58 @@ app.post(
       const encarregadoNome = laudo?.createdBy?.nome || req.user?.nome;
       const templateData = buildTemplateData(sourceData, cfg, dataPt, encarregadoNome);
 
-      // ── Gerar docx com docxtemplater (template já em memória) ─────────────
+      // ── Preparar ZIP com docxtemplater (template já em memória) ─────────────
       const zip = new PizZip(TEMPLATE_BINARY);
+
+      // ── INJETAR FOTOS NO ZIP ANTES DE RENDERIZAR ────────────────────────────
+      // (Importante: deve ser feito ANTES de doc.render() para que as imagens estejam presentes)
+      const fotoRecords = [];
+      const isDiskMode = STORAGE_MODE === 'disk';
+      const laudoStorageDir = isDiskMode && laudo?.id
+        ? path.join(STORAGE_ROOT, laudo.id)
+        : null;
+      
+      if (isDiskMode && laudoStorageDir) {
+        fs.mkdirSync(laudoStorageDir, { recursive: true });
+      }
+      
+      for (const field of PHOTO_FIELDS) {
+        if (files[field] && files[field][0]) {
+          const file = files[field][0];
+          const tamanho = Number(file.size || file.buffer?.length || 0);
+          const mimeType = file.mimetype || 'image/jpeg';
+          
+          console.log(`Injetando foto ${field}: ${PHOTO_MEDIA_MAP[field]} (${tamanho} bytes)`);
+          
+          // Injetar foto no zip ANTES de renderizar
+          zip.file(PHOTO_MEDIA_MAP[field], file.buffer);
+          
+          // Preparar registro para persistência (evita duplicação)
+          let fotoRecord = {
+            campo: field,
+            label: PHOTO_LABEL_MAP[field] || field,
+            mimeType,
+            tamanho,
+          };
+          
+          // Se disk mode: salvar em disco AGORA (libera memória)
+          if (isDiskMode && laudoStorageDir && laudo?.id) {
+            const filePath = path.join(laudoStorageDir, `${field}.jpg`);
+            fs.writeFileSync(filePath, file.buffer);
+            fotoRecord.caminhoArquivo = filePath;
+          } else {
+            // Database mode: guardar buffer para persistência posterior
+            fotoRecord.dados = file.buffer;
+          }
+          
+          fotoRecords.push(fotoRecord);
+          
+          // Liberar referência para coleta de lixo
+          file.buffer = null;
+        }
+      }
+
+      // ── Agora renderizar o template (com as imagens já no ZIP) ─────────────
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
@@ -836,51 +886,6 @@ app.post(
         }
       } catch (errAssinaturas) {
         console.error('Erro ao injetar assinaturas no laudo (não crítico):', errAssinaturas);
-      }
-
-      // ── Injetar fotos no zip (buffer em memória — sem acesso a disco) ────────
-      const fotoRecords = [];
-      const isDiskMode = STORAGE_MODE === 'disk';
-      const laudoStorageDir = isDiskMode && laudo?.id
-        ? path.join(STORAGE_ROOT, laudo.id)
-        : null;
-      
-      if (isDiskMode && laudoStorageDir) {
-        fs.mkdirSync(laudoStorageDir, { recursive: true });
-      }
-      
-      for (const field of PHOTO_FIELDS) {
-        if (files[field] && files[field][0]) {
-          const file = files[field][0];
-          const tamanho = Number(file.size || file.buffer?.length || 0);
-          const mimeType = file.mimetype || 'image/jpeg';
-          
-          // Injetar foto no zip
-          zip.file(PHOTO_MEDIA_MAP[field], file.buffer);
-          
-          // Preparar registro para persistência (evita duplicação)
-          let fotoRecord = {
-            campo: field,
-            label: PHOTO_LABEL_MAP[field] || field,
-            mimeType,
-            tamanho,
-          };
-          
-          // Se disk mode: salvar em disco AGORA (libera memória)
-          if (isDiskMode && laudoStorageDir && laudo?.id) {
-            const filePath = path.join(laudoStorageDir, `${field}.jpg`);
-            fs.writeFileSync(filePath, file.buffer);
-            fotoRecord.caminhoArquivo = filePath;
-          } else {
-            // Database mode: guardar buffer para persistência posterior
-            fotoRecord.dados = file.buffer;
-          }
-          
-          fotoRecords.push(fotoRecord);
-          
-          // Liberar referência para coleta de lixo
-          file.buffer = null;
-        }
       }
 
       // ── Serializar e enviar ────────────────────────────────────────────────
