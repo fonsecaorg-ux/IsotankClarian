@@ -222,6 +222,26 @@ Durante a evolução do projeto apareceu um problema grave: **o ficheiro gerado 
 
 > **Resumo:** o “não abre” vinha sobretudo de **pacote OOXML inconsistente** e de **XML inválido no `document.xml`**; o “abre mas quebrado” vinha de **reparos agressivos**. A solução final passa por **regex correcta**, **sanitização coerente** e **rebuild seguro do template**.
 
+### Fotos na base de dados mas não embutidas no Word
+
+Apareceu outro sintoma, distinto da corrupção do ficheiro: **as fotos chegavam à aplicação e eram persistidas** (tabela `FotoLaudo` / disco), **mas o `.docx` descarregado às vezes voltava sem imagens** ou só com placeholders — embora o fluxo “inspetor + formulário + câmara” parecesse correcto.
+
+**O que estava a acontecer**
+
+- A injeção no Word faz-se sobrescrevendo entradas no ZIP do template (`word/media/image1.png` … `image10.png`) **a partir dos ficheiros enviados no `multipart`** (`req.files`), **antes** do `doc.render()`.
+- O **primeiro** `POST /generate` (ex.: inspetor com `FormData` completo) incluía `foto_frontal`, etc., e o servidor logava `Injetando foto …` — o laudo saía com imagens e as fotos eram gravadas na base **depois** da resposta.
+- Um **segundo** pedido ao mesmo `laudoId` — típico de **outro perfil** (ex.: administrador) ou de um fluxo que só envia **`laudoId`** sem reanexar ficheiros — chegava com **`req.files` vazio**. O código **não** voltava a ler as fotos já guardadas; o template era processado **sem** substituir os PNGs → **Word “sem” fotos**, apesar dos registos existirem na base.
+
+**Como se confirmou**
+
+- Nos logs do Render (ou local), linhas `[FOTOS] Campos recebidos em req.files:` mostravam `foto_frontal` num pedido e **`(nenhum)`** noutro, para o **mesmo** `laudoId` — com tamanhos de `.docx` diferentes (com vs. sem bytes de imagem).
+
+**Solução**
+
+- Em `server.js`, depois de processar o multipart, se existir `laudoId` e ainda houver slots de foto **não** preenchidos nessa requisição, o servidor **carrega os blobs** (ou ficheiros em modo disco) de `FotoLaudo` via Prisma e **injeta no ZIP** nos mesmos caminhos `word/media/imageN.png`. Assim, **re-gerações só com `laudoId`** voltam a incluir as fotos já associadas ao laudo.
+
+> **Resumo:** não era falha do mapeamento `foto_*` → `imageN.png` na primeira geração; era **segunda geração sem multipart**. A solução é **fallback a partir do armazenamento** (`FotoLaudo`) para os campos em falta no upload.
+
 ---
 
 ## Observações
