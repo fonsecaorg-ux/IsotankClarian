@@ -1,9 +1,10 @@
 """
-Corrige template/template.docx:
-1) Restaura word/media/image13.png a partir do backup (logo no header quebrado/pequeno).
-2) Evita quebra entre Ã e O em IDENTIFICAÇÃO (insere WORD JOINER U+2060 nos nós w:t).
+Ajustes em template/template.docx:
+1) Restaura word/media/image13.png a partir do backup (logo CEINSPEC no header).
+2) Evita quebra em IDENTIFICAÇÃO (WORD JOINER entre Ã e O nos w:t).
+3) Parágrafo com {recomendacao}: adiciona <w:keepLines/> em w:pPr (evita corte entre páginas).
 
-Usa zipfile + lxml (sem regravar o pacote inteiro de forma insegura no XML).
+Usa zipfile + lxml.
 
 Executar na raiz do projeto: python scripts/fix_template_logo_identificacao.py
 """
@@ -21,20 +22,41 @@ DOCX = ROOT / "template" / "template.docx"
 BACKUP = ROOT / "template" / "template.docx.backup_layout_safe"
 
 NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+W_MAIN = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
 WORD = "IDENTIFICAÇÃO"
 WORD_FIXED = "IDENTIFICAÇÃ\u2060O"
+
+
+def _q(local: str) -> str:
+    return f"{{{W_MAIN}}}{local}"
 
 
 def patch_document_xml(xml_bytes: bytes) -> bytes:
     parser = etree.XMLParser(remove_blank_text=False, huge_tree=True)
     root = etree.fromstring(xml_bytes, parser)
-    changed = 0
+
+    changed_wj = 0
     for t in root.xpath(".//w:t", namespaces=NS):
         if t.text and WORD in t.text:
             t.text = t.text.replace(WORD, WORD_FIXED)
-            changed += 1
-    if changed == 0 and "\u2060" not in etree.tostring(root, encoding="unicode"):
+            changed_wj += 1
+    if changed_wj == 0 and "\u2060" not in etree.tostring(root, encoding="unicode"):
         raise ValueError(f"Nenhum w:t com {WORD!r} encontrado (e sem WJ já aplicado)")
+
+    for p in root.xpath(".//w:p", namespaces=NS):
+        texts = "".join(p.xpath(".//w:t/text()", namespaces=NS))
+        if "{recomendacao}" not in texts:
+            continue
+        p_pr = p.find(_q("pPr"))
+        if p_pr is None:
+            p_pr = etree.Element(_q("pPr"))
+            p.insert(0, p_pr)
+        if p_pr.find(_q("keepLines")) is None:
+            kl = etree.Element(_q("keepLines"))
+            p_pr.insert(0, kl)
+        break
+
     return etree.tostring(
         root,
         encoding="utf-8",
@@ -73,6 +95,18 @@ def main() -> int:
         return 1
 
     parts["word/media/image13.png"] = logo
+    # Slots de assinatura (rId22/rId23 → image11/12): garantir ficheiros no zip para o Word não mostrar "Não foi possível".
+    if "word/media/image11.png" not in parts or len(parts.get("word/media/image11.png", b"")) < 32:
+        base = parts.get("word/media/image1.png") or parts.get("word/media/image2.png")
+        if not base:
+            print("ERRO: sem image1/2 para clonar placeholder de assinatura", file=sys.stderr)
+            tmp.unlink(missing_ok=True)
+            return 1
+        parts["word/media/image11.png"] = base
+        parts["word/media/image12.png"] = base
+        for extra in ("word/media/image11.png", "word/media/image12.png"):
+            if extra not in names:
+                names.append(extra)
     parts["word/document.xml"] = patch_document_xml(parts["word/document.xml"])
 
     with zipfile.ZipFile(DOCX, "w", compression=zipfile.ZIP_DEFLATED) as zout:
@@ -88,6 +122,7 @@ def main() -> int:
     print("OK image13.png bytes:", sz)
     print("OK header1.xml.rels contém image13:", "image13.png" in rel)
     print("OK document.xml contém WJ:", "\u2060" in doc)
+    print("OK document.xml keepLines na recomendação:", "<w:keepLines" in doc and "{recomendacao}" in doc)
     print("Template atualizado:", DOCX)
     return 0
 

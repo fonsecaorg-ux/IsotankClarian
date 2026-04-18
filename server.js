@@ -103,9 +103,10 @@ const PHOTO_LABEL_MAP = {
   foto_valvula_descarga: 'Válvula de Descarga',
   foto_placa_identificacao: 'Placa de Identificação',
 };
+// O template referencia image11.png / image12.png em document.xml (rId22 / rId23).
 const SIGNATURE_MEDIA_PATHS = {
-  inspetor: 'word/media/assinatura_inspetor.png',
-  engenheiro: 'word/media/assinatura_engenheiro.png',
+  inspetor: 'word/media/image11.png',
+  engenheiro: 'word/media/image12.png',
 };
 const ENGENHEIRO_FALLBACK_EMAIL = String(process.env.ENGENHEIRO_EMAIL || 'diego.fonseca@grupocesari.com.br').trim().toLowerCase();
 
