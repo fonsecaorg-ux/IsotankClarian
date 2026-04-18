@@ -7,6 +7,8 @@ Ajustes em template/template.docx:
 Usa zipfile + lxml.
 
 Executar na raiz do projeto: python scripts/fix_template_logo_identificacao.py
+
+Rodapé 2 colunas + NUMPAGES: python scripts/fix_footer_two_column_and_numpages.py
 """
 from __future__ import annotations
 
