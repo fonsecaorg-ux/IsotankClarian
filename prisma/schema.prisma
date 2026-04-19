@@ -46,6 +46,7 @@ model Laudo {
   formData          Json
   generatedFileName String?
   generatedAt       DateTime?
+  pdfHash           String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 

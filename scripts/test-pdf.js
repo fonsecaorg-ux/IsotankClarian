@@ -1,23 +1,18 @@
 'use strict';
 
 /**
- * test-pdf.js
- * ───────────────────────────────────────────────────────────────────────────
- * Script de teste standalone do gerador de PDF.
- * Não precisa subir o servidor — roda direto no DB.
+ * test-pdf.js — v2
+ * Gera PDF de um laudo real do banco e salva em output/test_output.pdf.
+ * Imprime o hash SHA-256 no final pra confirmar persistência.
  *
  * Uso:
- *   node scripts/test-pdf.js                  → usa último laudo criado
- *   node scripts/test-pdf.js <laudoId>        → usa laudo específico
- *
- * Saída:
- *   output/test_output.pdf
+ *   node scripts/test-pdf.js              → usa laudo mais recente
+ *   node scripts/test-pdf.js <laudoId>    → laudo específico
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Garantir que o cwd seja a raiz do projeto
 process.chdir(path.join(__dirname, '..'));
 
 const prisma = require('../src/lib/prisma');
@@ -48,23 +43,38 @@ async function main() {
   const t0 = Date.now();
 
   try {
-    const pdfBuffer = await generatePdf(laudoId, {
+    const { buffer, hash } = await generatePdf(laudoId, {
       baseUrl: 'http://localhost:3000',
     });
     const elapsed = Date.now() - t0;
-    console.log(`[TEST] PDF gerado em ${elapsed}ms (${pdfBuffer.length} bytes)`);
+    console.log(`[TEST] PDF gerado em ${elapsed}ms (${buffer.length} bytes)`);
+    console.log(`[TEST] SHA-256: ${hash}`);
 
-    // Salvar em output/
     const outputDir = path.join(process.cwd(), 'output');
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, 'test_output.pdf');
-    fs.writeFileSync(outputPath, pdfBuffer);
+    fs.writeFileSync(outputPath, buffer);
 
     console.log(`\n✅ PDF salvo em: ${outputPath}`);
-    console.log(`   Tamanho: ${(pdfBuffer.length / 1024).toFixed(1)} KB`);
-    console.log(`\n   Abra com:  xdg-open "${outputPath}"  (Linux)`);
-    console.log(`             start "${outputPath}"       (Windows)`);
-    console.log(`             open "${outputPath}"        (macOS)`);
+    console.log(`   Tamanho: ${(buffer.length / 1024).toFixed(1)} KB`);
+
+    // Confirmação de persistência
+    const check = await prisma.laudo.findUnique({
+      where: { id: laudoId },
+      select: { pdfHash: true },
+    });
+    if (check?.pdfHash === hash) {
+      console.log(`   ✓ Hash persistido em Laudo.pdfHash (confere com o arquivo)`);
+    } else if (check?.pdfHash) {
+      console.warn(`   ⚠ Hash no banco (${check.pdfHash.slice(0, 12)}…) difere do arquivo (${hash.slice(0, 12)}…)`);
+    } else {
+      console.warn(`   ⚠ Hash NÃO persistido no banco — migration aplicada?`);
+      console.warn(`   Rode: npx prisma migrate dev`);
+    }
+
+    console.log(`\n   Abrir:  xdg-open "${outputPath}"   (Linux)`);
+    console.log(`           start "${outputPath}"        (Windows)`);
+    console.log(`           open "${outputPath}"         (macOS)`);
   } catch (err) {
     console.error('\n❌ Erro ao gerar PDF:', err);
     process.exit(1);

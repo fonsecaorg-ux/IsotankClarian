@@ -1,9 +1,8 @@
 'use strict';
 
 /**
- * Smoke test: valida que o Handlebars compila, o buildContext monta
- * tudo corretamente, e o HTML final contém os placeholders substituídos.
- * NÃO requer Chromium instalado.
+ * Smoke test v2 — valida template novo (layout moderno + hash).
+ * Não precisa de Chromium nem banco. Roda o Handlebars isolado.
  */
 
 const fs = require('fs');
@@ -12,141 +11,146 @@ const Handlebars = require('handlebars');
 const QRCode = require('qrcode');
 
 const TEMPLATE_PATH = path.join(__dirname, '..', 'src', 'templates', 'laudo.html');
-const LOGO_PATH = path.join(__dirname, '..', 'src', 'templates', 'assets', 'logo-ceinspec.png');
 
 (async () => {
-  console.log('═══ SMOKE TEST — Template PDF ═══\n');
+  console.log('═══ SMOKE TEST v2 — Template PDF novo ═══\n');
 
-  // 1) Compilar template
   console.log('[1] Compilando template Handlebars...');
   const src = fs.readFileSync(TEMPLATE_PATH, 'utf8');
   const tpl = Handlebars.compile(src);
   console.log('    ✅ compilou (size:', src.length, 'chars)');
 
-  // 2) Gerar QR code fake
   const qr = await QRCode.toDataURL('http://localhost:3000/laudos/abc123/validar', { width: 200 });
 
-  // 3) Mock data com valores reais do exemplo SUTU258026-0
-  const logoBase64 = fs.readFileSync(LOGO_PATH).toString('base64');
-  const fakePhoto = Buffer.from([
-    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-  ]).toString('base64'); // JPEG magic bytes only, só pra validar data URL
-  const fakeSignature = Buffer.from([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-  ]).toString('base64'); // PNG magic bytes
+  const jpegMagic = Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64');
+  const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64');
+
+  const hashFake = '4e7b9f2a1c8d6e3b0f9a2c91d4b7e8f6a3c5d2b1e9f7a4c8b6d3e1f5a9c2b0d7';
 
   const ctx = {
-    logo_base64: logoBase64,
     numero_identificacao: 'SUTU 258026-0',
     cliente: 'CLARIANT BRASIL LTDA',
-    endereco: 'Av. Jorge Bei Maluf, 2163 - Jardim Lazzareschi, Suzano – SP',
+    endereco: 'Av. Jorge Bei Maluf, 2163 — Jardim Lazzareschi, Suzano/SP',
     tipo_equipamento: 'ISOTANK',
     data_inspecao: '17 de Março de 2026',
+    equipamento_resumo: 'Isotank — CIMC, 2018 (China) · 25.000 L · 20FT',
+    status_label: 'APROVADO',
+    status_class: 'chip-approved',
+    parecer_class: '',
     fabricante: 'CIMC',
     numero_serie: 'NCTE18T 15447',
-    pais_fabricacao: 'CHINA',
+    pais_fabricacao: 'China',
     tamanho: '20FT',
-    capacidade_liquida: '25000 L',
+    capacidade_liquida: '25.000 L',
     ano_fabricacao: '2018',
-    identificacao: 'SUTU',
-    tara: '3760 kg',
-    peso_carga_liquida: '32240 kg',
-    peso_bruto_total: '36000 kg',
-    peso_empilhamento: '192000 Kg',
-    norma_fabricacao: 'ASME SECT. VIII DIV. 1(NCS)',
+    tara: '3.760 kg',
+    peso_carga_liquida: '32.240 kg',
+    peso_bruto_total: '36.000 kg',
+    peso_empilhamento: '192.000 kg',
+    norma_fabricacao: 'ASME Sect. VIII Div. 1 (NCS)',
     pressao_projeto: '4 bar',
     pressao_ensaio: '6 bar',
     pressao_maxima: '4 bar',
-    temperatura_projeto: '- 40°C à 150°C',
+    temperatura_projeto: '-40 a 150°C',
     material_calota: 'AWS316L',
     material_costado: 'AWS316L',
     espessura: '6 mm',
-    conexoes_flange: '3 Pol',
-    chapa_identificacao: 'APROVADO',
-    cert_calibracao: 'N/A',
-    cert_descontaminacao: 'N/A',
-    estrutura_externa: 'APROVADO',
-    corpo_tanque: 'APROVADO',
-    passadicos: 'APROVADO',
-    revestimento: 'APROVADO',
-    isolamento_termico: 'N/A',
-    escada: 'APROVADO',
-    dispositivos_canto: 'APROVADO',
-    ponto_aterramento: 'APROVADO',
-    fixacoes: 'APROVADO',
-    bercos_fixacao: 'APROVADO',
-    mossas_escavacoes: 'APROVADO',
-    porosidade: 'APROVADO',
-    bocal_descarga: 'APROVADO',
-    boca_visita: 'APROVADO',
-    valvula_alivio: 'N/A',
-    linha_ar: 'APROVADO',
-    linha_recuperacao: 'N/A',
-    acionamento_remoto: 'APROVADO',
-    tomada_saida_vapor: 'APROVADO',
-    sistema_carga_descarga: 'APROVADO',
-    dispositivo_medicao: 'N/A',
-    valvula_fundo: 'N/A',
-    tomada_entrada_vapor: 'APROVADO',
-    termometro_comp: 'APROVADO',
-    manometro: 'N/A',
-    tubulacoes: 'APROVADO',
-    estrutura_visual: 'APROVADO',
+    conexoes_flange: '3 pol',
+    status_chapa_identificacao: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_cert_calibracao: '<span class="lista-status-valor na">— N/A</span>',
+    status_cert_descontaminacao: '<span class="lista-status-valor na">— N/A</span>',
+    status_estrutura_externa: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_corpo_tanque: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_passadicos: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_revestimento: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_isolamento_termico: '<span class="lista-status-valor na">— N/A</span>',
+    status_escada: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_dispositivos_canto: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_ponto_aterramento: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_fixacoes: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_bercos_fixacao: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_mossas_escavacoes: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_porosidade: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_bocal_descarga: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_boca_visita: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_valvula_alivio: '<span class="lista-status-valor na">— N/A</span>',
+    status_linha_ar: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_linha_recuperacao: '<span class="lista-status-valor na">— N/A</span>',
+    status_acionamento_remoto: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_tomada_saida_vapor: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_sistema_carga_descarga: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_dispositivo_medicao: '<span class="lista-status-valor na">— N/A</span>',
+    status_valvula_fundo: '<span class="lista-status-valor na">— N/A</span>',
+    status_tomada_entrada_vapor: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_termometro_comp: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_manometro: '<span class="lista-status-valor na">— N/A</span>',
+    status_tubulacoes: '<span class="lista-status-valor approved">✓ Aprovado</span>',
+    status_estrutura_visual: '<span class="lista-status-valor approved">✓ Aprovado</span>',
     exame_visual_externo_A: true,
     exame_visual_interno_NA: true,
     estanqueidade_NA: true,
     sistema_descarga_exame_NA: true,
     valvulas_conexoes_exame_NA: true,
     fotos: [
-      { field: 'foto_frontal', label: 'FRONTAL', labelUpper: 'FRONTAL', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_traseira', label: 'TRASEIRA', labelUpper: 'TRASEIRA', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_lateral1', label: 'LATERAL', labelUpper: 'LATERAL', dataUrl: null },
-      { field: 'foto_lateral2', label: 'LATERAL', labelUpper: 'LATERAL', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_superior', label: 'SUPERIOR', labelUpper: 'SUPERIOR', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_termometro', label: 'TERMÔMETRO', labelUpper: 'TERMÔMETRO', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_tampa_boca_visita', label: 'TAMPA BOCA DE VISITA', labelUpper: 'TAMPA BOCA DE VISITA', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_valvula_alivio', label: 'VÁLVULA DE ALÍVIO', labelUpper: 'VÁLVULA DE ALÍVIO', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_valvula_descarga', label: 'VÁLVULA INFERIOR DE DESCARGA', labelUpper: 'VÁLVULA INFERIOR DE DESCARGA', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
-      { field: 'foto_placa_identificacao', label: 'PLACA DE IDENTIFICAÇÃO', labelUpper: 'PLACA DE IDENTIFICAÇÃO', dataUrl: `data:image/jpeg;base64,${fakePhoto}` },
+      { numero: '01', label: 'FRONTAL', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '02', label: 'TRASEIRA', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '03', label: 'LATERAL DIR.', dataUrl: null },
+      { numero: '04', label: 'LATERAL ESQ.', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '05', label: 'SUPERIOR', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '06', label: 'TERMÔMETRO', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '07', label: 'TAMPA B. VISITA', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '08', label: 'VÁLV. ALÍVIO', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '09', label: 'DESCARGA INF.', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
+      { numero: '10', label: 'PLACA ID.', dataUrl: `data:image/jpeg;base64,${jpegMagic}` },
     ],
-    assinatura_inspetor: `data:image/png;base64,${fakeSignature}`,
-    assinatura_engenheiro: `data:image/png;base64,${fakeSignature}`,
+    assinatura_inspetor: `data:image/png;base64,${pngMagic}`,
+    assinatura_engenheiro: `data:image/png;base64,${pngMagic}`,
     encarregado_nome: 'Diego Fonseca',
     engenheiro_nome: 'Diego Aparecido de Lima',
-    crea_info: 'Engenheiro Mecânico – CREA:506.927.6941-S',
+    crea_info: 'CREA-SP 506.927.6941-S',
     cidade_data: 'Cubatão, 17 de Março de 2026',
     qr_code: qr,
-    laudo_id_curto: 'ABC12345',
+    validacao_url: 'localhost:3000/laudos/abc123/validar',
+    laudo_id_curto: '8F3A2C91',
+    hash_curto: '4e7b…c2b0',
+    hash_completo: hashFake,
   };
 
   console.log('[2] Renderizando HTML...');
   const html = tpl(ctx);
   console.log('    ✅ renderizado (size:', html.length, 'chars)');
 
-  // Salvar pra inspeção manual
   const outPath = path.join(__dirname, '..', 'output', 'smoke_test.html');
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, html);
   console.log('    → salvo em:', outPath);
 
-  // 4) Checagens
   console.log('\n[3] Validações:');
   const checks = [
-    ['Número identificação no HTML', html.includes('SUTU 258026-0')],
-    ['Cliente no HTML', html.includes('CLARIANT BRASIL LTDA')],
-    ['Logo base64 embedded', html.includes('data:image/png;base64,' + logoBase64.slice(0, 50))],
-    ['Data formatada no header (footer template é separado)', html.includes('17 de Março de 2026')],
-    ['Marca d\'água CSS presente', html.includes('content: "CEINSPEC"')],
-    ['QR Code presente', html.includes('data:image/png;base64,') && html.includes('ABC12345')],
-    ['Assinatura inspetor (Diego Fonseca)', html.includes('Diego Fonseca')],
-    ['Engenheiro (Diego Aparecido de Lima)', html.includes('Diego Aparecido de Lima')],
-    ['Tabela dados técnicos renderizou fabricante', html.includes('CIMC')],
-    ['Temperatura com caracteres especiais', html.includes('- 40°C à 150°C')],
-    ['Exame externo marcado A', /Exame Visual Externo.*?A(?!\p{L})/us.test(html)],
-    ['Exame interno marcado NA', /Exame Visual Interno[\s\S]*?NA/.test(html)],
-    ['10 fotos no grid', (html.match(/class="foto-cell"/g) || []).length === 10],
-    ['Placeholder "Foto não disponível" aparece (1x — lateral1)', (html.match(/Foto não disponível/g) || []).length === 1],
-    ['Nenhum {{...}} não resolvido', !/\{\{[^}]+\}\}/.test(html)],
+    ['Número identificação na capa',              html.includes('SUTU 258026-0')],
+    ['Cliente renderizado',                       html.includes('CLARIANT BRASIL LTDA')],
+    ['Equipamento resumo na capa',                html.includes('Isotank — CIMC, 2018 (China)')],
+    ['Chip APROVADO na capa',                     html.includes('chip-approved') && html.includes('APROVADO')],
+    ['Cards de resumo de dados técnicos',         (html.match(/class="card-resumo"/g) || []).length === 3],
+    ['Tabela quad PESOS renderizou',              html.includes('3.760 kg') && html.includes('192.000 kg')],
+    ['Tabela quad PRESSÕES renderizou',           html.includes('4 bar') && html.includes('-40 a 150°C')],
+    ['Status "✓ Aprovado" aparece (multi)',       (html.match(/✓ Aprovado/g) || []).length > 10],
+    ['Status "— N/A" aparece (multi)',            (html.match(/— N\/A/g) || []).length >= 3],
+    ['Tabela exames — A marcado no externo',     /Exame visual externo[\s\S]{0,800}class="valor a">A</.test(html)],
+    ['Tabela exames — NA no interno',             /Exame visual interno[\s\S]{0,800}class="valor na">NA</.test(html)],
+    ['10 fotos com chips numerados',              (html.match(/class="foto-chip"/g) || []).length === 10],
+    ['Chip numerado "01 · FRONTAL"',              html.includes('01 · FRONTAL')],
+    ['Chip numerado "10 · PLACA ID."',            html.includes('10 · PLACA ID.')],
+    ['Placeholder "Foto não disponível" (1×)',   (html.match(/Foto não disponível/g) || []).length === 1],
+    ['Parecer técnico APROVADO (bloco verde)',   html.includes('PARECER TÉCNICO · APROVADO')],
+    ['Assinatura inspetor (Diego Fonseca)',       html.includes('Diego Fonseca')],
+    ['Assinatura engenheiro',                     html.includes('Diego Aparecido de Lima')],
+    ['Bloco validação com URL',                   html.includes('validacao-bloco') && html.includes('localhost:3000/laudos/abc123/validar')],
+    ['Hash SHA-256 visível na validação',         html.includes(hashFake)],
+    ['Hash curto no rodapé da capa',              html.includes('4e7b…c2b0')],
+    ['ID curto no rodapé da capa',                html.includes('8F3A2C91')],
+    ['Marca d\'água CSS presente',                html.includes('CEINSPEC · DOCUMENTO OFICIAL')],
+    ['Nenhum {{...}} não resolvido',              !/\{\{[^}]+\}\}/.test(html)],
   ];
 
   let fails = 0;
@@ -156,12 +160,14 @@ const LOGO_PATH = path.join(__dirname, '..', 'src', 'templates', 'assets', 'logo
   }
 
   if (fails > 0) {
-    console.log(`\n❌ ${fails} check(s) falharam. Inspecionar ${outPath}`);
+    console.log(`\n❌ ${fails}/${checks.length} check(s) falharam.`);
+    console.log(`   Inspecionar: ${outPath}`);
     process.exit(1);
-  } else {
-    console.log('\n✅ Todos os checks passaram!');
-    console.log('\nPróximo passo: rodar `node scripts/test-pdf.js` (precisa Chromium instalado)');
   }
+  console.log(`\n✅ ${checks.length}/${checks.length} checks passaram!`);
+  console.log('\nPróximos passos:');
+  console.log('  1. Rodar migration: npx prisma migrate dev');
+  console.log('  2. Testar com DB real: node scripts/test-pdf.js');
 })().catch((e) => {
   console.error('❌ Erro no smoke test:', e);
   process.exit(1);

@@ -2,563 +2,975 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Laudo de Inspeção Visual - {{numero_identificacao}}</title>
+<title>Relatório de Inspeção Visual — {{numero_identificacao}}</title>
 <style>
-  /* ─────────────────────── RESET & BASE ─────────────────────── */
+  /* ═══════════════════════════════════════════════════════════════════
+     RESET E BASE
+     ═══════════════════════════════════════════════════════════════════ */
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #111; }
-  p { margin: 0; }
-  table { border-collapse: collapse; width: 100%; }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color: #111;
+    -webkit-font-smoothing: antialiased;
+  }
   img { display: block; max-width: 100%; }
+  p { margin: 0; }
 
-  /* ─────────────────────── PÁGINA / PRINT ─────────────────────── */
+  /* Paleta ----------------------------------------------------------- */
+  :root {
+    --ceinspec-blue: #1E3A6D;
+    --approved: #0F6E56;
+    --approved-bg: #E1F5EE;
+    --approved-dark: #04342C;
+    --rejected: #A32D2D;
+    --rejected-bg: #FCEBEB;
+    --na: #888;
+    --text-primary: #111;
+    --text-secondary: #444;
+    --text-muted: #777;
+    --text-faint: #999;
+    --text-ghost: #bbb;
+    --border: #e0e0e0;
+    --border-light: #f0f0f0;
+    --surface-muted: #F1EFE8;
+    --surface-card: #fafafa;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  /* Páginas ---------------------------------------------------------- */
   @page {
     size: A4;
     margin: 18mm 15mm 22mm 15mm;
   }
   @page :first {
-    margin: 0;          /* capa sem margens — barra azul cola na borda */
+    margin: 0;
   }
 
-  /* Marca d'água CEINSPEC (fixa em todas as páginas exceto capa) */
+  /* Marca d'água discreta em todas as páginas exceto capa ------------ */
   body::before {
-    content: "CEINSPEC";
+    content: "CEINSPEC · DOCUMENTO OFICIAL";
     position: fixed;
-    top: 40%;
-    left: 50%;
+    top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-30deg);
-    font-size: 130pt;
-    font-weight: bold;
-    color: rgba(30, 58, 109, 0.05);
+    font-size: 10pt;
+    color: #e8e8e8;
+    letter-spacing: 8pt;
     z-index: -1;
     pointer-events: none;
-    letter-spacing: 8pt;
   }
 
-  /* ─────────────────────── CAPA ─────────────────────── */
+  /* ═══════════════════════════════════════════════════════════════════
+     CAPA
+     ═══════════════════════════════════════════════════════════════════ */
   .capa {
     position: relative;
     width: 210mm;
     height: 297mm;
-    padding: 25mm 20mm 20mm 25mm;
+    padding: 16mm 18mm;
     page-break-after: always;
   }
-  .capa-barra {
-    position: absolute;
-    top: 60mm;
-    left: 0;
-    width: 12mm;
-    height: 120mm;
-    background: #1E3A6D;
+
+  .capa-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 8mm;
   }
-  .capa-logo {
-    position: absolute;
-    top: 10mm;
-    left: 15mm;
-    width: 38mm;
+  .capa-marca {
+    font-size: 9pt;
+    color: var(--text-muted);
+    letter-spacing: 2pt;
   }
-  .capa-titulo {
-    margin-top: 45mm;
-    text-align: center;
-    font-size: 22pt;
-    font-weight: bold;
-    color: #111;
+  .capa-marca-subtitle {
+    font-size: 7pt;
+    color: var(--text-faint);
+    margin-top: 1mm;
+    letter-spacing: normal;
+  }
+  .capa-credenciais {
+    text-align: right;
+    font-size: 7pt;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .capa-documento-label {
+    margin-top: 18mm;
+    font-size: 8pt;
+    color: var(--text-muted);
+    letter-spacing: 3pt;
+  }
+  .capa-numero {
+    margin-top: 2mm;
+    font-size: 9pt;
+    color: var(--text-faint);
+    font-family: var(--mono);
+  }
+
+  .capa-identificacao-label {
+    margin-top: 28mm;
+    font-size: 8pt;
+    color: var(--text-muted);
+    letter-spacing: 2pt;
+  }
+  .capa-identificacao-valor {
+    margin-top: 3mm;
+    font-size: 32pt;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: 1pt;
+    font-family: var(--mono);
+  }
+  .capa-equipamento-resumo {
+    margin-top: 3mm;
+    font-size: 11pt;
+    color: var(--text-secondary);
+  }
+
+  .capa-status {
+    margin-top: 18mm;
+    display: flex;
+    gap: 8px;
+  }
+  .chip {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 9pt;
+    font-weight: 500;
     letter-spacing: 0.5pt;
   }
-  .capa-tabela {
-    margin-top: 55mm;
-    margin-left: 25mm;
-    width: 150mm;
+  .chip-approved {
+    background: var(--approved-bg);
+    color: var(--approved);
   }
-  .capa-tabela td {
-    padding: 4mm 2mm;
-    vertical-align: top;
+  .chip-rejected {
+    background: var(--rejected-bg);
+    color: var(--rejected);
+  }
+  .chip-neutral {
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+  }
+
+  .capa-metadados {
+    margin-top: 18mm;
+    padding-top: 8mm;
+    border-top: 0.5pt solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10mm 16mm;
+  }
+  .meta-campo {
+    font-size: 10pt;
+  }
+  .meta-label {
+    font-size: 7pt;
+    color: var(--text-muted);
+    letter-spacing: 1.5pt;
+    margin-bottom: 1.5mm;
+  }
+  .meta-valor {
     font-size: 11pt;
+    color: var(--text-primary);
+    font-weight: 500;
   }
-  .capa-tabela .label {
-    font-weight: bold;
-    width: 40mm;
+  .meta-valor-secundario {
+    font-size: 9pt;
+    color: var(--text-muted);
+    margin-top: 0.5mm;
+    font-weight: 400;
+  }
+
+  .capa-fundamentacao {
+    margin-top: 18mm;
+  }
+  .capa-fundamentacao-label {
+    font-size: 8pt;
+    color: var(--text-muted);
+    letter-spacing: 1.5pt;
+    margin-bottom: 3mm;
+  }
+  .capa-fundamentacao-texto {
+    font-size: 10pt;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .capa-rodape {
+    position: absolute;
+    bottom: 16mm;
+    left: 18mm;
+    right: 18mm;
+    padding-top: 6mm;
+    border-top: 0.5pt solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .capa-rodape-esq {
+    font-size: 8pt;
+    color: var(--text-faint);
+    line-height: 1.6;
+  }
+  .capa-rodape-hash {
+    font-family: var(--mono);
+    color: var(--text-ghost);
+    font-size: 7pt;
+    margin-top: 1mm;
+  }
+  .capa-rodape-dir {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .capa-qr-texto {
+    font-size: 8pt;
+    color: var(--text-faint);
+    line-height: 1.4;
+    text-align: right;
+  }
+  .capa-qr-img {
+    width: 20mm;
+    height: 20mm;
+  }
+
+  .capa-watermark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8pt;
+    color: #e5e5e5;
+    letter-spacing: 6pt;
+    pointer-events: none;
     white-space: nowrap;
   }
-  .capa-tabela .sep {
-    width: 5mm;
-    text-align: center;
-  }
 
-  /* ─────────────────────── CABEÇALHO DAS DEMAIS PÁGINAS ─────────────────────── */
-  .page-header {
-    position: running(pageHeader);
-    display: flex;
-    align-items: center;
-    border-bottom: 1pt solid #555;
-    padding-bottom: 3mm;
+  /* ═══════════════════════════════════════════════════════════════════
+     PÁGINAS INTERNAS
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* Cabeçalho fino: deixado para o headerTemplate do Puppeteer */
+
+  /* Seções ----------------------------------------------------------- */
+  .secao-numero {
+    font-size: 8pt;
+    color: var(--text-muted);
+    letter-spacing: 1.5pt;
+    margin-top: 6mm;
+    margin-bottom: 1mm;
+  }
+  .secao-titulo {
+    font-size: 13pt;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 2mm;
+  }
+  .secao-descricao {
+    font-size: 10pt;
+    color: var(--text-muted);
     margin-bottom: 5mm;
   }
-  .page-header-logo { width: 28mm; }
-  .page-header-titulo {
-    flex: 1;
-    text-align: center;
-    font-size: 14pt;
-  }
-  .page-header-box {
-    background: #D9D9D9;
-    padding: 2mm 4mm;
-    font-size: 9pt;
-    text-align: center;
-    min-width: 28mm;
-  }
-  .page-header-box .label { font-weight: bold; font-size: 7pt; }
-  .page-header-box .valor { margin-top: 1mm; }
 
-  /* ─────────────────────── SEÇÕES ─────────────────────── */
-  .secao-titulo {
-    background: #1E3A6D;
-    color: #fff;
-    font-weight: bold;
+  /* Dados Técnicos — Cards ------------------------------------------- */
+  .dados-resumo {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3mm;
+    margin-bottom: 6mm;
+  }
+  .card-resumo {
+    background: var(--surface-muted);
+    padding: 3mm 4mm;
+    border-radius: 1.5mm;
+  }
+  .card-resumo-label {
+    font-size: 7pt;
+    color: var(--text-muted);
+    letter-spacing: 1.2pt;
+    margin-bottom: 1mm;
+  }
+  .card-resumo-valor {
     font-size: 11pt;
-    padding: 2mm 4mm;
-    margin: 4mm 0 3mm 0;
-    letter-spacing: 0.3pt;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .card-resumo-valor.mono {
+    font-family: var(--mono);
+    font-size: 10pt;
+  }
+  .card-resumo-secundario {
+    font-size: 8pt;
+    color: var(--text-muted);
   }
 
-  /* ─────────────────────── DADOS DA EMPRESA ─────────────────────── */
-  .empresa-info {
+  /* Dados Técnicos — Tabelas compactas ------------------------------- */
+  .sub-secao-label {
+    font-size: 8pt;
+    color: var(--text-muted);
+    letter-spacing: 1.5pt;
+    margin-bottom: 2mm;
+    margin-top: 5mm;
+  }
+  .tabela-quad {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    border: 0.5pt solid var(--border);
+    border-radius: 1.5mm;
+    overflow: hidden;
+    margin-bottom: 5mm;
+  }
+  .tabela-quad-cell {
+    padding: 2.5mm 3mm;
+    border-right: 0.5pt solid var(--border);
+  }
+  .tabela-quad-cell:last-child { border-right: none; }
+  .tabela-quad-label {
+    font-size: 7pt;
+    color: var(--text-faint);
+    margin-bottom: 0.5mm;
+  }
+  .tabela-quad-valor {
     font-size: 10pt;
-    line-height: 1.5;
+    color: var(--text-primary);
+  }
+
+  /* Lista Aprovado/NA em grid 2 colunas ------------------------------ */
+  .lista-status {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1mm 6mm;
+    margin-bottom: 5mm;
+  }
+  .lista-status-linha {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 1.2mm 0;
+    border-bottom: 0.5pt solid var(--border-light);
+    font-size: 9.5pt;
+  }
+  .lista-status-nome {
+    color: var(--text-secondary);
+    padding-right: 2mm;
+  }
+  .lista-status-valor {
+    font-size: 9pt;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .lista-status-valor.approved {
+    color: var(--approved);
+  }
+  .lista-status-valor.rejected {
+    color: var(--rejected);
+  }
+  .lista-status-valor.na {
+    color: var(--na);
+    font-weight: 400;
+  }
+
+  /* Exames (5 linhas A/R/NA) ----------------------------------------- */
+  .exames-tabela {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 9.5pt;
     margin-bottom: 3mm;
   }
-  .empresa-info b { font-weight: bold; }
-  .empresa-descricao {
-    text-align: justify;
-    font-size: 10pt;
-    line-height: 1.4;
-    margin-bottom: 2mm;
-  }
-
-  /* ─────────────────────── TABELA EXAMES ─────────────────────── */
-  .exames-tabela {
-    font-size: 10pt;
-    margin-bottom: 2mm;
-  }
-  .exames-tabela th, .exames-tabela td {
-    border: 0.75pt solid #555;
-    padding: 1.5mm 2mm;
+  .exames-tabela th,
+  .exames-tabela td {
+    padding: 2mm 3mm;
+    border: 0.5pt solid var(--border);
   }
   .exames-tabela th {
-    background: #fff;
-    font-weight: bold;
+    background: var(--surface-muted);
+    font-weight: 500;
+    font-size: 8pt;
+    letter-spacing: 1pt;
+    color: var(--text-secondary);
     text-align: center;
-    width: 12mm;
+    width: 10mm;
   }
-  .exames-tabela .descricao { text-align: left; width: auto; }
-  .exames-tabela .valor { text-align: center; width: 12mm; }
-  .exames-tabela .obs { text-align: left; min-width: 45mm; }
+  .exames-tabela th.descricao-col { text-align: left; width: auto; }
+  .exames-tabela th.obs-col { width: auto; text-align: left; }
+  .exames-tabela td.descricao { text-align: left; }
+  .exames-tabela td.valor { text-align: center; font-weight: 500; }
+  .exames-tabela td.valor.a { color: var(--approved); }
+  .exames-tabela td.valor.r { color: var(--rejected); }
+  .exames-tabela td.valor.na { color: var(--na); }
 
-  .legenda {
-    font-size: 9pt;
-    border: 0.75pt solid #555;
-    padding: 2mm 4mm;
-    margin: 2mm 0;
-    text-align: center;
+  .legenda-compacta {
+    font-size: 8pt;
+    color: var(--text-muted);
+    margin-bottom: 4mm;
   }
-  .legenda b { font-weight: bold; }
+  .legenda-compacta b { color: var(--text-secondary); font-weight: 500; }
 
-  /* ─────────────────────── TEXTO OBJETIVO ─────────────────────── */
-  .texto-justificado {
-    text-align: justify;
-    font-size: 10pt;
-    line-height: 1.5;
-    margin-bottom: 3mm;
-  }
-
-  /* ─────────────────────── TABELA DADOS TÉCNICOS ─────────────────────── */
-  .dados-tabela {
-    font-size: 10pt;
-  }
-  .dados-tabela td {
-    border: 0.75pt solid #555;
-    padding: 1mm 3mm;
-  }
-  .dados-tabela .rotulo {
-    font-weight: bold;
-    text-align: right;
-    width: 60%;
-  }
-  .dados-tabela .valor {
-    text-align: center;
-    width: 40%;
-  }
-  .dados-tabela .subsecao {
-    background: #1E3A6D;
-    color: #fff;
-    font-weight: bold;
-    text-align: center;
-    padding: 2mm;
-  }
-
-  /* ─────────────────────── NORMAS ─────────────────────── */
-  .normas-lista {
-    font-size: 10pt;
-    line-height: 1.6;
-    margin: 3mm 0;
-  }
-
-  /* ─────────────────────── FOTOS (GRID 2x2) ─────────────────────── */
+  /* ═══════════════════════════════════════════════════════════════════
+     FOTOS — grid 2×5 com chip numerado SOBREPOSTO na foto
+     ═══════════════════════════════════════════════════════════════════ */
   .fotos-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6mm 8mm;
-    margin-top: 4mm;
+    gap: 3mm;
   }
   .foto-cell {
-    page-break-inside: avoid;
+    position: relative;
+    aspect-ratio: 4/3;
+    background: #f5f5f5;
+    border-radius: 1.5mm;
+    overflow: hidden;
     break-inside: avoid;
-    text-align: center;
+    page-break-inside: avoid;
   }
   .foto-img {
     width: 100%;
-    height: 60mm;
-    object-fit: contain;
-    background: #f7f7f7;
-    border: 0.5pt solid #ddd;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
   .foto-placeholder {
     width: 100%;
-    height: 60mm;
-    background: #f0f0f0;
-    border: 0.5pt dashed #aaa;
+    height: 100%;
+    background: var(--surface-muted);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #999;
-    font-size: 10pt;
+    color: var(--text-faint);
+    font-size: 9pt;
   }
-  .foto-label {
-    margin-top: 2mm;
-    font-size: 10pt;
-    font-weight: bold;
-    letter-spacing: 0.3pt;
+  .foto-chip {
+    position: absolute;
+    top: 2mm;
+    left: 2mm;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 8pt;
+    padding: 1mm 2.5mm;
+    border-radius: 1mm;
+    letter-spacing: 0.5pt;
+    font-weight: 500;
   }
 
-  /* ─────────────────────── CONCLUSÃO / RECOMENDAÇÃO ─────────────────────── */
-  .texto-bloco {
+  /* ═══════════════════════════════════════════════════════════════════
+     CONCLUSÃO — parecer em bloco verde
+     ═══════════════════════════════════════════════════════════════════ */
+  .parecer-bloco {
+    border-left: 3pt solid var(--approved);
+    background: var(--approved-bg);
+    padding: 4mm 5mm;
+    border-radius: 0 1.5mm 1.5mm 0;
+    margin-bottom: 5mm;
+  }
+  .parecer-bloco-label {
+    font-size: 9pt;
+    color: var(--approved);
+    font-weight: 500;
+    letter-spacing: 0.5pt;
+    margin-bottom: 1.5mm;
+  }
+  .parecer-bloco-texto {
+    font-size: 10pt;
+    color: var(--approved-dark);
+    line-height: 1.6;
+  }
+  .parecer-bloco.rejected {
+    border-left-color: var(--rejected);
+    background: var(--rejected-bg);
+  }
+  .parecer-bloco.rejected .parecer-bloco-label { color: var(--rejected); }
+  .parecer-bloco.rejected .parecer-bloco-texto { color: #501313; }
+
+  .texto-corrido {
+    font-size: 10pt;
+    color: var(--text-secondary);
+    line-height: 1.6;
     text-align: justify;
-    font-size: 10pt;
-    line-height: 1.5;
-    margin: 3mm 0;
+    margin-bottom: 5mm;
   }
-  .texto-bloco b { font-weight: bold; }
+  .texto-corrido b { font-weight: 500; color: var(--text-primary); }
 
-  /* ─────────────────────── ASSINATURAS ─────────────────────── */
-  .assinaturas-wrapper {
-    margin-top: 15mm;
-    page-break-inside: avoid;
-    break-inside: avoid;
+  /* Assinaturas ------------------------------------------------------ */
+  .assinaturas-label {
+    font-size: 8pt;
+    color: var(--text-muted);
+    letter-spacing: 1.5pt;
+    margin-bottom: 4mm;
+    margin-top: 6mm;
+    padding-top: 5mm;
+    border-top: 0.5pt solid var(--border);
   }
   .assinaturas-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10mm;
+    gap: 5mm;
+    margin-bottom: 6mm;
   }
-  .assinatura-cell { text-align: center; }
+  .assinatura-cell {
+    break-inside: avoid;
+  }
   .assinatura-img {
-    height: 20mm;
+    height: 14mm;
     max-width: 60mm;
-    margin: 0 auto 2mm;
     object-fit: contain;
+    display: block;
+    margin-bottom: 1mm;
+  }
+  .assinatura-img-empty {
+    height: 14mm;
+    margin-bottom: 1mm;
   }
   .assinatura-linha {
-    border-top: 0.75pt solid #111;
-    margin: 0 15mm 2mm 15mm;
+    border-bottom: 0.5pt solid #999;
+    width: 85%;
+    margin-bottom: 1.5mm;
   }
   .assinatura-nome {
-    font-weight: bold;
-    font-size: 10pt;
+    font-size: 11pt;
+    color: var(--text-primary);
+    font-weight: 500;
   }
   .assinatura-cargo {
-    font-size: 10pt;
+    font-size: 9pt;
+    color: var(--text-muted);
   }
-  .assinatura-crea { font-weight: bold; }
+  .assinatura-crea {
+    font-size: 8pt;
+    color: var(--text-faint);
+    margin-top: 1mm;
+  }
+  .assinatura-descricao {
+    font-size: 8pt;
+    color: var(--text-faint);
+    margin-top: 1mm;
+  }
+
+  /* Bloco validação final -------------------------------------------- */
+  .validacao-bloco {
+    background: var(--surface-card);
+    border: 0.5pt solid var(--border);
+    border-radius: 1.5mm;
+    padding: 4mm 4.5mm;
+    display: flex;
+    gap: 4mm;
+    align-items: center;
+    margin-bottom: 4mm;
+  }
+  .validacao-qr {
+    width: 20mm;
+    height: 20mm;
+    flex-shrink: 0;
+  }
+  .validacao-info {
+    flex: 1;
+  }
+  .validacao-label {
+    font-size: 8pt;
+    color: var(--text-muted);
+    letter-spacing: 1.5pt;
+    margin-bottom: 1mm;
+  }
+  .validacao-texto {
+    font-size: 9.5pt;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .validacao-url {
+    color: var(--ceinspec-blue);
+    text-decoration: none;
+  }
+  .validacao-hash {
+    font-size: 7.5pt;
+    color: var(--text-faint);
+    margin-top: 1.5mm;
+    font-family: var(--mono);
+    word-break: break-all;
+  }
+
   .cidade-data {
     text-align: center;
-    margin-top: 8mm;
     font-size: 10pt;
+    color: var(--text-muted);
+    margin-top: 3mm;
   }
 
-  /* ─────────────────────── QR CODE VALIDAÇÃO ─────────────────────── */
-  .qr-validacao {
-    position: absolute;
-    right: 20mm;
-    bottom: 30mm;
-    text-align: center;
-    font-size: 8pt;
-    color: #555;
-    width: 28mm;
-  }
-  .qr-validacao img {
-    width: 25mm;
-    height: 25mm;
-    margin: 0 auto 1mm;
-  }
-
-  /* Quebras de página */
-  .page-break { page-break-before: always; break-before: page; }
-  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+  /* Utilitárias ------------------------------------------------------ */
+  .avoid-break { break-inside: avoid; page-break-inside: avoid; }
 </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════ PÁGINA 1 — CAPA ═══════════════════════════ -->
-<div class="capa">
-  <img class="capa-logo" src="data:image/png;base64,{{logo_base64}}" alt="CEINSPEC" />
-  <div class="capa-barra"></div>
+<!-- ═══════════════════════════════════════════════════════════════════
+     CAPA
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="capa">
+  <header class="capa-topo">
+    <div>
+      <div class="capa-marca">CEINSPEC</div>
+      <div class="capa-marca-subtitle">Inspeções Veiculares e Industriais</div>
+    </div>
+    <div class="capa-credenciais">
+      OIA/PP 1064 — Tipo C<br>
+      CNPJ 48.758.755/0004-29<br>
+      CREA-SP 2430958
+    </div>
+  </header>
 
-  <h1 class="capa-titulo">RELATÓRIO DE INSPEÇÃO VISUAL</h1>
+  <div class="capa-documento-label">RELATÓRIO DE INSPEÇÃO VISUAL</div>
+  <div class="capa-numero">Nº L-CEI-IVC-09</div>
 
-  <table class="capa-tabela">
-    <tr>
-      <td class="label">IDENTIFICAÇÃO</td>
-      <td class="sep">:</td>
-      <td>{{numero_identificacao}}</td>
-    </tr>
-    <tr>
-      <td class="label">CLIENTE</td>
-      <td class="sep">:</td>
-      <td>{{cliente}}</td>
-    </tr>
-    <tr>
-      <td class="label">ENDEREÇO</td>
-      <td class="sep">:</td>
-      <td>{{endereco}}</td>
-    </tr>
-    <tr>
-      <td class="label">EQUIPAMENTO</td>
-      <td class="sep">:</td>
-      <td>{{tipo_equipamento}}</td>
-    </tr>
-  </table>
-</div>
+  <div class="capa-identificacao-label">IDENTIFICAÇÃO</div>
+  <div class="capa-identificacao-valor">{{numero_identificacao}}</div>
+  <div class="capa-equipamento-resumo">{{equipamento_resumo}}</div>
 
-<!-- ═══════════════════════════ PÁGINA 2 ═══════════════════════════ -->
-<div class="secao-titulo">DADOS DA EMPRESA CONTRATADA</div>
-<div class="empresa-info">
-  <b>Empresa:</b> Ceinspec Inspeções Veiculares e Industriais Ltda<br>
-  <b>Endereço:</b> Rua Claudino Domingues Graça, nº 831, Zona Industrial – Cubatão / SP – CEP 11570-100<br>
-  <b>CNPJ:</b> 48.758.755/0004-29<br>
-  <b>OIA/PP nº:</b> 1064 – TIPO C<br>
-  <b>CREA-SP nº:</b> 2430958
-</div>
-<p class="empresa-descricao">
-  A Ceinspec Inspeções Veiculares e Industriais Ltda é uma empresa devidamente acreditada pelo
-  Instituto Nacional de Metrologia, Qualidade e Tecnologia (INMETRO) como Organismo de Inspeção
-  Acreditado / Pessoa Jurídica Prestadora (OIA/PP), na modalidade Tipo C, para a execução de
-  atividades de inspeção técnica industrial, atendendo integralmente aos requisitos normativos
-  vigentes.
+  <div class="capa-status">
+    <div class="chip {{status_class}}">{{status_label}}</div>
+    <div class="chip chip-neutral">EXAME VISUAL EXTERNO</div>
+  </div>
+
+  <div class="capa-metadados">
+    <div class="meta-campo">
+      <div class="meta-label">CLIENTE</div>
+      <div class="meta-valor">{{cliente}}</div>
+    </div>
+    <div class="meta-campo">
+      <div class="meta-label">DATA DA INSPEÇÃO</div>
+      <div class="meta-valor">{{data_inspecao}}</div>
+    </div>
+    <div class="meta-campo">
+      <div class="meta-label">LOCAL</div>
+      <div class="meta-valor">{{endereco}}</div>
+    </div>
+    <div class="meta-campo">
+      <div class="meta-label">INSPETOR RESPONSÁVEL</div>
+      <div class="meta-valor">{{encarregado_nome}}</div>
+      <div class="meta-valor-secundario">Encarregado Operacional</div>
+    </div>
+  </div>
+
+  <div class="capa-fundamentacao">
+    <div class="capa-fundamentacao-label">FUNDAMENTAÇÃO TÉCNICA</div>
+    <div class="capa-fundamentacao-texto">
+      ITCO ACC Manual (2017) · Resolução ANTT nº 5.998/2022<br>
+      Norma de fabricação: {{norma_fabricacao}}
+    </div>
+  </div>
+
+  <div class="capa-watermark">CEINSPEC · DOCUMENTO OFICIAL</div>
+
+  <footer class="capa-rodape">
+    <div class="capa-rodape-esq">
+      Documento emitido eletronicamente
+      <div class="capa-rodape-hash">ID: {{laudo_id_curto}} · SHA-256: {{hash_curto}}</div>
+    </div>
+    {{#if qr_code}}
+    <div class="capa-rodape-dir">
+      <div class="capa-qr-texto">Escaneie para<br>validar online</div>
+      <img class="capa-qr-img" src="{{qr_code}}" alt="QR validação">
+    </div>
+    {{/if}}
+  </footer>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     DADOS TÉCNICOS + EXAMES
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="secao-numero">SEÇÃO 1</div>
+<div class="secao-titulo">Objetivo</div>
+<p class="texto-corrido">
+  O objetivo da inspeção visual de um isotank (ou tanque isotérmico) é garantir
+  que o equipamento esteja em condições seguras, legais e operacionais para o
+  transporte e armazenamento de produtos — especialmente produtos químicos
+  perigosos, gases liquefeitos ou alimentos líquidos.
 </p>
 
-<div class="secao-titulo">EXAMES E ENSAIOS REALIZADOS</div>
-<table class="exames-tabela">
-  <tr>
-    <th></th>
-    <th>A</th>
-    <th>R</th>
-    <th>NA</th>
-    <th class="obs">OBS</th>
-  </tr>
-  <tr>
-    <td class="descricao">Exame Visual Externo</td>
-    <td class="valor">{{#if exame_visual_externo_A}}A{{/if}}</td>
-    <td class="valor">{{#if exame_visual_externo_R}}R{{/if}}</td>
-    <td class="valor">{{#if exame_visual_externo_NA}}NA{{/if}}</td>
-    <td class="obs"></td>
-  </tr>
-  <tr>
-    <td class="descricao">Exame Visual Interno</td>
-    <td class="valor">{{#if exame_visual_interno_A}}A{{/if}}</td>
-    <td class="valor">{{#if exame_visual_interno_R}}R{{/if}}</td>
-    <td class="valor">{{#if exame_visual_interno_NA}}NA{{/if}}</td>
-    <td class="obs"></td>
-  </tr>
-  <tr>
-    <td class="descricao">Estanqueidade</td>
-    <td class="valor">{{#if estanqueidade_A}}A{{/if}}</td>
-    <td class="valor">{{#if estanqueidade_R}}R{{/if}}</td>
-    <td class="valor">{{#if estanqueidade_NA}}NA{{/if}}</td>
-    <td class="obs"></td>
-  </tr>
-  <tr>
-    <td class="descricao">Sistema de Descarga</td>
-    <td class="valor">{{#if sistema_descarga_exame_A}}A{{/if}}</td>
-    <td class="valor">{{#if sistema_descarga_exame_R}}R{{/if}}</td>
-    <td class="valor">{{#if sistema_descarga_exame_NA}}NA{{/if}}</td>
-    <td class="obs"></td>
-  </tr>
-  <tr>
-    <td class="descricao">Válvulas e Conexões</td>
-    <td class="valor">{{#if valvulas_conexoes_exame_A}}A{{/if}}</td>
-    <td class="valor">{{#if valvulas_conexoes_exame_R}}R{{/if}}</td>
-    <td class="valor">{{#if valvulas_conexoes_exame_NA}}NA{{/if}}</td>
-    <td class="obs"></td>
-  </tr>
-</table>
-<div class="legenda">
-  <b>Legenda:</b> &nbsp;&nbsp; <b>A</b> – Aprovado &nbsp;&nbsp;&nbsp;
-  <b>R</b> – Reprovado &nbsp;&nbsp;&nbsp; <b>NA</b> – Não Aplicável
+<div class="secao-numero">SEÇÃO 2</div>
+<div class="secao-titulo">Dados técnicos do equipamento</div>
+
+<div class="dados-resumo">
+  <div class="card-resumo">
+    <div class="card-resumo-label">FABRICANTE</div>
+    <div class="card-resumo-valor">{{fabricante}}</div>
+    <div class="card-resumo-secundario">{{pais_fabricacao}}{{#if ano_fabricacao}} · {{ano_fabricacao}}{{/if}}</div>
+  </div>
+  <div class="card-resumo">
+    <div class="card-resumo-label">N° DE SÉRIE</div>
+    <div class="card-resumo-valor mono">{{numero_serie}}</div>
+  </div>
+  <div class="card-resumo">
+    <div class="card-resumo-label">DIMENSÕES</div>
+    <div class="card-resumo-valor">{{tamanho}}{{#if capacidade_liquida}} · {{capacidade_liquida}}{{/if}}</div>
+  </div>
 </div>
 
-<div class="secao-titulo">1 - OBJETIVO</div>
-<p class="texto-justificado">
-  O objetivo da inspeção visual de um isotank (ou tanque isotérmico) é garantir que o
-  equipamento esteja em condições seguras, legais e operacionais para o transporte e
-  armazenamento de produtos — especialmente produtos químicos perigosos, gases liquefeitos
-  ou alimentos líquidos.
-</p>
-
-<div class="secao-titulo">2 – DADOS TÉCNICOS</div>
-<table class="dados-tabela avoid-break">
-  <tr><td class="rotulo">Data da Inspeção</td><td class="valor">{{data_inspecao}}</td></tr>
-  <tr><td class="rotulo">Tipo de Equipamento</td><td class="valor">{{tipo_equipamento}}</td></tr>
-  <tr><td class="rotulo">N° de Identificação</td><td class="valor">{{numero_identificacao}}</td></tr>
-  <tr><td class="rotulo">Fabricante</td><td class="valor">{{fabricante}}</td></tr>
-  <tr><td class="rotulo">N° de Série</td><td class="valor">{{numero_serie}}</td></tr>
-  <tr><td class="rotulo">País de Fabricação</td><td class="valor">{{pais_fabricacao}}</td></tr>
-  <tr><td class="rotulo">Tamanho</td><td class="valor">{{tamanho}}</td></tr>
-  <tr><td class="rotulo">Capacidade Líquida Nominal</td><td class="valor">{{capacidade_liquida}}</td></tr>
-  <tr><td class="rotulo">Ano de Fabricação</td><td class="valor">{{ano_fabricacao}}</td></tr>
-  <tr><td class="rotulo">Identificação</td><td class="valor">{{identificacao}}</td></tr>
-  <tr><td class="rotulo">Tara</td><td class="valor">{{tara}}</td></tr>
-  <tr><td class="rotulo">Peso Carga Líquida</td><td class="valor">{{peso_carga_liquida}}</td></tr>
-  <tr><td class="rotulo">Peso Bruto Total</td><td class="valor">{{peso_bruto_total}}</td></tr>
-  <tr><td class="rotulo">Peso de empilhamento Permitido</td><td class="valor">{{peso_empilhamento}}</td></tr>
-  <tr><td class="rotulo">Norma de Fabricação</td><td class="valor">{{norma_fabricacao}}</td></tr>
-  <tr><td class="rotulo">Pressão do Projeto</td><td class="valor">{{pressao_projeto}}</td></tr>
-  <tr><td class="rotulo">Pressão do Ensaio Hidrostático</td><td class="valor">{{pressao_ensaio}}</td></tr>
-  <tr><td class="rotulo">Pressão Máxima de Trabalho Admissível</td><td class="valor">{{pressao_maxima}}</td></tr>
-  <tr><td class="rotulo">Temperatura do Projeto</td><td class="valor">{{temperatura_projeto}}</td></tr>
-  <tr><td class="rotulo">Material da Calota</td><td class="valor">{{material_calota}}</td></tr>
-  <tr><td class="rotulo">Material do Costado</td><td class="valor">{{material_costado}}</td></tr>
-  <tr><td class="rotulo">Espessura das Calotas e Costado</td><td class="valor">{{espessura}}</td></tr>
-  <tr><td class="rotulo">Conexões de Flange</td><td class="valor">{{conexoes_flange}}</td></tr>
-  <tr><td class="rotulo">Chapa de identificação de Fabricante</td><td class="valor">{{chapa_identificacao}}</td></tr>
-  <tr><td class="rotulo">Certificado de Calibração de Válvulas de Segurança</td><td class="valor">{{cert_calibracao}}</td></tr>
-  <tr><td class="rotulo">Certificado de Descontaminação</td><td class="valor">{{cert_descontaminacao}}</td></tr>
-
-  <tr><td colspan="2" class="subsecao">ESTRUTURA EXTERNA</td></tr>
-  <tr><td class="rotulo">Estrutura Externa</td><td class="valor">{{estrutura_externa}}</td></tr>
-  <tr><td class="rotulo">Corpo do Tanque</td><td class="valor">{{corpo_tanque}}</td></tr>
-  <tr><td class="rotulo">Passadiços</td><td class="valor">{{passadicos}}</td></tr>
-  <tr><td class="rotulo">Revestimento</td><td class="valor">{{revestimento}}</td></tr>
-  <tr><td class="rotulo">Isolamento Térmico</td><td class="valor">{{isolamento_termico}}</td></tr>
-  <tr><td class="rotulo">Escada</td><td class="valor">{{escada}}</td></tr>
-  <tr><td class="rotulo">Dispositivos de Canto de Chassi (Porta-Container)</td><td class="valor">{{dispositivos_canto}}</td></tr>
-  <tr><td class="rotulo">Ponto de Aterramento</td><td class="valor">{{ponto_aterramento}}</td></tr>
-  <tr><td class="rotulo">Fixações (parafusos, porcas etc.)</td><td class="valor">{{fixacoes}}</td></tr>
-  <tr><td class="rotulo">Berços de Fixação do Container</td><td class="valor">{{bercos_fixacao}}</td></tr>
-  <tr><td class="rotulo">Mossas, Escavações, Cortes, Trincas e Corrosão</td><td class="valor">{{mossas_escavacoes}}</td></tr>
-  <tr><td class="rotulo">Porosidade dos Cordões e Solda</td><td class="valor">{{porosidade}}</td></tr>
-</table>
-
-<div class="secao-titulo" style="margin-top: 4mm;">COMPONENTES E ACESSÓRIOS</div>
-<table class="dados-tabela avoid-break">
-  <tr><td class="rotulo">Bocal de Descarga</td><td class="valor">{{bocal_descarga}}</td></tr>
-  <tr><td class="rotulo">Boca de Visita</td><td class="valor">{{boca_visita}}</td></tr>
-  <tr><td class="rotulo">Válvula de Alívio</td><td class="valor">{{valvula_alivio}}</td></tr>
-  <tr><td class="rotulo">Linha de Ar</td><td class="valor">{{linha_ar}}</td></tr>
-  <tr><td class="rotulo">Linha de Recuperação de Vapor</td><td class="valor">{{linha_recuperacao}}</td></tr>
-  <tr><td class="rotulo">Sistema de Acionamento Remoto</td><td class="valor">{{acionamento_remoto}}</td></tr>
-  <tr><td class="rotulo">Tomada de Saída de Vapor</td><td class="valor">{{tomada_saida_vapor}}</td></tr>
-  <tr><td class="rotulo">Sistema de Carga e Descarga</td><td class="valor">{{sistema_carga_descarga}}</td></tr>
-  <tr><td class="rotulo">Dispositivo de Medição de Volume</td><td class="valor">{{dispositivo_medicao}}</td></tr>
-  <tr><td class="rotulo">Válvula de Fundo</td><td class="valor">{{valvula_fundo}}</td></tr>
-  <tr><td class="rotulo">Tomada de Entrada de Vapor</td><td class="valor">{{tomada_entrada_vapor}}</td></tr>
-  <tr><td class="rotulo">Termômetro</td><td class="valor">{{termometro_comp}}</td></tr>
-  <tr><td class="rotulo">Manômetro</td><td class="valor">{{manometro}}</td></tr>
-  <tr><td class="rotulo">Tubulações</td><td class="valor">{{tubulacoes}}</td></tr>
-  <tr><td class="rotulo">Estrutura Externa Visual</td><td class="valor">{{estrutura_visual}}</td></tr>
-</table>
-
-<div class="secao-titulo">3 – NORMAS DE REFERÊNCIA</div>
-<div class="normas-lista">
-  ITCO ACC MANUAL (2017)<br>
-  RESOLUÇÃO Nº 5.998, DE 3 DE NOVEMBRO DE 2022
+<div class="sub-secao-label">PESOS</div>
+<div class="tabela-quad">
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Tara</div>
+    <div class="tabela-quad-valor">{{tara}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Carga líquida</div>
+    <div class="tabela-quad-valor">{{peso_carga_liquida}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Bruto total</div>
+    <div class="tabela-quad-valor">{{peso_bruto_total}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Empilhamento</div>
+    <div class="tabela-quad-valor">{{peso_empilhamento}}</div>
+  </div>
 </div>
 
-<div class="secao-titulo">4 – REGISTRO FOTOGRÁFICO</div>
+<div class="sub-secao-label">PRESSÕES &amp; TEMPERATURA</div>
+<div class="tabela-quad">
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Projeto</div>
+    <div class="tabela-quad-valor">{{pressao_projeto}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Ensaio hidrostático</div>
+    <div class="tabela-quad-valor">{{pressao_ensaio}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">MTA</div>
+    <div class="tabela-quad-valor">{{pressao_maxima}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Temp. projeto</div>
+    <div class="tabela-quad-valor">{{temperatura_projeto}}</div>
+  </div>
+</div>
+
+<div class="sub-secao-label">MATERIAIS &amp; CONEXÕES</div>
+<div class="tabela-quad">
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Calota</div>
+    <div class="tabela-quad-valor">{{material_calota}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Costado</div>
+    <div class="tabela-quad-valor">{{material_costado}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Espessura</div>
+    <div class="tabela-quad-valor">{{espessura}}</div>
+  </div>
+  <div class="tabela-quad-cell">
+    <div class="tabela-quad-label">Flange</div>
+    <div class="tabela-quad-valor">{{conexoes_flange}}</div>
+  </div>
+</div>
+
+<div class="sub-secao-label">CERTIFICAÇÕES</div>
+<div class="lista-status avoid-break">
+  <div class="lista-status-linha">
+    <span class="lista-status-nome">Chapa de identificação do fabricante</span>
+    {{{status_chapa_identificacao}}}
+  </div>
+  <div class="lista-status-linha">
+    <span class="lista-status-nome">Certificado de calibração de válvulas</span>
+    {{{status_cert_calibracao}}}
+  </div>
+  <div class="lista-status-linha">
+    <span class="lista-status-nome">Certificado de descontaminação</span>
+    {{{status_cert_descontaminacao}}}
+  </div>
+</div>
+
+<div class="sub-secao-label">ESTRUTURA EXTERNA</div>
+<div class="lista-status avoid-break">
+  <div class="lista-status-linha"><span class="lista-status-nome">Estrutura externa</span>{{{status_estrutura_externa}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Corpo do tanque</span>{{{status_corpo_tanque}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Passadiços</span>{{{status_passadicos}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Revestimento</span>{{{status_revestimento}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Isolamento térmico</span>{{{status_isolamento_termico}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Escada</span>{{{status_escada}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Dispositivos de canto</span>{{{status_dispositivos_canto}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Ponto de aterramento</span>{{{status_ponto_aterramento}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Fixações</span>{{{status_fixacoes}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Berços de fixação</span>{{{status_bercos_fixacao}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Mossas / corrosão</span>{{{status_mossas_escavacoes}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Porosidade / soldas</span>{{{status_porosidade}}}</div>
+</div>
+
+<div class="sub-secao-label">COMPONENTES &amp; ACESSÓRIOS</div>
+<div class="lista-status avoid-break">
+  <div class="lista-status-linha"><span class="lista-status-nome">Bocal de descarga</span>{{{status_bocal_descarga}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Boca de visita</span>{{{status_boca_visita}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Válvula de alívio</span>{{{status_valvula_alivio}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Linha de ar</span>{{{status_linha_ar}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Linha de recuperação de vapor</span>{{{status_linha_recuperacao}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Acionamento remoto</span>{{{status_acionamento_remoto}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Tomada de saída de vapor</span>{{{status_tomada_saida_vapor}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Sistema de carga/descarga</span>{{{status_sistema_carga_descarga}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Dispositivo de medição</span>{{{status_dispositivo_medicao}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Válvula de fundo</span>{{{status_valvula_fundo}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Tomada de entrada de vapor</span>{{{status_tomada_entrada_vapor}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Termômetro</span>{{{status_termometro_comp}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Manômetro</span>{{{status_manometro}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Tubulações</span>{{{status_tubulacoes}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Estrutura externa visual</span>{{{status_estrutura_visual}}}</div>
+</div>
+
+<div class="secao-numero">SEÇÃO 3</div>
+<div class="secao-titulo">Exames e ensaios realizados</div>
+<table class="exames-tabela avoid-break">
+  <thead>
+    <tr>
+      <th class="descricao-col">Descrição</th>
+      <th>A</th>
+      <th>R</th>
+      <th>NA</th>
+      <th class="obs-col">Obs.</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="descricao">Exame visual externo</td>
+      <td class="valor a">{{#if exame_visual_externo_A}}A{{/if}}</td>
+      <td class="valor r">{{#if exame_visual_externo_R}}R{{/if}}</td>
+      <td class="valor na">{{#if exame_visual_externo_NA}}NA{{/if}}</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="descricao">Exame visual interno</td>
+      <td class="valor a">{{#if exame_visual_interno_A}}A{{/if}}</td>
+      <td class="valor r">{{#if exame_visual_interno_R}}R{{/if}}</td>
+      <td class="valor na">{{#if exame_visual_interno_NA}}NA{{/if}}</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="descricao">Estanqueidade</td>
+      <td class="valor a">{{#if estanqueidade_A}}A{{/if}}</td>
+      <td class="valor r">{{#if estanqueidade_R}}R{{/if}}</td>
+      <td class="valor na">{{#if estanqueidade_NA}}NA{{/if}}</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="descricao">Sistema de descarga</td>
+      <td class="valor a">{{#if sistema_descarga_exame_A}}A{{/if}}</td>
+      <td class="valor r">{{#if sistema_descarga_exame_R}}R{{/if}}</td>
+      <td class="valor na">{{#if sistema_descarga_exame_NA}}NA{{/if}}</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="descricao">Válvulas e conexões</td>
+      <td class="valor a">{{#if valvulas_conexoes_exame_A}}A{{/if}}</td>
+      <td class="valor r">{{#if valvulas_conexoes_exame_R}}R{{/if}}</td>
+      <td class="valor na">{{#if valvulas_conexoes_exame_NA}}NA{{/if}}</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+<div class="legenda-compacta"><b>A</b> Aprovado &nbsp; <b>R</b> Reprovado &nbsp; <b>NA</b> Não aplicável</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     FOTOS
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="secao-numero">SEÇÃO 4</div>
+<div class="secao-titulo">Registro fotográfico</div>
+<p class="secao-descricao">Evidências coletadas em campo — 10 pontos obrigatórios</p>
+
 <div class="fotos-grid">
   {{#each fotos}}
   <div class="foto-cell">
     {{#if dataUrl}}
-      <img class="foto-img" src="{{dataUrl}}" alt="{{label}}" />
+      <img class="foto-img" src="{{dataUrl}}" alt="{{label}}">
     {{else}}
       <div class="foto-placeholder">Foto não disponível</div>
     {{/if}}
-    <div class="foto-label">FOTO {{labelUpper}}</div>
+    <div class="foto-chip">{{numero}} · {{label}}</div>
   </div>
   {{/each}}
 </div>
 
-<div class="secao-titulo">5 - CONCLUSÃO</div>
-<p class="texto-bloco">
-  A inspeção visual externa realizada no isotank indica que o equipamento se encontra em
-  condições adequadas para transporte. Ressalta-se, contudo, que este laudo tem caráter
-  complementar e não substitui os certificados obrigatórios de
-  <b>CIV (Certificado de Inspeção Veicular)</b> e
-  <b>CIPP (Certificado de Inspeção Periódica de Produto).</b>
+<!-- ═══════════════════════════════════════════════════════════════════
+     CONCLUSÃO + RECOMENDAÇÃO
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="secao-numero">SEÇÃO 5</div>
+<div class="secao-titulo">Conclusão</div>
+
+<div class="parecer-bloco {{parecer_class}}">
+  <div class="parecer-bloco-label">PARECER TÉCNICO · {{status_label}}</div>
+  <div class="parecer-bloco-texto">
+    A inspeção visual externa realizada no isotank indica que o equipamento
+    se encontra em condições adequadas para transporte.
+  </div>
+</div>
+
+<p class="texto-corrido">
+  Ressalta-se que este laudo tem caráter complementar e
+  <b>não substitui os certificados obrigatórios de CIV e CIPP</b>,
+  conforme previsto na Resolução ANTT nº 5.998/2022.
 </p>
 
-<div class="secao-titulo">6 - RECOMENDAÇÃO</div>
-<p class="texto-bloco">
-  A presente inspeção possui caráter exclusivamente visual, destinada a avaliação preliminar
-  das condições aparentes do equipamento. Este laudo não substitui as inspeções compulsórias
-  previstas pelas normas e regulamentações aplicáveis, tais como a obrigatoriedade de CIV e
-  CIPP, bem como ensaios estruturais, testes funcionais e verificações metrológicas.
+<div class="secao-numero">SEÇÃO 6</div>
+<div class="secao-titulo">Recomendação</div>
+<p class="texto-corrido">
+  A presente inspeção possui caráter exclusivamente visual, destinada à
+  avaliação preliminar das condições aparentes do equipamento. Este laudo
+  não substitui as inspeções compulsórias previstas pelas normas e
+  regulamentações aplicáveis, tais como a obrigatoriedade de CIV e CIPP,
+  bem como ensaios estruturais, testes funcionais e verificações metrológicas.
 </p>
-<p class="texto-bloco">
-  Recomenda-se que o equipamento seja submetido às inspeções regulamentares junto a Organismo
-  de Inspeção Acreditado pelo INMETRO ou porte o certificado de Inspeção internacional,
-  garantindo o atendimento integral às exigências legais e normativas vigentes, conforme
-  Resolução ANTT Nº 5.998/2022.
+<p class="texto-corrido">
+  Recomenda-se que o equipamento seja submetido às inspeções regulamentares
+  junto a Organismo de Inspeção Acreditado pelo INMETRO, ou porte o
+  certificado de Inspeção internacional, garantindo o atendimento integral
+  às exigências legais e normativas vigentes.
 </p>
 
-<!-- ═══════════════════════════ ASSINATURAS ═══════════════════════════ -->
-<div class="assinaturas-wrapper">
-  <div class="assinaturas-grid">
-    <div class="assinatura-cell">
-      {{#if assinatura_inspetor}}
-        <img class="assinatura-img" src="{{assinatura_inspetor}}" alt="Assinatura Inspetor" />
-      {{else}}
-        <div style="height: 20mm;"></div>
-      {{/if}}
-      <div class="assinatura-linha"></div>
-      <div class="assinatura-cargo">Responsável pela Inspeção</div>
-      <div class="assinatura-nome">{{encarregado_nome}}</div>
-      <div class="assinatura-cargo">Encarregado Operacional</div>
-    </div>
-
-    <div class="assinatura-cell">
-      {{#if assinatura_engenheiro}}
-        <img class="assinatura-img" src="{{assinatura_engenheiro}}" alt="Assinatura Engenheiro" />
-      {{else}}
-        <div style="height: 20mm;"></div>
-      {{/if}}
-      <div class="assinatura-linha"></div>
-      <div class="assinatura-cargo">Engenheiro Responsável</div>
-      <div class="assinatura-nome">{{engenheiro_nome}}</div>
-      <div class="assinatura-cargo assinatura-crea">{{crea_info}}</div>
-    </div>
+<!-- ═══════════════════════════════════════════════════════════════════
+     ASSINATURAS + VALIDAÇÃO
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="assinaturas-label">ASSINATURAS</div>
+<div class="assinaturas-grid avoid-break">
+  <div class="assinatura-cell">
+    {{#if assinatura_inspetor}}
+      <img class="assinatura-img" src="{{assinatura_inspetor}}" alt="Assinatura inspetor">
+    {{else}}
+      <div class="assinatura-img-empty"></div>
+    {{/if}}
+    <div class="assinatura-linha"></div>
+    <div class="assinatura-nome">{{encarregado_nome}}</div>
+    <div class="assinatura-cargo">Encarregado Operacional</div>
+    <div class="assinatura-descricao">Responsável pela Inspeção</div>
   </div>
 
-  <div class="cidade-data">{{cidade_data}}</div>
+  <div class="assinatura-cell">
+    {{#if assinatura_engenheiro}}
+      <img class="assinatura-img" src="{{assinatura_engenheiro}}" alt="Assinatura engenheiro">
+    {{else}}
+      <div class="assinatura-img-empty"></div>
+    {{/if}}
+    <div class="assinatura-linha"></div>
+    <div class="assinatura-nome">{{engenheiro_nome}}</div>
+    <div class="assinatura-cargo">Engenheiro Mecânico</div>
+    <div class="assinatura-crea">{{crea_info}}</div>
+  </div>
 </div>
 
-<!-- ═══════════════════════════ QR CODE DE VALIDAÇÃO ═══════════════════════════ -->
-{{#if qr_code}}
-<div style="text-align: center; margin-top: 10mm; font-size: 9pt; color: #555;">
-  <img src="{{qr_code}}" alt="QR Validação" style="width: 25mm; height: 25mm; margin: 0 auto;" />
-  <div style="margin-top: 1mm;">Escaneie para validar este laudo</div>
-  <div style="font-family: monospace; font-size: 8pt;">ID: {{laudo_id_curto}}</div>
+<div class="validacao-bloco avoid-break">
+  {{#if qr_code}}
+  <img class="validacao-qr" src="{{qr_code}}" alt="QR validação">
+  {{/if}}
+  <div class="validacao-info">
+    <div class="validacao-label">VALIDAÇÃO ONLINE</div>
+    <div class="validacao-texto">
+      Escaneie o QR code ou acesse
+      <span class="validacao-url">{{validacao_url}}</span>
+      para confirmar a autenticidade deste documento.
+    </div>
+    {{#if hash_completo}}
+    <div class="validacao-hash">SHA-256: {{hash_completo}}</div>
+    {{/if}}
+  </div>
 </div>
-{{/if}}
+
+<div class="cidade-data">{{cidade_data}}</div>
 
 </body>
 </html>
