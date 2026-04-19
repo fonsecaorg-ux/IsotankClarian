@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Laudo de Inspeção Visual - {{numero_identificacao}}</title>
+<style>
+  /* ─────────────────────── RESET & BASE ─────────────────────── */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #111; }
+  p { margin: 0; }
+  table { border-collapse: collapse; width: 100%; }
+  img { display: block; max-width: 100%; }
+
+  /* ─────────────────────── PÁGINA / PRINT ─────────────────────── */
+  @page {
+    size: A4;
+    margin: 18mm 15mm 22mm 15mm;
+  }
+  @page :first {
+    margin: 0;          /* capa sem margens — barra azul cola na borda */
+  }
+
+  /* Marca d'água CEINSPEC (fixa em todas as páginas exceto capa) */
+  body::before {
+    content: "CEINSPEC";
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 130pt;
+    font-weight: bold;
+    color: rgba(30, 58, 109, 0.05);
+    z-index: -1;
+    pointer-events: none;
+    letter-spacing: 8pt;
+  }
+
+  /* ─────────────────────── CAPA ─────────────────────── */
+  .capa {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    padding: 25mm 20mm 20mm 25mm;
+    page-break-after: always;
+  }
+  .capa-barra {
+    position: absolute;
+    top: 60mm;
+    left: 0;
+    width: 12mm;
+    height: 120mm;
+    background: #1E3A6D;
+  }
+  .capa-logo {
+    position: absolute;
+    top: 10mm;
+    left: 15mm;
+    width: 38mm;
+  }
+  .capa-titulo {
+    margin-top: 45mm;
+    text-align: center;
+    font-size: 22pt;
+    font-weight: bold;
+    color: #111;
+    letter-spacing: 0.5pt;
+  }
+  .capa-tabela {
+    margin-top: 55mm;
+    margin-left: 25mm;
+    width: 150mm;
+  }
+  .capa-tabela td {
+    padding: 4mm 2mm;
+    vertical-align: top;
+    font-size: 11pt;
+  }
+  .capa-tabela .label {
+    font-weight: bold;
+    width: 40mm;
+    white-space: nowrap;
+  }
+  .capa-tabela .sep {
+    width: 5mm;
+    text-align: center;
+  }
+
+  /* ─────────────────────── CABEÇALHO DAS DEMAIS PÁGINAS ─────────────────────── */
+  .page-header {
+    position: running(pageHeader);
+    display: flex;
+    align-items: center;
+    border-bottom: 1pt solid #555;
+    padding-bottom: 3mm;
+    margin-bottom: 5mm;
+  }
+  .page-header-logo { width: 28mm; }
+  .page-header-titulo {
+    flex: 1;
+    text-align: center;
+    font-size: 14pt;
+  }
+  .page-header-box {
+    background: #D9D9D9;
+    padding: 2mm 4mm;
+    font-size: 9pt;
+    text-align: center;
+    min-width: 28mm;
+  }
+  .page-header-box .label { font-weight: bold; font-size: 7pt; }
+  .page-header-box .valor { margin-top: 1mm; }
+
+  /* ─────────────────────── SEÇÕES ─────────────────────── */
+  .secao-titulo {
+    background: #1E3A6D;
+    color: #fff;
+    font-weight: bold;
+    font-size: 11pt;
+    padding: 2mm 4mm;
+    margin: 4mm 0 3mm 0;
+    letter-spacing: 0.3pt;
+  }
+
+  /* ─────────────────────── DADOS DA EMPRESA ─────────────────────── */
+  .empresa-info {
+    font-size: 10pt;
+    line-height: 1.5;
+    margin-bottom: 3mm;
+  }
+  .empresa-info b { font-weight: bold; }
+  .empresa-descricao {
+    text-align: justify;
+    font-size: 10pt;
+    line-height: 1.4;
+    margin-bottom: 2mm;
+  }
+
+  /* ─────────────────────── TABELA EXAMES ─────────────────────── */
+  .exames-tabela {
+    font-size: 10pt;
+    margin-bottom: 2mm;
+  }
+  .exames-tabela th, .exames-tabela td {
+    border: 0.75pt solid #555;
+    padding: 1.5mm 2mm;
+  }
+  .exames-tabela th {
+    background: #fff;
+    font-weight: bold;
+    text-align: center;
+    width: 12mm;
+  }
+  .exames-tabela .descricao { text-align: left; width: auto; }
+  .exames-tabela .valor { text-align: center; width: 12mm; }
+  .exames-tabela .obs { text-align: left; min-width: 45mm; }
+
+  .legenda {
+    font-size: 9pt;
+    border: 0.75pt solid #555;
+    padding: 2mm 4mm;
+    margin: 2mm 0;
+    text-align: center;
+  }
+  .legenda b { font-weight: bold; }
+
+  /* ─────────────────────── TEXTO OBJETIVO ─────────────────────── */
+  .texto-justificado {
+    text-align: justify;
+    font-size: 10pt;
+    line-height: 1.5;
+    margin-bottom: 3mm;
+  }
+
+  /* ─────────────────────── TABELA DADOS TÉCNICOS ─────────────────────── */
+  .dados-tabela {
+    font-size: 10pt;
+  }
+  .dados-tabela td {
+    border: 0.75pt solid #555;
+    padding: 1mm 3mm;
+  }
+  .dados-tabela .rotulo {
+    font-weight: bold;
+    text-align: right;
+    width: 60%;
+  }
+  .dados-tabela .valor {
+    text-align: center;
+    width: 40%;
+  }
+  .dados-tabela .subsecao {
+    background: #1E3A6D;
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    padding: 2mm;
+  }
+
+  /* ─────────────────────── NORMAS ─────────────────────── */
+  .normas-lista {
+    font-size: 10pt;
+    line-height: 1.6;
+    margin: 3mm 0;
+  }
+
+  /* ─────────────────────── FOTOS (GRID 2x2) ─────────────────────── */
+  .fotos-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6mm 8mm;
+    margin-top: 4mm;
+  }
+  .foto-cell {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    text-align: center;
+  }
+  .foto-img {
+    width: 100%;
+    height: 60mm;
+    object-fit: contain;
+    background: #f7f7f7;
+    border: 0.5pt solid #ddd;
+  }
+  .foto-placeholder {
+    width: 100%;
+    height: 60mm;
+    background: #f0f0f0;
+    border: 0.5pt dashed #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 10pt;
+  }
+  .foto-label {
+    margin-top: 2mm;
+    font-size: 10pt;
+    font-weight: bold;
+    letter-spacing: 0.3pt;
+  }
+
+  /* ─────────────────────── CONCLUSÃO / RECOMENDAÇÃO ─────────────────────── */
+  .texto-bloco {
+    text-align: justify;
+    font-size: 10pt;
+    line-height: 1.5;
+    margin: 3mm 0;
+  }
+  .texto-bloco b { font-weight: bold; }
+
+  /* ─────────────────────── ASSINATURAS ─────────────────────── */
+  .assinaturas-wrapper {
+    margin-top: 15mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .assinaturas-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10mm;
+  }
+  .assinatura-cell { text-align: center; }
+  .assinatura-img {
+    height: 20mm;
+    max-width: 60mm;
+    margin: 0 auto 2mm;
+    object-fit: contain;
+  }
+  .assinatura-linha {
+    border-top: 0.75pt solid #111;
+    margin: 0 15mm 2mm 15mm;
+  }
+  .assinatura-nome {
+    font-weight: bold;
+    font-size: 10pt;
+  }
+  .assinatura-cargo {
+    font-size: 10pt;
+  }
+  .assinatura-crea { font-weight: bold; }
+  .cidade-data {
+    text-align: center;
+    margin-top: 8mm;
+    font-size: 10pt;
+  }
+
+  /* ─────────────────────── QR CODE VALIDAÇÃO ─────────────────────── */
+  .qr-validacao {
+    position: absolute;
+    right: 20mm;
+    bottom: 30mm;
+    text-align: center;
+    font-size: 8pt;
+    color: #555;
+    width: 28mm;
+  }
+  .qr-validacao img {
+    width: 25mm;
+    height: 25mm;
+    margin: 0 auto 1mm;
+  }
+
+  /* Quebras de página */
+  .page-break { page-break-before: always; break-before: page; }
+  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ PÁGINA 1 — CAPA ═══════════════════════════ -->
+<div class="capa">
+  <img class="capa-logo" src="data:image/png;base64,{{logo_base64}}" alt="CEINSPEC" />
+  <div class="capa-barra"></div>
+
+  <h1 class="capa-titulo">RELATÓRIO DE INSPEÇÃO VISUAL</h1>
+
+  <table class="capa-tabela">
+    <tr>
+      <td class="label">IDENTIFICAÇÃO</td>
+      <td class="sep">:</td>
+      <td>{{numero_identificacao}}</td>
+    </tr>
+    <tr>
+      <td class="label">CLIENTE</td>
+      <td class="sep">:</td>
+      <td>{{cliente}}</td>
+    </tr>
+    <tr>
+      <td class="label">ENDEREÇO</td>
+      <td class="sep">:</td>
+      <td>{{endereco}}</td>
+    </tr>
+    <tr>
+      <td class="label">EQUIPAMENTO</td>
+      <td class="sep">:</td>
+      <td>{{tipo_equipamento}}</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════ PÁGINA 2 ═══════════════════════════ -->
+<div class="secao-titulo">DADOS DA EMPRESA CONTRATADA</div>
+<div class="empresa-info">
+  <b>Empresa:</b> Ceinspec Inspeções Veiculares e Industriais Ltda<br>
+  <b>Endereço:</b> Rua Claudino Domingues Graça, nº 831, Zona Industrial – Cubatão / SP – CEP 11570-100<br>
+  <b>CNPJ:</b> 48.758.755/0004-29<br>
+  <b>OIA/PP nº:</b> 1064 – TIPO C<br>
+  <b>CREA-SP nº:</b> 2430958
+</div>
+<p class="empresa-descricao">
+  A Ceinspec Inspeções Veiculares e Industriais Ltda é uma empresa devidamente acreditada pelo
+  Instituto Nacional de Metrologia, Qualidade e Tecnologia (INMETRO) como Organismo de Inspeção
+  Acreditado / Pessoa Jurídica Prestadora (OIA/PP), na modalidade Tipo C, para a execução de
+  atividades de inspeção técnica industrial, atendendo integralmente aos requisitos normativos
+  vigentes.
+</p>
+
+<div class="secao-titulo">EXAMES E ENSAIOS REALIZADOS</div>
+<table class="exames-tabela">
+  <tr>
+    <th></th>
+    <th>A</th>
+    <th>R</th>
+    <th>NA</th>
+    <th class="obs">OBS</th>
+  </tr>
+  <tr>
+    <td class="descricao">Exame Visual Externo</td>
+    <td class="valor">{{#if exame_visual_externo_A}}A{{/if}}</td>
+    <td class="valor">{{#if exame_visual_externo_R}}R{{/if}}</td>
+    <td class="valor">{{#if exame_visual_externo_NA}}NA{{/if}}</td>
+    <td class="obs"></td>
+  </tr>
+  <tr>
+    <td class="descricao">Exame Visual Interno</td>
+    <td class="valor">{{#if exame_visual_interno_A}}A{{/if}}</td>
+    <td class="valor">{{#if exame_visual_interno_R}}R{{/if}}</td>
+    <td class="valor">{{#if exame_visual_interno_NA}}NA{{/if}}</td>
+    <td class="obs"></td>
+  </tr>
+  <tr>
+    <td class="descricao">Estanqueidade</td>
+    <td class="valor">{{#if estanqueidade_A}}A{{/if}}</td>
+    <td class="valor">{{#if estanqueidade_R}}R{{/if}}</td>
+    <td class="valor">{{#if estanqueidade_NA}}NA{{/if}}</td>
+    <td class="obs"></td>
+  </tr>
+  <tr>
+    <td class="descricao">Sistema de Descarga</td>
+    <td class="valor">{{#if sistema_descarga_exame_A}}A{{/if}}</td>
+    <td class="valor">{{#if sistema_descarga_exame_R}}R{{/if}}</td>
+    <td class="valor">{{#if sistema_descarga_exame_NA}}NA{{/if}}</td>
+    <td class="obs"></td>
+  </tr>
+  <tr>
+    <td class="descricao">Válvulas e Conexões</td>
+    <td class="valor">{{#if valvulas_conexoes_exame_A}}A{{/if}}</td>
+    <td class="valor">{{#if valvulas_conexoes_exame_R}}R{{/if}}</td>
+    <td class="valor">{{#if valvulas_conexoes_exame_NA}}NA{{/if}}</td>
+    <td class="obs"></td>
+  </tr>
+</table>
+<div class="legenda">
+  <b>Legenda:</b> &nbsp;&nbsp; <b>A</b> – Aprovado &nbsp;&nbsp;&nbsp;
+  <b>R</b> – Reprovado &nbsp;&nbsp;&nbsp; <b>NA</b> – Não Aplicável
+</div>
+
+<div class="secao-titulo">1 - OBJETIVO</div>
+<p class="texto-justificado">
+  O objetivo da inspeção visual de um isotank (ou tanque isotérmico) é garantir que o
+  equipamento esteja em condições seguras, legais e operacionais para o transporte e
+  armazenamento de produtos — especialmente produtos químicos perigosos, gases liquefeitos
+  ou alimentos líquidos.
+</p>
+
+<div class="secao-titulo">2 – DADOS TÉCNICOS</div>
+<table class="dados-tabela avoid-break">
+  <tr><td class="rotulo">Data da Inspeção</td><td class="valor">{{data_inspecao}}</td></tr>
+  <tr><td class="rotulo">Tipo de Equipamento</td><td class="valor">{{tipo_equipamento}}</td></tr>
+  <tr><td class="rotulo">N° de Identificação</td><td class="valor">{{numero_identificacao}}</td></tr>
+  <tr><td class="rotulo">Fabricante</td><td class="valor">{{fabricante}}</td></tr>
+  <tr><td class="rotulo">N° de Série</td><td class="valor">{{numero_serie}}</td></tr>
+  <tr><td class="rotulo">País de Fabricação</td><td class="valor">{{pais_fabricacao}}</td></tr>
+  <tr><td class="rotulo">Tamanho</td><td class="valor">{{tamanho}}</td></tr>
+  <tr><td class="rotulo">Capacidade Líquida Nominal</td><td class="valor">{{capacidade_liquida}}</td></tr>
+  <tr><td class="rotulo">Ano de Fabricação</td><td class="valor">{{ano_fabricacao}}</td></tr>
+  <tr><td class="rotulo">Identificação</td><td class="valor">{{identificacao}}</td></tr>
+  <tr><td class="rotulo">Tara</td><td class="valor">{{tara}}</td></tr>
+  <tr><td class="rotulo">Peso Carga Líquida</td><td class="valor">{{peso_carga_liquida}}</td></tr>
+  <tr><td class="rotulo">Peso Bruto Total</td><td class="valor">{{peso_bruto_total}}</td></tr>
+  <tr><td class="rotulo">Peso de empilhamento Permitido</td><td class="valor">{{peso_empilhamento}}</td></tr>
+  <tr><td class="rotulo">Norma de Fabricação</td><td class="valor">{{norma_fabricacao}}</td></tr>
+  <tr><td class="rotulo">Pressão do Projeto</td><td class="valor">{{pressao_projeto}}</td></tr>
+  <tr><td class="rotulo">Pressão do Ensaio Hidrostático</td><td class="valor">{{pressao_ensaio}}</td></tr>
+  <tr><td class="rotulo">Pressão Máxima de Trabalho Admissível</td><td class="valor">{{pressao_maxima}}</td></tr>
+  <tr><td class="rotulo">Temperatura do Projeto</td><td class="valor">{{temperatura_projeto}}</td></tr>
+  <tr><td class="rotulo">Material da Calota</td><td class="valor">{{material_calota}}</td></tr>
+  <tr><td class="rotulo">Material do Costado</td><td class="valor">{{material_costado}}</td></tr>
+  <tr><td class="rotulo">Espessura das Calotas e Costado</td><td class="valor">{{espessura}}</td></tr>
+  <tr><td class="rotulo">Conexões de Flange</td><td class="valor">{{conexoes_flange}}</td></tr>
+  <tr><td class="rotulo">Chapa de identificação de Fabricante</td><td class="valor">{{chapa_identificacao}}</td></tr>
+  <tr><td class="rotulo">Certificado de Calibração de Válvulas de Segurança</td><td class="valor">{{cert_calibracao}}</td></tr>
+  <tr><td class="rotulo">Certificado de Descontaminação</td><td class="valor">{{cert_descontaminacao}}</td></tr>
+
+  <tr><td colspan="2" class="subsecao">ESTRUTURA EXTERNA</td></tr>
+  <tr><td class="rotulo">Estrutura Externa</td><td class="valor">{{estrutura_externa}}</td></tr>
+  <tr><td class="rotulo">Corpo do Tanque</td><td class="valor">{{corpo_tanque}}</td></tr>
+  <tr><td class="rotulo">Passadiços</td><td class="valor">{{passadicos}}</td></tr>
+  <tr><td class="rotulo">Revestimento</td><td class="valor">{{revestimento}}</td></tr>
+  <tr><td class="rotulo">Isolamento Térmico</td><td class="valor">{{isolamento_termico}}</td></tr>
+  <tr><td class="rotulo">Escada</td><td class="valor">{{escada}}</td></tr>
+  <tr><td class="rotulo">Dispositivos de Canto de Chassi (Porta-Container)</td><td class="valor">{{dispositivos_canto}}</td></tr>
+  <tr><td class="rotulo">Ponto de Aterramento</td><td class="valor">{{ponto_aterramento}}</td></tr>
+  <tr><td class="rotulo">Fixações (parafusos, porcas etc.)</td><td class="valor">{{fixacoes}}</td></tr>
+  <tr><td class="rotulo">Berços de Fixação do Container</td><td class="valor">{{bercos_fixacao}}</td></tr>
+  <tr><td class="rotulo">Mossas, Escavações, Cortes, Trincas e Corrosão</td><td class="valor">{{mossas_escavacoes}}</td></tr>
+  <tr><td class="rotulo">Porosidade dos Cordões e Solda</td><td class="valor">{{porosidade}}</td></tr>
+</table>
+
+<div class="secao-titulo" style="margin-top: 4mm;">COMPONENTES E ACESSÓRIOS</div>
+<table class="dados-tabela avoid-break">
+  <tr><td class="rotulo">Bocal de Descarga</td><td class="valor">{{bocal_descarga}}</td></tr>
+  <tr><td class="rotulo">Boca de Visita</td><td class="valor">{{boca_visita}}</td></tr>
+  <tr><td class="rotulo">Válvula de Alívio</td><td class="valor">{{valvula_alivio}}</td></tr>
+  <tr><td class="rotulo">Linha de Ar</td><td class="valor">{{linha_ar}}</td></tr>
+  <tr><td class="rotulo">Linha de Recuperação de Vapor</td><td class="valor">{{linha_recuperacao}}</td></tr>
+  <tr><td class="rotulo">Sistema de Acionamento Remoto</td><td class="valor">{{acionamento_remoto}}</td></tr>
+  <tr><td class="rotulo">Tomada de Saída de Vapor</td><td class="valor">{{tomada_saida_vapor}}</td></tr>
+  <tr><td class="rotulo">Sistema de Carga e Descarga</td><td class="valor">{{sistema_carga_descarga}}</td></tr>
+  <tr><td class="rotulo">Dispositivo de Medição de Volume</td><td class="valor">{{dispositivo_medicao}}</td></tr>
+  <tr><td class="rotulo">Válvula de Fundo</td><td class="valor">{{valvula_fundo}}</td></tr>
+  <tr><td class="rotulo">Tomada de Entrada de Vapor</td><td class="valor">{{tomada_entrada_vapor}}</td></tr>
+  <tr><td class="rotulo">Termômetro</td><td class="valor">{{termometro_comp}}</td></tr>
+  <tr><td class="rotulo">Manômetro</td><td class="valor">{{manometro}}</td></tr>
+  <tr><td class="rotulo">Tubulações</td><td class="valor">{{tubulacoes}}</td></tr>
+  <tr><td class="rotulo">Estrutura Externa Visual</td><td class="valor">{{estrutura_visual}}</td></tr>
+</table>
+
+<div class="secao-titulo">3 – NORMAS DE REFERÊNCIA</div>
+<div class="normas-lista">
+  ITCO ACC MANUAL (2017)<br>
+  RESOLUÇÃO Nº 5.998, DE 3 DE NOVEMBRO DE 2022
+</div>
+
+<div class="secao-titulo">4 – REGISTRO FOTOGRÁFICO</div>
+<div class="fotos-grid">
+  {{#each fotos}}
+  <div class="foto-cell">
+    {{#if dataUrl}}
+      <img class="foto-img" src="{{dataUrl}}" alt="{{label}}" />
+    {{else}}
+      <div class="foto-placeholder">Foto não disponível</div>
+    {{/if}}
+    <div class="foto-label">FOTO {{labelUpper}}</div>
+  </div>
+  {{/each}}
+</div>
+
+<div class="secao-titulo">5 - CONCLUSÃO</div>
+<p class="texto-bloco">
+  A inspeção visual externa realizada no isotank indica que o equipamento se encontra em
+  condições adequadas para transporte. Ressalta-se, contudo, que este laudo tem caráter
+  complementar e não substitui os certificados obrigatórios de
+  <b>CIV (Certificado de Inspeção Veicular)</b> e
+  <b>CIPP (Certificado de Inspeção Periódica de Produto).</b>
+</p>
+
+<div class="secao-titulo">6 - RECOMENDAÇÃO</div>
+<p class="texto-bloco">
+  A presente inspeção possui caráter exclusivamente visual, destinada a avaliação preliminar
+  das condições aparentes do equipamento. Este laudo não substitui as inspeções compulsórias
+  previstas pelas normas e regulamentações aplicáveis, tais como a obrigatoriedade de CIV e
+  CIPP, bem como ensaios estruturais, testes funcionais e verificações metrológicas.
+</p>
+<p class="texto-bloco">
+  Recomenda-se que o equipamento seja submetido às inspeções regulamentares junto a Organismo
+  de Inspeção Acreditado pelo INMETRO ou porte o certificado de Inspeção internacional,
+  garantindo o atendimento integral às exigências legais e normativas vigentes, conforme
+  Resolução ANTT Nº 5.998/2022.
+</p>
+
+<!-- ═══════════════════════════ ASSINATURAS ═══════════════════════════ -->
+<div class="assinaturas-wrapper">
+  <div class="assinaturas-grid">
+    <div class="assinatura-cell">
+      {{#if assinatura_inspetor}}
+        <img class="assinatura-img" src="{{assinatura_inspetor}}" alt="Assinatura Inspetor" />
+      {{else}}
+        <div style="height: 20mm;"></div>
+      {{/if}}
+      <div class="assinatura-linha"></div>
+      <div class="assinatura-cargo">Responsável pela Inspeção</div>
+      <div class="assinatura-nome">{{encarregado_nome}}</div>
+      <div class="assinatura-cargo">Encarregado Operacional</div>
+    </div>
+
+    <div class="assinatura-cell">
+      {{#if assinatura_engenheiro}}
+        <img class="assinatura-img" src="{{assinatura_engenheiro}}" alt="Assinatura Engenheiro" />
+      {{else}}
+        <div style="height: 20mm;"></div>
+      {{/if}}
+      <div class="assinatura-linha"></div>
+      <div class="assinatura-cargo">Engenheiro Responsável</div>
+      <div class="assinatura-nome">{{engenheiro_nome}}</div>
+      <div class="assinatura-cargo assinatura-crea">{{crea_info}}</div>
+    </div>
+  </div>
+
+  <div class="cidade-data">{{cidade_data}}</div>
+</div>
+
+<!-- ═══════════════════════════ QR CODE DE VALIDAÇÃO ═══════════════════════════ -->
+{{#if qr_code}}
+<div style="text-align: center; margin-top: 10mm; font-size: 9pt; color: #555;">
+  <img src="{{qr_code}}" alt="QR Validação" style="width: 25mm; height: 25mm; margin: 0 auto;" />
+  <div style="margin-top: 1mm;">Escaneie para validar este laudo</div>
+  <div style="font-family: monospace; font-size: 8pt;">ID: {{laudo_id_curto}}</div>
+</div>
+{{/if}}
+
+</body>
+</html>

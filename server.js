@@ -25,6 +25,8 @@ const clientesRoutes = require('./src/routes/clientes');
 const authRoutes = require('./src/routes/auth');
 const configuracoesRoutes = require('./src/routes/configuracoes');
 const documentosRoutes = require('./src/routes/documentos');
+const laudosPdfRoutes = require('./src/routes/laudos-pdf');
+const laudosValidarRoutes = require('./src/routes/laudos-validar');
 const { getConfig } = require('./src/lib/config');
 const { checkVencimentos } = require('./src/services/alertaVencimento');
 
@@ -700,7 +702,6 @@ Este é um e-mail automático de teste — nenhuma ação é necessária.`,
   }
 });
 
-app.use('/laudos', laudosRoutes);
 app.use('/admin', adminRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/equipamentos', equipamentosRoutes);
@@ -708,6 +709,9 @@ app.use('/clientes', clientesRoutes);
 app.use('/auth', authRoutes);
 app.use('/configuracoes', configuracoesRoutes);
 app.use('/documentos', documentosRoutes);
+app.use('/laudos', laudosValidarRoutes); // público: GET /:id/validar (QR)
+app.use('/laudos', laudosPdfRoutes); // autenticado: POST /:id/pdf
+app.use('/laudos', laudosRoutes);
 
 function buildTemplateData(formData, cfg, dataPt, encarregadoNome) {
   const enc = encarregadoNome || cfg.encarregado;
