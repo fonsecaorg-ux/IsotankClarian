@@ -61,6 +61,27 @@ O script `prepare-template` lê o arquivo `LAUDO ESTRUTURAL_ISOTANK_SUTU258026-0
 
 ## Rodando
 
+### Banco local (recomendado para testar no PC)
+
+O Prisma está configurado para **PostgreSQL** (igual ao Render). Para não depender da cloud:
+
+1. Instale o [Docker Desktop](https://www.docker.com/products/docker-desktop/) (se ainda não tiver).
+2. Na pasta do projeto:
+   ```bash
+   docker compose up -d
+   ```
+3. Copie `env.example` para `.env` e ajuste se precisar (a URL já aponta para o Postgres do Docker).
+4. Aplique migrações e suba o servidor:
+   ```bash
+   npx prisma migrate deploy
+   npx prisma generate
+   npm run dev
+   ```
+
+Para parar o Postgres: `docker compose down` (os dados ficam no volume até `docker compose down -v`).
+
+### Servidor
+
 ```bash
 # Desenvolvimento (reinicia automaticamente ao salvar)
 npm run dev

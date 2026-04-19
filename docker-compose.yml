@@ -1,0 +1,24 @@
+# Postgres só para desenvolvimento local (mesmo motor que no Render).
+# Uso: docker compose up -d
+# URL no .env: ver env.example
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: isotank
+      POSTGRES_PASSWORD: isotank_local
+      POSTGRES_DB: isotank
+    ports:
+      - "5432:5432"
+    volumes:
+      - isotank_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U isotank -d isotank"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  isotank_pg_data:
