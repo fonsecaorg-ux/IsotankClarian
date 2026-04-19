@@ -103,11 +103,7 @@ const PHOTO_LABEL_MAP = {
   foto_valvula_descarga: 'Válvula de Descarga',
   foto_placa_identificacao: 'Placa de Identificação',
 };
-// O template referencia image11.png / image12.png em document.xml (rId22 / rId23).
-const SIGNATURE_MEDIA_PATHS = {
-  inspetor: 'word/media/image11.png',
-  engenheiro: 'word/media/image12.png',
-};
+// Assinaturas: rId22 → image11, rId23 → image12 (extensão .png/.jpeg conforme buffer — ver injectSignature).
 const ENGENHEIRO_FALLBACK_EMAIL = String(process.env.ENGENHEIRO_EMAIL || 'diego.fonseca@grupocesari.com.br').trim().toLowerCase();
 
 const STORAGE_MODE = String(process.env.STORAGE_MODE || 'database').trim().toLowerCase() === 'disk'
@@ -320,6 +316,97 @@ function stripDocumentXmlForRemovedRels(docXml, removedRelationshipIds) {
     }
   }
   return xml;
+}
+
+/**
+ * Detecta PNG ou JPEG pelos magic bytes (assinaturas gravadas como buffer cru no DB).
+ * @param {Buffer} buf
+ * @returns {{ ext: string, contentType: string } | null}
+ */
+function detectImageFormat(buf) {
+  if (!buf || buf.length < 4) return null;
+  const b0 = buf[0];
+  const b1 = buf[1];
+  const b2 = buf[2];
+  const b3 = buf[3];
+  if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4e && b3 === 0x47) {
+    return { ext: 'png', contentType: 'image/png' };
+  }
+  if (b0 === 0xff && b1 === 0xd8 && b2 === 0xff) {
+    return { ext: 'jpeg', contentType: 'image/jpeg' };
+  }
+  return null;
+}
+
+/**
+ * Injeta assinatura no pacote docx com extensão e rel alinhadas ao formato real.
+ * Falhas: apenas log + false (não interrompe a geração).
+ * @param {*} zip instância PizZip
+ * @param {'inspetor' | 'engenheiro'} role
+ * @param {Buffer | Uint8Array | null | undefined} bufRaw
+ * @returns {boolean}
+ */
+function injectSignature(zip, role, bufRaw) {
+  try {
+    const buf = Buffer.isBuffer(bufRaw) ? bufRaw : bufRaw ? Buffer.from(bufRaw) : null;
+    const fmt = detectImageFormat(buf);
+    if (!fmt) {
+      console.warn('[assinatura] buffer inválido ou formato não suportado (use PNG/JPEG).');
+      return false;
+    }
+
+    const rId = role === 'inspetor' ? 'rId22' : 'rId23';
+    const baseName = role === 'inspetor' ? 'image11' : 'image12';
+    const oldPath = `word/media/${baseName}.png`;
+    const newPath = `word/media/${baseName}.${fmt.ext}`;
+
+    if (newPath !== oldPath && zip.files[oldPath]) {
+      try {
+        zip.remove(oldPath);
+      } catch (e) {
+        console.warn('[assinatura] não foi possível remover mídia antiga:', oldPath, e.message);
+      }
+    }
+    zip.file(newPath, buf);
+
+    const relsPath = 'word/_rels/document.xml.rels';
+    const relsFile = zip.file(relsPath);
+    if (!relsFile) {
+      console.warn('[assinatura] ausente:', relsPath);
+      return false;
+    }
+    let rels = relsFile.asText();
+    const re = new RegExp(
+      `(<Relationship\\b[^>]*\\bId="${rId}"[^>]*\\bTarget=")[^"]+(")`,
+      'i'
+    );
+    const relsNext = rels.replace(re, `$1media/${baseName}.${fmt.ext}$2`);
+    if (relsNext === rels) {
+      console.warn(`[assinatura] relação ${rId} não encontrada ou Target não atualizado.`);
+      return false;
+    }
+    rels = relsNext;
+    zip.file(relsPath, rels);
+
+    if (fmt.ext === 'jpeg') {
+      const ctPath = '[Content_Types].xml';
+      const ctFile = zip.file(ctPath);
+      if (ctFile) {
+        let ct = ctFile.asText();
+        if (!/Extension="jpeg"/i.test(ct) && !/Extension="jpg"/i.test(ct)) {
+          ct = ct.replace(
+            '</Types>',
+            '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>'
+          );
+          zip.file(ctPath, ct);
+        }
+      }
+    }
+    return true;
+  } catch (err) {
+    console.warn('[assinatura] injectSignature falhou (não crítico):', err.message);
+    return false;
+  }
 }
 
 function sanitizeZipForWordOnline(zip) {
@@ -911,7 +998,7 @@ app.post(
         // Assinatura do inspetor que criou o laudo.
         const assinaturaInspetor = laudo?.createdBy?.assinatura || null;
         if (assinaturaInspetor) {
-          zip.file(SIGNATURE_MEDIA_PATHS.inspetor, assinaturaInspetor);
+          injectSignature(zip, 'inspetor', assinaturaInspetor);
         }
 
         // Assinatura do engenheiro via cfg.engenheiro_user_id ou e-mail fallback.
@@ -938,7 +1025,7 @@ app.post(
         }
 
         if (engenheiroAssinatura) {
-          zip.file(SIGNATURE_MEDIA_PATHS.engenheiro, engenheiroAssinatura);
+          injectSignature(zip, 'engenheiro', engenheiroAssinatura);
         }
       } catch (errAssinaturas) {
         console.error('Erro ao injetar assinaturas no laudo (não crítico):', errAssinaturas);
