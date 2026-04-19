@@ -1232,45 +1232,53 @@ function resetFormAfterSuccessfulLaudo() {
   updateSectionUI();
 }
 
+/** Só uma compressão por vez (evita picos paralelos em vários slots). */
+let compressionQueue = Promise.resolve();
+
 async function compressImageFile(file) {
+  let bitmap;
   try {
-    const imageBitmap = await createImageBitmap(file);
-    const maxSide = 400; // Reduzido de 640 para menor tamanho
-    let targetW = imageBitmap.width;
-    let targetH = imageBitmap.height;
-    if (Math.max(targetW, targetH) > maxSide) {
-      const scale = maxSide / Math.max(targetW, targetH);
-      targetW = Math.round(targetW * scale);
-      targetH = Math.round(targetH * scale);
-    }
+    bitmap = await createImageBitmap(file, {
+      resizeWidth: 300,
+      resizeHeight: 300,
+      resizeQuality: 'medium',
+    });
+    const targetW = bitmap.width;
+    const targetH = bitmap.height;
 
     const canvas = document.createElement('canvas');
     canvas.width = targetW;
     canvas.height = targetH;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(imageBitmap, 0, 0, targetW, targetH);
+    ctx.drawImage(bitmap, 0, 0, targetW, targetH);
+    bitmap.close();
+    bitmap = null;
 
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.3)); // Qualidade reduzida de 0.5 para 0.3
-    // Limpar canvas para liberar memória
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.25)
+    );
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     if (!blob || blob.size === 0) {
       console.warn('[FOTO-COMPRESS] Blob vazio, usando original');
       return file;
     }
-    
+
     return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
   } catch (err) {
     console.error('[FOTO-COMPRESS] Falha na compressão, usando original:', err.message);
-    // Fallback: retornar arquivo original se compressão falhar
     return file;
+  } finally {
+    if (bitmap) bitmap.close();
   }
 }
 
 async function handlePhotoInputChange(input, slot, preview) {
   if (!input.files || !input.files[0]) return;
   const original = input.files[0];
-  const compressed = await compressImageFile(original);
+  const compressed = await (compressionQueue = compressionQueue.then(() =>
+    compressImageFile(original)
+  ));
   
   // 🔍 LOG: Verificar compressão
   console.log(`[FOTO-CLIENT] ${input.name}: ${original.size} bytes → ${compressed.size} bytes (compressão: ${((1 - compressed.size/original.size) * 100).toFixed(1)}%)`);
