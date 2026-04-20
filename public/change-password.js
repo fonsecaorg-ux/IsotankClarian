@@ -280,151 +280,167 @@
     openBtn.textContent = 'Alterar senha';
     logoutBtn.parentElement.insertBefore(openBtn, logoutBtn);
 
-    const modalBg = createModal();
-    const cpForm = modalBg.querySelector('#cpForm');
-    const cpClose = modalBg.querySelector('#cpClose');
-    const cpCancel = modalBg.querySelector('#cpCancel');
-    const cpSave = modalBg.querySelector('#cpSave');
-    const cpSenhaAtual = modalBg.querySelector('#cpSenhaAtual');
-    const cpNovaSenha = modalBg.querySelector('#cpNovaSenha');
-    const cpConfirmarSenha = modalBg.querySelector('#cpConfirmarSenha');
-    const cpErrAtual = modalBg.querySelector('#cpErrAtual');
-    const cpErrNova = modalBg.querySelector('#cpErrNova');
-    const cpErrConfirmar = modalBg.querySelector('#cpErrConfirmar');
-    const cpErrAssinatura = modalBg.querySelector('#cpErrAssinatura');
-    const cpGlobalError = modalBg.querySelector('#cpGlobalError');
-    const cpStrengthFill = modalBg.querySelector('#cpStrengthFill');
-    const cpStrengthLabel = modalBg.querySelector('#cpStrengthLabel');
-    const cpAssinaturaFile = modalBg.querySelector('#cpAssinaturaFile');
-    const cpAssinaturaPreview = modalBg.querySelector('#cpAssinaturaPreview');
-    const cpSaveAssinatura = modalBg.querySelector('#cpSaveAssinatura');
+    /** Modal com campos password: só entra no DOM no 1º clique (evita autofill do Chrome em outras telas). */
+    let modalBg = null;
+    let modalWired = false;
     let assinaturaPreviewUrl = null;
+    let openModalRef = null;
 
-    function clearErrors() {
-      cpErrAtual.textContent = '';
-      cpErrNova.textContent = '';
-      cpErrConfirmar.textContent = '';
-      cpErrAssinatura.textContent = '';
-      cpGlobalError.textContent = '';
-    }
+    function ensureModalMounted() {
+      if (modalWired) return;
 
-    function closeModal() {
-      modalBg.classList.remove('active');
-      cpForm.reset();
-      clearErrors();
-      if (assinaturaPreviewUrl) {
-        URL.revokeObjectURL(assinaturaPreviewUrl);
-        assinaturaPreviewUrl = null;
+      modalBg = createModal();
+      document.body.appendChild(modalBg);
+
+      const cpForm = modalBg.querySelector('#cpForm');
+      const cpClose = modalBg.querySelector('#cpClose');
+      const cpCancel = modalBg.querySelector('#cpCancel');
+      const cpSave = modalBg.querySelector('#cpSave');
+      const cpSenhaAtual = modalBg.querySelector('#cpSenhaAtual');
+      const cpNovaSenha = modalBg.querySelector('#cpNovaSenha');
+      const cpConfirmarSenha = modalBg.querySelector('#cpConfirmarSenha');
+      const cpErrAtual = modalBg.querySelector('#cpErrAtual');
+      const cpErrNova = modalBg.querySelector('#cpErrNova');
+      const cpErrConfirmar = modalBg.querySelector('#cpErrConfirmar');
+      const cpErrAssinatura = modalBg.querySelector('#cpErrAssinatura');
+      const cpGlobalError = modalBg.querySelector('#cpGlobalError');
+      const cpStrengthFill = modalBg.querySelector('#cpStrengthFill');
+      const cpStrengthLabel = modalBg.querySelector('#cpStrengthLabel');
+      const cpAssinaturaFile = modalBg.querySelector('#cpAssinaturaFile');
+      const cpAssinaturaPreview = modalBg.querySelector('#cpAssinaturaPreview');
+      const cpSaveAssinatura = modalBg.querySelector('#cpSaveAssinatura');
+
+      function clearErrors() {
+        cpErrAtual.textContent = '';
+        cpErrNova.textContent = '';
+        cpErrConfirmar.textContent = '';
+        cpErrAssinatura.textContent = '';
+        cpGlobalError.textContent = '';
       }
-      cpAssinaturaPreview.removeAttribute('src');
-      const meta = strengthMeta(0);
-      cpStrengthFill.style.width = meta.width;
-      cpStrengthFill.style.background = meta.color;
-      cpStrengthLabel.textContent = meta.label;
-    }
 
-    async function openModal() {
-      modalBg.classList.add('active');
-      cpSenhaAtual.focus();
-      if (assinaturaPreviewUrl) {
-        URL.revokeObjectURL(assinaturaPreviewUrl);
-        assinaturaPreviewUrl = null;
-      }
-      assinaturaPreviewUrl = await fetchAssinaturaPreviewUrl();
-      if (assinaturaPreviewUrl) {
-        cpAssinaturaPreview.src = assinaturaPreviewUrl;
-      } else {
+      function closeModal() {
+        modalBg.classList.remove('active');
+        cpForm.reset();
+        clearErrors();
+        if (assinaturaPreviewUrl) {
+          URL.revokeObjectURL(assinaturaPreviewUrl);
+          assinaturaPreviewUrl = null;
+        }
         cpAssinaturaPreview.removeAttribute('src');
+        const meta = strengthMeta(0);
+        cpStrengthFill.style.width = meta.width;
+        cpStrengthFill.style.background = meta.color;
+        cpStrengthLabel.textContent = meta.label;
       }
-    }
 
-    cpNovaSenha.addEventListener('input', () => {
-      const meta = strengthMeta(scorePassword(cpNovaSenha.value || ''));
-      cpStrengthFill.style.width = meta.width;
-      cpStrengthFill.style.background = meta.color;
-      cpStrengthLabel.textContent = meta.label;
-    });
+      async function openModal() {
+        modalBg.classList.add('active');
+        cpSenhaAtual.focus();
+        if (assinaturaPreviewUrl) {
+          URL.revokeObjectURL(assinaturaPreviewUrl);
+          assinaturaPreviewUrl = null;
+        }
+        assinaturaPreviewUrl = await fetchAssinaturaPreviewUrl();
+        if (assinaturaPreviewUrl) {
+          cpAssinaturaPreview.src = assinaturaPreviewUrl;
+        } else {
+          cpAssinaturaPreview.removeAttribute('src');
+        }
+      }
+
+      cpNovaSenha.addEventListener('input', () => {
+        const meta = strengthMeta(scorePassword(cpNovaSenha.value || ''));
+        cpStrengthFill.style.width = meta.width;
+        cpStrengthFill.style.background = meta.color;
+        cpStrengthLabel.textContent = meta.label;
+      });
+
+      openModalRef = openModal;
+      cpClose.addEventListener('click', closeModal);
+      cpCancel.addEventListener('click', closeModal);
+      modalBg.addEventListener('click', (ev) => {
+        if (ev.target === modalBg) closeModal();
+      });
+
+      cpForm.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        clearErrors();
+
+        const payload = {
+          senhaAtual: String(cpSenhaAtual.value || ''),
+          novaSenha: String(cpNovaSenha.value || ''),
+          confirmarSenha: String(cpConfirmarSenha.value || ''),
+        };
+
+        let hasError = false;
+        if (!payload.senhaAtual) { cpErrAtual.textContent = 'Informe a senha atual.'; hasError = true; }
+        if (!payload.novaSenha) { cpErrNova.textContent = 'Informe a nova senha.'; hasError = true; }
+        if (!payload.confirmarSenha) { cpErrConfirmar.textContent = 'Confirme a nova senha.'; hasError = true; }
+        if (payload.novaSenha && payload.novaSenha.length < 8) { cpErrNova.textContent = 'Mínimo de 8 caracteres.'; hasError = true; }
+        if (payload.novaSenha && !/[A-Z]/.test(payload.novaSenha)) { cpErrNova.textContent = 'Inclua pelo menos 1 letra maiúscula.'; hasError = true; }
+        if (payload.novaSenha && !/\d/.test(payload.novaSenha)) { cpErrNova.textContent = 'Inclua pelo menos 1 número.'; hasError = true; }
+        if (payload.novaSenha && payload.confirmarSenha && payload.novaSenha !== payload.confirmarSenha) {
+          cpErrConfirmar.textContent = 'As senhas não conferem.';
+          hasError = true;
+        }
+        if (hasError) return;
+
+        cpSave.disabled = true;
+        try {
+          await apiPatchPassword(payload);
+          closeModal();
+          showToast('Senha alterada com sucesso', 'success');
+        } catch (err) {
+          cpGlobalError.textContent = err.message;
+        } finally {
+          cpSave.disabled = false;
+        }
+      });
+
+      cpAssinaturaFile.addEventListener('change', () => {
+        cpErrAssinatura.textContent = '';
+        const file = cpAssinaturaFile.files && cpAssinaturaFile.files[0];
+        if (!file) return;
+        if (assinaturaPreviewUrl) {
+          URL.revokeObjectURL(assinaturaPreviewUrl);
+        }
+        assinaturaPreviewUrl = URL.createObjectURL(file);
+        cpAssinaturaPreview.src = assinaturaPreviewUrl;
+      });
+
+      cpSaveAssinatura.addEventListener('click', async () => {
+        cpErrAssinatura.textContent = '';
+        const file = cpAssinaturaFile.files && cpAssinaturaFile.files[0];
+        if (!file) {
+          cpErrAssinatura.textContent = 'Selecione um arquivo.';
+          return;
+        }
+        if (!['image/png', 'image/jpeg'].includes(file.type)) {
+          cpErrAssinatura.textContent = 'Formato inválido. Use PNG ou JPG.';
+          return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+          cpErrAssinatura.textContent = 'Arquivo excede 2MB.';
+          return;
+        }
+
+        cpSaveAssinatura.disabled = true;
+        try {
+          await uploadAssinatura(file);
+          showToast('Assinatura salva com sucesso', 'success');
+        } catch (err) {
+          cpErrAssinatura.textContent = err.message;
+        } finally {
+          cpSaveAssinatura.disabled = false;
+        }
+      });
+
+      modalWired = true;
+    }
 
     openBtn.addEventListener('click', () => {
-      openModal().catch(() => {});
-    });
-    cpClose.addEventListener('click', closeModal);
-    cpCancel.addEventListener('click', closeModal);
-    modalBg.addEventListener('click', (ev) => {
-      if (ev.target === modalBg) closeModal();
-    });
-
-    cpForm.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      clearErrors();
-
-      const payload = {
-        senhaAtual: String(cpSenhaAtual.value || ''),
-        novaSenha: String(cpNovaSenha.value || ''),
-        confirmarSenha: String(cpConfirmarSenha.value || ''),
-      };
-
-      let hasError = false;
-      if (!payload.senhaAtual) { cpErrAtual.textContent = 'Informe a senha atual.'; hasError = true; }
-      if (!payload.novaSenha) { cpErrNova.textContent = 'Informe a nova senha.'; hasError = true; }
-      if (!payload.confirmarSenha) { cpErrConfirmar.textContent = 'Confirme a nova senha.'; hasError = true; }
-      if (payload.novaSenha && payload.novaSenha.length < 8) { cpErrNova.textContent = 'Mínimo de 8 caracteres.'; hasError = true; }
-      if (payload.novaSenha && !/[A-Z]/.test(payload.novaSenha)) { cpErrNova.textContent = 'Inclua pelo menos 1 letra maiúscula.'; hasError = true; }
-      if (payload.novaSenha && !/\d/.test(payload.novaSenha)) { cpErrNova.textContent = 'Inclua pelo menos 1 número.'; hasError = true; }
-      if (payload.novaSenha && payload.confirmarSenha && payload.novaSenha !== payload.confirmarSenha) {
-        cpErrConfirmar.textContent = 'As senhas não conferem.';
-        hasError = true;
-      }
-      if (hasError) return;
-
-      cpSave.disabled = true;
-      try {
-        await apiPatchPassword(payload);
-        closeModal();
-        showToast('Senha alterada com sucesso', 'success');
-      } catch (err) {
-        cpGlobalError.textContent = err.message;
-      } finally {
-        cpSave.disabled = false;
-      }
-    });
-
-    cpAssinaturaFile.addEventListener('change', () => {
-      cpErrAssinatura.textContent = '';
-      const file = cpAssinaturaFile.files && cpAssinaturaFile.files[0];
-      if (!file) return;
-      if (assinaturaPreviewUrl) {
-        URL.revokeObjectURL(assinaturaPreviewUrl);
-      }
-      assinaturaPreviewUrl = URL.createObjectURL(file);
-      cpAssinaturaPreview.src = assinaturaPreviewUrl;
-    });
-
-    cpSaveAssinatura.addEventListener('click', async () => {
-      cpErrAssinatura.textContent = '';
-      const file = cpAssinaturaFile.files && cpAssinaturaFile.files[0];
-      if (!file) {
-        cpErrAssinatura.textContent = 'Selecione um arquivo.';
-        return;
-      }
-      if (!['image/png', 'image/jpeg'].includes(file.type)) {
-        cpErrAssinatura.textContent = 'Formato inválido. Use PNG ou JPG.';
-        return;
-      }
-      if (file.size > 2 * 1024 * 1024) {
-        cpErrAssinatura.textContent = 'Arquivo excede 2MB.';
-        return;
-      }
-
-      cpSaveAssinatura.disabled = true;
-      try {
-        await uploadAssinatura(file);
-        showToast('Assinatura salva com sucesso', 'success');
-      } catch (err) {
-        cpErrAssinatura.textContent = err.message;
-      } finally {
-        cpSaveAssinatura.disabled = false;
-      }
+      ensureModalMounted();
+      if (openModalRef) openModalRef().catch(() => {});
     });
   }
 
