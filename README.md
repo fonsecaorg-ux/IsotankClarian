@@ -5,6 +5,13 @@ O inspetor preenche o formulário no celular, tira as fotos e o sistema gera o *
 
 O fluxo **Word (`.docx`)** via `POST /generate` e Docxtemplater **permanece no código** como legado / reprocessamento, mas **não é mais o destino do botão “Gerar laudo”** no PWA — o download padrão é **`LAUDO_*.pdf`**.
 
+### Mudança de abordagem (resumo)
+
+| Antes (padrão) | Agora (padrão) |
+|---|---|
+| Laudo = pacote **OOXML** (`.docx`) gerado a partir de um **template Word** + **Docxtemplater** + pós-processamento em XML | Laudo = **PDF** gerado a partir de **HTML/CSS** (Handlebars) + **Puppeteer**, com os **mesmos dados** do formulário e fotos em `FotoLaudo` |
+| O utilizador final dependia do **Microsoft Word** (desktop, online, versão) para o resultado “fechar” bem | O resultado é **um ficheiro PDF** previsível em qualquer leitor; o layout é **nosso** e controlado no código |
+
 **Repositório:** [github.com/fonsecaorg-ux/IsotankClarian](https://github.com/fonsecaorg-ux/IsotankClarian)
 
 ### Primeiro push (Git na sua máquina)
@@ -30,9 +37,37 @@ No Windows PowerShell também pode usar: `.\scripts\first-push.ps1`
 |---|---|
 | Backend | Node.js + Express 5 |
 | Upload de fotos | Multer |
-| Geração do laudo | Docxtemplater + PizZip |
+| **Geração do laudo (padrão)** | HTML (Handlebars) + Puppeteer → **PDF**; hash SHA-256 (`Laudo.pdfHash`) + página pública `GET /laudos/:id/validar` (QR) |
+| Geração Word (legado) | Docxtemplater + PizZip — `POST /generate` (`.docx`) |
 | Frontend | HTML/CSS/JS vanilla — PWA mobile-first |
 | Dev server | Nodemon |
+
+---
+
+## Da geração Word ao PDF: desafios e decisão
+
+O projeto começou com o **modelo oficial em Word**: preencher `{tags}` no `template.docx`, injectar fotos no ZIP (`word/media/imageN.png`), assinaturas e sanitização para Word Online. Isso funcionou como **ponte** para digitalizar o processo, mas expôs limites estruturais.
+
+### Desafios encontrados com o `.docx`
+
+1. **Fragilidade do Open XML** — Um `.docx` é um ZIP de dezenas de ficheiros XML interdependentes (`document.xml`, `_rels`, `[Content_Types].xml`, media). Um erro de relação, um MIME errado (ex.: JPEG gravado com extensão `.png`) ou uma sanitização incompleta **corrompe** o ficheiro ou gera **caixa cinza** no Word em vez da imagem.
+
+2. **Diferenças entre ambientes Word** — O mesmo ficheiro pode **renderizar ou quebrar** de forma distinta entre Word desktop, Word Online / SharePoint e outros visualizadores; tabelas e quebras de linha (ex.: rótulos na capa) são especialmente sensíveis.
+
+3. **Manutenção cara** — Corrigir “IDENTIFICAÇÃ/O”, número de páginas a mais, ou alinhamento de fotos muitas vezes exige **regex e scripts sobre `document.xml`**, não só alterar texto. O custo cognitivo e o risco de regressão são altos.
+
+4. **Fluxo em duas voltas** — Fotos enviadas no primeiro `POST` mas ausentes no segundo (ex.: re-geração só com `laudoId`) exigiram **lógica extra** para ir buscar blobs a `FotoLaudo` e voltar a injectar no ZIP — sintoma de que o **Word não é um motor de layout** pensado para este tipo de pipeline.
+
+5. **Operação em campo** — O entregável mais universal para cliente e arquivo é muitas vezes **PDF**, não um `.docx` editável; insistir no Word como saída principal **não alinhava** com o uso real.
+
+### Porque o PDF é melhor **para este produto**
+
+- **Layout sob controlo** — HTML/CSS e um motor de impressão (Chromium) permitem **reproduzir o mesmo resultado** em dev, staging e produção, sem surpresas do Word.
+- **Menos superfície de bugs OOXML** — Deixamos de depender de `w:tcPr`, `w:noWrap`, rels de assinatura e combinações frágeis de extensão + `Content-Types` para cada imagem.
+- **Entrega e arquivo** — PDF é **só leitura**, portável e adequado a e-mail, drive e impressão; encaixa com **hash + QR** para o cliente validar autenticidade sem aceder ao sistema.
+- **Evolução do produto** — Um único **template Handlebars** (`src/templates/laudo.html`) pode ser **iterado com feedback** (engenharia / operação) sem abrir o pacote Office como “fonte da verdade”.
+
+O **`.docx` legado** mantém-se útil para compatibilidade, auditoria ou quem ainda precise de Word — mas **deixa de ser o eixo** da experiência “Gerar laudo” no PWA.
 
 ---
 
@@ -185,35 +220,50 @@ O formulário solicita 10 fotos, capturadas diretamente pela câmera traseira do
 9. Válvula Inferior de Descarga
 10. Placa de Identificação
 
-As fotos substituem as imagens de exemplo do laudo diretamente no arquivo `.docx`, sem dependência de módulos externos de imagem.
+No **fluxo PDF (padrão)**, as fotos vão no `multipart` para `POST /laudos/:id/pdf`, são gravadas em **`FotoLaudo`** e embutidas no HTML antes da geração do PDF.  
+No **fluxo Word (legado)**, as fotos substituem `word/media/image1-10.png` no ZIP do `.docx`.
 
 ---
 
-## Fluxo de geração
+## Fluxo de geração (padrão — PDF)
 
 ```
 [Inspetor preenche o form + tira fotos no celular]
               ↓
-    POST /generate  (multipart/form-data)
+    POST /laudos  (JSON — cria o laudo, devolve { id })
               ↓
-    Docxtemplater preenche os 61 campos de texto
+    POST /laudos/:id/pdf  (multipart — campos + fotos)
               ↓
-    Fotos substituem word/media/image1-10.png no zip
+    Fotos em FotoLaudo; HTML renderizado; Puppeteer gera o PDF
               ↓
-    Download automático do arquivo LAUDO_{ID}.docx
+    Hash SHA-256 em Laudo.pdfHash; status → AGUARDANDO_APROVACAO
+              ↓
+    Download: LAUDO_{identificação}.pdf
 ```
+
+### Fluxo legado — Word (`.docx`)
+
+Ainda disponível em **`POST /generate`** (multipart com `laudoId`): Docxtemplater + injeção de imagens no template. O PWA **não** usa este caminho no botão principal.
 
 ---
 
 ## Scripts utilitários
 
 ```bash
-# Verificar se todos os 61 tags estão no template e se o docxtemplater aceita
+# Template PDF (sem Chromium)
+node scripts/smoke-pdf.js
+
+# PDF real a partir do banco (Chromium + Prisma)
+node scripts/test-pdf.js
+
+# Template Word — tags e docxtemplater (legado)
 node scripts/verify-template.js
 
-# Teste end-to-end sem precisar abrir o browser (gera output/test_output.docx)
+# Teste HTTP do fluxo .docx (gera output/test_output.docx)
 node scripts/test-generate.js
 ```
+
+Documentação do spike: `docs/PDF_GENERATION.md`, `docs/APLICAR_V2.md`, `docs/APLICAR_V3.md`.
 
 ---
 
@@ -226,6 +276,8 @@ node scripts/test-generate.js
 ---
 
 ## Desafios na geração do `.docx` (e como foram resolvidos)
+
+> **Contexto:** este capítulo é o **registo técnico histórico** do pipeline Word (corrupção, XML, fotos). A **razão de produto** para o PDF como padrão está na secção **Da geração Word ao PDF: desafios e decisão** (mais acima no README).
 
 Durante a evolução do projeto apareceu um problema grave: **o ficheiro gerado não abria de forma consistente** — nem no Word Online / SharePoint, nem em alguns fluxos de upload (por exemplo Google Drive), e em casos extremos o Word deixava de reconhecer o pacote como documento válido.
 
