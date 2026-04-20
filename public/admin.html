@@ -395,15 +395,17 @@
 
       <section id="laudosSection" class="panel">
         <div class="filters">
-          <input type="text" id="searchInput" placeholder="Buscar por isotank ou cliente">
-          <select id="statusFilter">
+          <input type="search" id="searchInput" placeholder="Buscar por isotank ou cliente"
+            autocomplete="off" autocapitalize="off" spellcheck="false"
+            name="buscaLaudos_{{ignore}}">
+          <select id="statusFilter" autocomplete="off">
             <option value="">Todos os status</option>
             <option value="EM_INSPECAO">Em Inspeção</option>
             <option value="AGUARDANDO_APROVACAO">Aguardando Aprovação</option>
             <option value="CONCLUIDO">Concluído</option>
           </select>
-          <input type="date" id="dateStart">
-          <input type="date" id="dateEnd">
+          <input type="date" id="dateStart" autocomplete="off">
+          <input type="date" id="dateEnd" autocomplete="off">
         </div>
         <div class="table-wrap">
           <table>
