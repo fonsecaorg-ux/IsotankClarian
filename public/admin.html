@@ -455,6 +455,7 @@
       <section id="configSection" class="panel hidden">
         <h2 style="font-size:16px;color:var(--accent);margin-bottom:8px;">Configurações do Sistema</h2>
         <p class="config-help">Edite SMTP, e-mail de alertas e regras de vencimento.</p>
+        <form id="configPanelForm" autocomplete="off" onsubmit="return false" style="display:contents">
         <div class="config-grid">
           <div class="field">
             <label for="cfgSmtpHost">Servidor SMTP</label>
@@ -471,7 +472,7 @@
           <div class="field">
             <label for="cfgSmtpPass">Senha SMTP</label>
             <div class="password-wrap">
-              <input id="cfgSmtpPass" type="password" placeholder="***">
+              <input id="cfgSmtpPass" type="password" placeholder="***" autocomplete="off">
               <button class="btn" id="btnToggleSmtpPass" type="button">Mostrar</button>
             </div>
           </div>
@@ -500,6 +501,7 @@
           <button class="btn" id="btnTestMail" type="button">Testar envio</button>
           <button class="btn accent" id="btnSaveConfigs" type="button">Salvar Configurações</button>
         </div>
+        </form>
         <p id="configError" class="error"></p>
       </section>
 
@@ -574,23 +576,7 @@
         <h3>Novo Usuário</h3>
         <button class="btn" id="closeUserModal">Fechar</button>
       </div>
-      <form id="newUserForm" autocomplete="off">
-        <!-- Campos "honeypot" invisíveis: o Chrome preenche estes em vez dos reais -->
-        <input type="text" name="fake_user" style="display:none" tabindex="-1" autocomplete="username">
-        <input type="password" name="fake_pass" style="display:none" tabindex="-1" autocomplete="current-password">
-        <div class="grid2">
-          <input type="text" name="name" placeholder="Nome" required autocomplete="off" data-lpignore="true">
-          <input type="email" name="email" placeholder="E-mail" required autocomplete="off" data-lpignore="true" data-form-type="other">
-          <input type="password" name="password" placeholder="Senha inicial" required autocomplete="new-password" data-lpignore="true">
-          <select name="role" required>
-            <option value="INSPETOR">INSPETOR</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-        </div>
-        <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px;">
-          <button type="submit" class="btn accent">Criar usuário</button>
-        </div>
-      </form>
+      <div id="newUserFormHost"></div>
       <p id="newUserError" class="error"></p>
     </div>
   </div>
@@ -645,7 +631,7 @@
       btnNewUser: document.getElementById('btnNewUser'),
       newUserModalBg: document.getElementById('newUserModalBg'),
       closeUserModal: document.getElementById('closeUserModal'),
-      newUserForm: document.getElementById('newUserForm'),
+      newUserForm: null,
       newUserError: document.getElementById('newUserError'),
       cfgSmtpHost: document.getElementById('cfgSmtpHost'),
       cfgSmtpPort: document.getElementById('cfgSmtpPort'),
@@ -704,6 +690,53 @@
         CONCLUIDO: 'Concluído',
       };
       return m[s] || s || '-';
+    }
+
+    /** Formulário novo usuário só entra no DOM ao abrir o modal (evita autofill do Chrome na busca de laudos). */
+    function mountNewUserForm() {
+      if (el.newUserForm) return;
+      const host = document.getElementById('newUserFormHost');
+      if (!host) return;
+      host.innerHTML = `
+        <form id="newUserForm" autocomplete="off">
+          <div class="grid2">
+            <input type="text" name="nu_name" placeholder="Nome" required autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
+            <input type="text" name="nu_email" placeholder="E-mail" required autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="email" data-lpignore="true" data-form-type="other">
+            <input type="password" name="nu_password" placeholder="Senha inicial" required autocomplete="new-password" data-lpignore="true">
+            <select name="nu_role" required>
+              <option value="INSPETOR">INSPETOR</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </div>
+          <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px;">
+            <button type="submit" class="btn accent">Criar usuário</button>
+          </div>
+        </form>`;
+      el.newUserForm = document.getElementById('newUserForm');
+      el.newUserForm.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        el.newUserError.textContent = '';
+
+        const fd = new FormData(el.newUserForm);
+        const payload = {
+          name: String(fd.get('nu_name') || '').trim(),
+          email: String(fd.get('nu_email') || '').trim().toLowerCase(),
+          password: String(fd.get('nu_password') || ''),
+          role: String(fd.get('nu_role') || 'INSPETOR'),
+        };
+
+        try {
+          await api('/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          el.newUserModalBg.classList.remove('active');
+          await loadUsers();
+        } catch (err) {
+          el.newUserError.textContent = err.message;
+        }
+      });
     }
 
     async function api(path, options = {}) {
@@ -1275,37 +1308,16 @@
 
     el.btnNewUser.addEventListener('click', () => {
       el.newUserError.textContent = '';
+      mountNewUserForm();
       el.newUserForm.reset();
       el.newUserModalBg.classList.add('active');
     });
 
-    el.newUserForm.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      el.newUserError.textContent = '';
-
-      const fd = new FormData(el.newUserForm);
-      const payload = {
-        name: String(fd.get('name') || '').trim(),
-        email: String(fd.get('email') || '').trim().toLowerCase(),
-        password: String(fd.get('password') || ''),
-        role: String(fd.get('role') || 'INSPETOR'),
-      };
-
-      try {
-        await api('/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        el.newUserModalBg.classList.remove('active');
-        await loadUsers();
-      } catch (err) {
-        el.newUserError.textContent = err.message;
-      }
-    });
-
     el.closeDetailModal.addEventListener('click', () => el.detailModalBg.classList.remove('active'));
-    el.closeUserModal.addEventListener('click', () => el.newUserModalBg.classList.remove('active'));
+    el.closeUserModal.addEventListener('click', () => {
+      el.newUserModalBg.classList.remove('active');
+      if (el.newUserForm) el.newUserForm.reset();
+    });
     el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) el.detailModalBg.classList.remove('active'); });
     el.newUserModalBg.addEventListener('click', (ev) => { if (ev.target === el.newUserModalBg) el.newUserModalBg.classList.remove('active'); });
     el.lightboxClose.addEventListener('click', closeLightbox);
