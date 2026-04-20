@@ -324,6 +324,25 @@ Apareceu outro sintoma, distinto da corrupção do ficheiro: **as fotos chegavam
 
 > **Resumo:** não era falha do mapeamento `foto_*` → `imageN.png` na primeira geração; era **segunda geração sem multipart**. A solução é **fallback a partir do armazenamento** (`FotoLaudo`) para os campos em falta no upload.
 
+### Painel admin — autofill do Chrome na busca de laudos
+
+Na aba **Laudos** (`public/admin.html`), o Chrome (gestor de palavras-passe) **preenchia sozinho** o campo “Buscar por isotank ou cliente” com o **e-mail do utilizador** ao carregar ou ao clicar na página. O filtro em JavaScript reagia ao evento `input` e a lista parecia **vazia** (“Nenhum laudo encontrado”), embora os dados estivessem corretos no servidor. Em **modo anónimo** o problema não aparecia — típico de interferência de autofill, não de API.
+
+**Causas no DOM (combinadas)**
+
+- **`public/change-password.js`** — o modal “Alterar senha” incluía campos `type="password"` **logo no carregamento**; o Chrome associava a página a um fluxo de credenciais.
+- **Configurações SMTP** — o campo **Senha SMTP** (`#cfgSmtpPass`) existia como `password` **fora de qualquer `<form>`**, o que o próprio Chrome assinala no consola e reforça o heurístico de “credenciais nesta página”.
+- **Modal “Novo utilizador”** — mesmo fechado, o HTML continha `name="email"` e `name="password"`, nomes que o gestor de senhas trata como **login**, podendo desviar o preenchimento para o **primeiro campo de texto** visível (a busca).
+
+**Solução aplicada**
+
+1. **`change-password.js`** — o modal com passwords **só é criado e anexado ao `document.body` no primeiro clique** em “Alterar senha” (lazy mount).
+2. **`public/admin.html`** — a grelha de configurações SMTP passou a estar dentro de um **`<form autocomplete="off">`** (`display: contents` para não quebrar o layout), com `autocomplete="off"` na senha SMTP.
+3. **`public/admin.html`** — o formulário “Novo utilizador” **só é injectado** no DOM ao abrir o modal; campos com nomes **`nu_*`**, e o e-mail usa **`type="text"`** + `inputmode="email"` em vez de `type="email"`, para reduzir o mapeamento automático para “credencial”.
+4. **Campo de busca** — reforços já existentes (`type="search"`, `autocomplete="off"`, `data-lpignore`, etc.) mantêm-se como camada extra; a solução **decisiva** é **não expor passwords nem pares email/senha no carregamento inicial** da página de laudos.
+
+> **Resumo:** o bug não era permissão nem filtro em si — era o **Chrome a injetar texto na busca**. A correção é **reduzir a superfície de credenciais no DOM** até o utilizador pedir explicitamente ações que precisam de senha ou de criar utilizador.
+
 ---
 
 ## Observações
