@@ -1406,7 +1406,7 @@ async function submitGenerate() {
     console.log(`[SUBMIT-${callId}] Antes de /generate: ${fileCountBeforeSend} files (era ${fileCountAfterCreate})`);
 
     console.log(`[SUBMIT-${callId}] POST /generate...`);
-    const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
+    const res = await fetch(`/laudos/${laudo.id}/pdf`, { method: 'POST', credentials: 'include', body: fd });
     console.log(`[SUBMIT-${callId}] Resposta /generate: ${res.status} ${res.statusText}`);
     
     if (!res.ok) throw new Error('Erro ao gerar laudo. Tente novamente.');
@@ -1414,7 +1414,7 @@ async function submitGenerate() {
     const blob = await res.blob();
     const cdHeader = res.headers.get('Content-Disposition') || '';
     const match = cdHeader.match(/filename="([^"]+)"/);
-    const filename = match ? match[1] : 'laudo.docx';
+    const filename = match ? match[1] : 'laudo.pdf';
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

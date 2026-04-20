@@ -1,7 +1,9 @@
 # CEINSPEC — Laudo Visual Isotank
 
 PWA mobile-first para inspeção visual de isotanks em campo.  
-O inspetor preenche o formulário no celular, tira as fotos e o sistema gera automaticamente o laudo Word no padrão oficial da CEINSPEC.
+O inspetor preenche o formulário no celular, tira as fotos e o sistema gera o **laudo em PDF** (layout próprio HTML → Puppeteer), com hash SHA-256 para validação pública via QR.
+
+O fluxo **Word (`.docx`)** via `POST /generate` e Docxtemplater **permanece no código** como legado / reprocessamento, mas **não é mais o destino do botão “Gerar laudo”** no PWA — o download padrão é **`LAUDO_*.pdf`**.
 
 **Repositório:** [github.com/fonsecaorg-ux/IsotankClarian](https://github.com/fonsecaorg-ux/IsotankClarian)
 
@@ -102,7 +104,7 @@ Para acessar pelo celular em campo, conecte o celular na mesma rede Wi-Fi e use 
 ```
 Isotank Clariant/
 │
-├── server.js                        # Servidor Express — rota POST /generate
+├── server.js                        # Express — rotas /generate (docx legado), /laudos, PDF, etc.
 ├── config.json                      # Responsáveis fixos (ver abaixo)
 ├── package.json
 │
@@ -114,11 +116,18 @@ Isotank Clariant/
 │   ├── manifest.json                # Manifesto para instalação no celular
 │   └── sw.js                        # Service worker
 │
+├── src/
+│   ├── templates/laudo.html         # Template Handlebars do PDF
+│   ├── services/pdfGenerator.js     # Geração PDF + pdfHash
+│   └── routes/laudos-pdf.js         # POST /laudos/:id/pdf (multipart)
+│
 ├── scripts/
+│   ├── smoke-pdf.js                 # Valida template PDF (sem Chromium)
+│   ├── test-pdf.js                  # Gera output/test_output.pdf (DB + Chromium)
 │   ├── prepare-template.js                 # Gera template/template.docx (rodar 1x)
 │   ├── rebuild_template_from_original_safe.py  # Rebuild seguro do template (Python + lxml)
 │   ├── verify-template.js                # Valida tags no template
-│   ├── test-generate.js                  # Teste end-to-end via HTTP
+│   ├── test-generate.js                  # Teste HTTP do fluxo .docx (legado)
 │   ├── check_docx_rels.py                # Valida r:embed / r:id vs ficheiros no ZIP
 │   ├── find_bad_xmlns.py                 # Deteta chaves { } dentro de xmlns (XML inválido)
 │   └── inspect_document_xml.py         # Contagens rápidas + parse Expat do document.xml
@@ -299,7 +308,7 @@ O servidor é compatível com o **filesystem efêmero** do Render por não escre
 
 | Causa | O que fazer |
 |---|---|
-| **Serviço errado** | Crie um **Web Service** (Node), **não** um *Static Site*. Este app precisa rodar `node server.js` para servir o PWA e o `POST /generate`. |
+| **Serviço errado** | Crie um **Web Service** (Node), **não** um *Static Site*. Este app precisa rodar `node server.js` para servir o PWA e as rotas de laudo (PDF, `/generate` legado, etc.). |
 | **Start Command** | Deve ser `npm start` (ou `node server.js`). |
 | **Root Directory** | Deixe vazio (raiz do repositório), a menos que o projeto esteja em subpasta. |
 | **Deploy antigo / falha no build** | Abra **Logs** no painel do Render: se o processo cair na subida (ex.: `template/template.docx` ausente), o site pode responder com erro. Faça **Manual Deploy → Clear build cache & deploy**. |
