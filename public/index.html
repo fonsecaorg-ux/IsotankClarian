@@ -1405,9 +1405,9 @@ async function submitGenerate() {
     }
     console.log(`[SUBMIT-${callId}] Antes de /generate: ${fileCountBeforeSend} files (era ${fileCountAfterCreate})`);
 
-    console.log(`[SUBMIT-${callId}] POST /generate...`);
+    console.log(`[SUBMIT-${callId}] POST /laudos/${laudo.id}/pdf...`);
     const res = await fetch(`/laudos/${laudo.id}/pdf`, { method: 'POST', credentials: 'include', body: fd });
-    console.log(`[SUBMIT-${callId}] Resposta /generate: ${res.status} ${res.statusText}`);
+    console.log(`[SUBMIT-${callId}] Resposta /laudos/:id/pdf: ${res.status} ${res.statusText}`);
     
     if (!res.ok) throw new Error('Erro ao gerar laudo. Tente novamente.');
 

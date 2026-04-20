@@ -203,7 +203,7 @@
           <td data-label="Data Inspeção">${fmtDate(l.dataInspecao)}</td>
           <td data-label="Inspetor">${esc(l.createdBy?.nome || '-')}</td>
           <td data-label="Status"><span class="ld-status ${esc(l.status)}">${esc(laudoStatusLabel(l.status))}</span></td>
-          <td data-label="Ação"><button class="btn" data-a="download" data-laudo="${esc(l.id)}">Baixar docx</button></td>
+          <td data-label="Ação"><button class="btn" data-a="download" data-laudo="${esc(l.id)}">Baixar PDF</button></td>
         </tr>
       `).join('') || '<tr><td colspan="4">Sem histórico de laudos.</td></tr>';
       el.historyContent.innerHTML = `
@@ -218,11 +218,10 @@
       el.historyModalBg.classList.add('active');
     }
 
-    async function downloadDocx(laudoId) {
-      const fd = new FormData(); fd.set('laudoId', laudoId);
-      const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
-      if (!res.ok) { const err = await res.json().catch(() => ({ error: 'Erro ao baixar DOCX' })); throw new Error(err.error || 'Erro ao baixar DOCX'); }
-      const blob = await res.blob(); const cd = res.headers.get('Content-Disposition') || ''; const m = cd.match(/filename="([^"]+)"/); const filename = m ? m[1] : `LAUDO_${laudoId}.docx`;
+    async function downloadPdf(laudoId) {
+      const res = await fetch(`/laudos/${laudoId}/pdf`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) { const err = await res.json().catch(() => ({ error: 'Erro ao baixar PDF' })); throw new Error(err.error || 'Erro ao baixar PDF'); }
+      const blob = await res.blob(); const cd = res.headers.get('Content-Disposition') || ''; const m = cd.match(/filename="([^"]+)"/); const filename = m ? m[1] : `LAUDO_${laudoId}.pdf`;
       const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
     }
 
@@ -256,7 +255,7 @@
 
     el.historyContent.addEventListener('click', async (ev) => {
       const btn = ev.target.closest('button[data-a="download"]'); if (!btn) return;
-      try { await downloadDocx(btn.dataset.laudo); toast('DOCX gerado com sucesso', 'success'); } catch (err) { el.pageError.textContent = err.message; }
+      try { await downloadPdf(btn.dataset.laudo); toast('PDF gerado com sucesso', 'success'); } catch (err) { el.pageError.textContent = err.message; }
     });
 
     el.editForm.addEventListener('submit', async (ev) => {

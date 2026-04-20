@@ -245,6 +245,9 @@ async function buildContext(laudo, fotos, cfg, options = {}) {
   }
 
   return {
+    // Logo
+    logo_base64: LOGO_BASE64,
+
     // Identificação
     numero_identificacao: formData.numero_identificacao || '',
     cliente: formData.cliente || '',
@@ -356,8 +359,8 @@ async function renderToBuffer(context) {
                     font-size: 8pt; padding: 3mm 15mm 2mm 15mm;
                     display: flex; justify-content: space-between; align-items: center;
                     border-bottom: 0.5px solid #e0e0e0; color: #666;">
-          <div style="display: flex; flex-direction: column;">
-            <span style="font-size: 7pt; letter-spacing: 1.5pt; color: #888;">CEINSPEC</span>
+          <div style="display: flex; align-items: center; gap: 6mm;">
+            <img src="data:image/png;base64,${LOGO_BASE64}" style="width: 22mm; height: auto;" />
             <span style="font-family: ui-monospace, monospace; font-size: 8pt; color: #aaa;">L-CEI-IVC-09</span>
           </div>
           <div style="font-size: 9pt;">

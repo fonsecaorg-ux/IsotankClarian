@@ -76,6 +76,16 @@
     align-items: flex-start;
     padding-bottom: 8mm;
   }
+  .capa-marca-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1mm;
+  }
+  .capa-logo {
+    width: 38mm;
+    height: auto;
+    display: block;
+  }
   .capa-marca {
     font-size: 9pt;
     color: var(--text-muted);
@@ -84,7 +94,6 @@
   .capa-marca-subtitle {
     font-size: 7pt;
     color: var(--text-faint);
-    margin-top: 1mm;
     letter-spacing: normal;
   }
   .capa-credenciais {
@@ -605,8 +614,8 @@
      ═══════════════════════════════════════════════════════════════════ -->
 <section class="capa">
   <header class="capa-topo">
-    <div>
-      <div class="capa-marca">CEINSPEC</div>
+    <div class="capa-marca-wrap">
+      <img class="capa-logo" src="data:image/png;base64,{{logo_base64}}" alt="CEINSPEC">
       <div class="capa-marca-subtitle">Inspeções Veiculares e Industriais</div>
     </div>
     <div class="capa-credenciais">

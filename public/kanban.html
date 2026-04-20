@@ -148,7 +148,7 @@
       <div class="modal-head">
         <h2 class="modal-title">Detalhe do Laudo</h2>
         <div style="display:flex;gap:8px;">
-          <button class="btn accent" id="btnReprocessModal">Reprocessar docx</button>
+          <button class="btn accent" id="btnReprocessModal">Reprocessar PDF</button>
           <button class="btn" id="closeDetailModal">Fechar</button>
         </div>
       </div>
@@ -476,9 +476,7 @@
 
     async function reprocessCurrentDetail() {
       if (!state.currentDetailId) return;
-      const fd = new FormData();
-      fd.set('laudoId', state.currentDetailId);
-      const res = await fetch('/generate', { method: 'POST', credentials: 'include', body: fd });
+      const res = await fetch(`/laudos/${state.currentDetailId}/pdf`, { method: 'POST', credentials: 'include' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Erro ao reprocessar' }));
         throw new Error(err.error || `HTTP ${res.status}`);
@@ -486,7 +484,7 @@
       const blob = await res.blob();
       const cdHeader = res.headers.get('Content-Disposition') || '';
       const match = cdHeader.match(/filename="([^"]+)"/);
-      const filename = match ? match[1] : `LAUDO_${state.currentDetailId}.docx`;
+      const filename = match ? match[1] : `LAUDO_${state.currentDetailId}.pdf`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

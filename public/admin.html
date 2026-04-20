@@ -772,7 +772,7 @@
                 <option value="AGUARDANDO_APROVACAO" ${l.status === 'AGUARDANDO_APROVACAO' ? 'selected' : ''}>Aguardando Aprovação</option>
                 <option value="CONCLUIDO" ${l.status === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
               </select>
-              <button class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar docx</button>
+              <button class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar PDF</button>
             </div>
           </td>
         </tr>
@@ -1095,12 +1095,8 @@
     }
 
     async function reprocessLaudo(laudoId) {
-      const fd = new FormData();
-      fd.set('laudoId', laudoId);
-
-      const res = await fetch('/generate', {
+      const res = await fetch(`/laudos/${laudoId}/pdf`, {
         method: 'POST',
-        body: fd,
         credentials: 'include',
       });
 
@@ -1112,7 +1108,7 @@
       const blob = await res.blob();
       const cdHeader = res.headers.get('Content-Disposition') || '';
       const match = cdHeader.match(/filename="([^"]+)"/);
-      const filename = match ? match[1] : `LAUDO_${laudoId}.docx`;
+      const filename = match ? match[1] : `LAUDO_${laudoId}.pdf`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
