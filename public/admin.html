@@ -395,17 +395,19 @@
 
       <section id="laudosSection" class="panel">
         <div class="filters">
-          <input type="search" id="searchInput" placeholder="Buscar por isotank ou cliente"
-            autocomplete="off" autocapitalize="off" spellcheck="false"
-            name="buscaLaudos_{{ignore}}">
-          <select id="statusFilter" autocomplete="off">
+          <input type="search" id="searchInput"
+                 placeholder="Buscar por isotank ou cliente"
+                 autocomplete="off" autocapitalize="off" autocorrect="off"
+                 spellcheck="false" name="q_buscar_laudos"
+                 data-lpignore="true" data-form-type="other">
+          <select id="statusFilter">
             <option value="">Todos os status</option>
             <option value="EM_INSPECAO">Em Inspeção</option>
             <option value="AGUARDANDO_APROVACAO">Aguardando Aprovação</option>
             <option value="CONCLUIDO">Concluído</option>
           </select>
-          <input type="date" id="dateStart" autocomplete="off">
-          <input type="date" id="dateEnd" autocomplete="off">
+          <input type="date" id="dateStart">
+          <input type="date" id="dateEnd">
         </div>
         <div class="table-wrap">
           <table>
@@ -572,11 +574,14 @@
         <h3>Novo Usuário</h3>
         <button class="btn" id="closeUserModal">Fechar</button>
       </div>
-      <form id="newUserForm">
+      <form id="newUserForm" autocomplete="off">
+        <!-- Campos "honeypot" invisíveis: o Chrome preenche estes em vez dos reais -->
+        <input type="text" name="fake_user" style="display:none" tabindex="-1" autocomplete="username">
+        <input type="password" name="fake_pass" style="display:none" tabindex="-1" autocomplete="current-password">
         <div class="grid2">
-          <input type="text" name="name" placeholder="Nome" required>
-          <input type="email" name="email" placeholder="E-mail" required>
-          <input type="password" name="password" placeholder="Senha inicial" required>
+          <input type="text" name="name" placeholder="Nome" required autocomplete="off" data-lpignore="true">
+          <input type="email" name="email" placeholder="E-mail" required autocomplete="off" data-lpignore="true" data-form-type="other">
+          <input type="password" name="password" placeholder="Senha inicial" required autocomplete="new-password" data-lpignore="true">
           <select name="role" required>
             <option value="INSPETOR">INSPETOR</option>
             <option value="ADMIN">ADMIN</option>
