@@ -13,7 +13,33 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const puppeteer = require('puppeteer');
+// Puppeteer: em dev (local) usa o bundled Chromium via `puppeteer` completo;
+// em produção (Render/serverless) usa `puppeteer-core` + `@sparticuz/chromium`,
+// que é um Chromium enxuto (~50MB) otimizado para ambientes constrangidos.
+//
+// Detecção: se `@sparticuz/chromium` estiver instalado E a env USE_SPARTICUZ
+// for truthy (ou NODE_ENV=production), usa esse caminho. Caso contrário,
+// cai no puppeteer bundled.
+const useSparticuz = process.env.USE_SPARTICUZ === 'true'
+  || process.env.NODE_ENV === 'production'
+  || !!process.env.RENDER;  // Render injeta RENDER=true automaticamente
+
+let puppeteer;
+let sparticuzChromium = null;
+
+if (useSparticuz) {
+  try {
+    puppeteer = require('puppeteer-core');
+    sparticuzChromium = require('@sparticuz/chromium');
+    console.log('[PDF] Usando puppeteer-core + @sparticuz/chromium (produção)');
+  } catch (err) {
+    console.warn('[PDF] @sparticuz/chromium não instalado, caindo no puppeteer bundled:', err.message);
+    puppeteer = require('puppeteer');
+  }
+} else {
+  puppeteer = require('puppeteer');
+  console.log('[PDF] Usando puppeteer bundled (desenvolvimento)');
+}
 const Handlebars = require('handlebars');
 const QRCode = require('qrcode');
 const prisma = require('../lib/prisma');
@@ -320,7 +346,8 @@ async function getBrowser() {
       browserInstance = null;
     }
   }
-  browserInstance = await puppeteer.launch({
+
+  const launchOpts = {
     headless: 'new',
     args: [
       '--no-sandbox',
@@ -328,7 +355,17 @@ async function getBrowser() {
       '--disable-dev-shm-usage',
       '--disable-gpu',
     ],
-  });
+  };
+
+  if (sparticuzChromium) {
+    // Produção: @sparticuz/chromium provê o executável + args otimizados.
+    launchOpts.args = [...sparticuzChromium.args, ...launchOpts.args];
+    launchOpts.defaultViewport = sparticuzChromium.defaultViewport;
+    launchOpts.executablePath = await sparticuzChromium.executablePath();
+    launchOpts.headless = sparticuzChromium.headless;
+  }
+
+  browserInstance = await puppeteer.launch(launchOpts);
   return browserInstance;
 }
 
