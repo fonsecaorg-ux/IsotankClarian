@@ -153,6 +153,11 @@ router.get('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Sem permissão para este laudo' });
     }
 
+    // Não enviar blobs de PDF assinado no JSON (podem ter vários MB → detalhe do laudo lento no browser).
+    // Download continua disponível em GET .../oficial/download e .../inspetor-assinado/download.
+    if (laudo.signedData != null) delete laudo.signedData;
+    if (laudo.inspectorSignedData != null) delete laudo.inspectorSignedData;
+
     return res.json(laudo);
   } catch (err) {
     console.error('Erro ao buscar laudo:', err);

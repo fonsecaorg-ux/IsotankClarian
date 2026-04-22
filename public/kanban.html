@@ -394,7 +394,8 @@
       card.className = 'card';
       const drag = canDragKanbanStatus(laudo.status);
       card.draggable = drag;
-      card.style.cursor = drag ? 'grab' : 'default';
+      /* Sempre clicável (abre detalhe). grab só quando arrastar colunas faz sentido. */
+      card.style.cursor = drag ? 'grab' : 'pointer';
       card.dataset.id = laudo.id;
       card.dataset.status = laudo.status;
       card.innerHTML = `
