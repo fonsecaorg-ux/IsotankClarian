@@ -165,6 +165,38 @@
       border-radius: 10px;
       padding: 14px;
     }
+    /* Modal de laudo: cabeçalho fixo, só o conteúdo rola (botões sempre visíveis). */
+    .modal.laudo-detail-modal {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      max-height: 90vh;
+    }
+    .modal.laudo-detail-modal .laudo-detail-head {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 10px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal.laudo-detail-modal .laudo-detail-head h3 {
+      margin-bottom: 0;
+    }
+    .modal.laudo-detail-modal .laudo-detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .modal.laudo-detail-modal #detailContent {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
     .modal h3 { color: var(--accent); margin-bottom: 10px; }
     .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .kv {
@@ -553,10 +585,14 @@
   </div>
 
   <div class="modal-bg" id="detailModalBg">
-    <div class="modal">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="modal laudo-detail-modal">
+      <div class="laudo-detail-head">
         <h3>Detalhe do Laudo</h3>
-        <button class="btn" id="closeDetailModal">Fechar</button>
+        <div class="laudo-detail-actions">
+          <button type="button" class="btn" id="detailBtnEditLaudo" title="Corrigir dados do formulário (fotos não mudam)">Editar laudo</button>
+          <button type="button" class="btn accent" id="detailBtnReprocessPdf">Reprocessar PDF</button>
+          <button type="button" class="btn" id="closeDetailModal">Fechar</button>
+        </div>
       </div>
       <div id="detailContent"></div>
     </div>
@@ -613,6 +649,8 @@
       tab: 'laudos',
       /** Último laudo carregado no modal de detalhe (para modo edição). */
       currentDetail: null,
+      /** ID do laudo aberto no modal (barra fixa Editar / Reprocessar). */
+      detailLaudoId: null,
     };
 
     const el = {
@@ -635,6 +673,8 @@
       detailModalBg: document.getElementById('detailModalBg'),
       detailContent: document.getElementById('detailContent'),
       closeDetailModal: document.getElementById('closeDetailModal'),
+      detailBtnEditLaudo: document.getElementById('detailBtnEditLaudo'),
+      detailBtnReprocessPdf: document.getElementById('detailBtnReprocessPdf'),
       btnNewUser: document.getElementById('btnNewUser'),
       newUserModalBg: document.getElementById('newUserModalBg'),
       closeUserModal: document.getElementById('closeUserModal'),
@@ -842,6 +882,7 @@
           <td data-label="Ações">
             <div class="row-actions">
               <button type="button" class="btn" data-action="detail" data-id="${escapeHtml(l.id)}">Ver detalhe</button>
+              <button type="button" class="btn" data-action="edit-laudo" data-id="${escapeHtml(l.id)}" title="Abre o laudo já em modo edição (admin)">Editar laudo</button>
               <select data-action="status" data-id="${escapeHtml(l.id)}">
                 <option value="EM_INSPECAO" ${l.status === 'EM_INSPECAO' ? 'selected' : ''}>Em Inspeção</option>
                 <option value="AGUARDANDO_APROVACAO" ${l.status === 'AGUARDANDO_APROVACAO' ? 'selected' : ''}>Aguardando Aprovação</option>
@@ -1198,7 +1239,8 @@
       await showLaudoDetail(laudoId);
     }
 
-    async function showLaudoDetail(laudoId) {
+    async function showLaudoDetail(laudoId, opts = {}) {
+      const openInEdit = Boolean(opts && opts.edit);
       try {
         const detail = await api(`/laudos/${laudoId}`);
         let fotos = [];
@@ -1227,12 +1269,9 @@
         `).join('') || '<p>Nenhum histórico de status.</p>';
 
         state.currentDetail = detail;
+        state.detailLaudoId = laudoId;
 
-        el.detailContent.innerHTML = `
-          <div class="detail-toolbar" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center;">
-            <button type="button" class="btn" data-detail-action="edit" data-id="${escapeHtml(laudoId)}">Editar laudo</button>
-            <button type="button" class="btn accent" data-detail-action="reprocess" data-id="${escapeHtml(laudoId)}">Reprocessar PDF</button>
-          </div>
+        const viewHtml = `
           <div class="grid2" style="margin-bottom:10px;">
             <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
             <div class="kv"><b>Status</b><span class="badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusDisplay(detail))}</span></div>
@@ -1247,6 +1286,8 @@
           ${auditEntries}
           ${renderPhotoGallery(fotos, laudoId)}
         `;
+
+        el.detailContent.innerHTML = openInEdit ? renderLaudoEditForm(detail) : viewHtml;
 
         el.detailModalBg.classList.add('active');
       } catch (err) {
@@ -1405,6 +1446,8 @@
           el.laudosError.textContent = '';
           if (action === 'detail') {
             await showLaudoDetail(id);
+          } else if (action === 'edit-laudo') {
+            await showLaudoDetail(id, { edit: true });
           } else if (action === 'reprocess') {
             await reprocessLaudo(id);
             showToast('PDF de trabalho reprocessado. Status: pendente de assinatura.', 'success');
@@ -1443,12 +1486,6 @@
         const action = actionBtn.dataset.detailAction;
         const id = actionBtn.dataset.id;
         if (!id) return;
-        if (action === 'edit') {
-          const d = state.currentDetail;
-          if (!d || d.id !== id) return;
-          el.detailContent.innerHTML = renderLaudoEditForm(d);
-          return;
-        }
         if (action === 'cancel-edit') {
           void showLaudoDetail(id);
           return;
@@ -1458,20 +1495,6 @@
             try {
               el.laudosError.textContent = '';
               await saveLaudoFormEdit(id);
-            } catch (err) {
-              el.laudosError.textContent = err.message;
-            }
-          })();
-          return;
-        }
-        if (action === 'reprocess') {
-          void (async () => {
-            try {
-              el.laudosError.textContent = '';
-              await reprocessLaudo(id);
-              showToast('PDF reprocessado. Status: pendente de assinatura.', 'success');
-              await loadLaudos();
-              await showLaudoDetail(id);
             } catch (err) {
               el.laudosError.textContent = err.message;
             }
@@ -1584,12 +1607,48 @@
       el.newUserModalBg.classList.add('active');
     });
 
-    el.closeDetailModal.addEventListener('click', () => el.detailModalBg.classList.remove('active'));
+    function closeLaudoDetailModal() {
+      el.detailModalBg.classList.remove('active');
+      state.detailLaudoId = null;
+      state.currentDetail = null;
+    }
+
+    el.closeDetailModal.addEventListener('click', closeLaudoDetailModal);
+
+    el.detailBtnEditLaudo.addEventListener('click', () => {
+      const d = state.currentDetail;
+      const id = state.detailLaudoId;
+      if (!d || !id || d.id !== id) {
+        el.laudosError.textContent = 'Abra um laudo (Ver detalhe ou Editar na lista) para editar.';
+        return;
+      }
+      el.laudosError.textContent = '';
+      el.detailContent.innerHTML = renderLaudoEditForm(d);
+    });
+
+    el.detailBtnReprocessPdf.addEventListener('click', () => {
+      const id = state.detailLaudoId;
+      if (!id) {
+        el.laudosError.textContent = 'Abra um laudo no modal para reprocessar o PDF.';
+        return;
+      }
+      void (async () => {
+        try {
+          el.laudosError.textContent = '';
+          await reprocessLaudo(id);
+          showToast('PDF reprocessado. Status: pendente de assinatura.', 'success');
+          await loadLaudos();
+          await showLaudoDetail(id);
+        } catch (err) {
+          el.laudosError.textContent = err.message;
+        }
+      })();
+    });
     el.closeUserModal.addEventListener('click', () => {
       el.newUserModalBg.classList.remove('active');
       if (el.newUserForm) el.newUserForm.reset();
     });
-    el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) el.detailModalBg.classList.remove('active'); });
+    el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) closeLaudoDetailModal(); });
     el.newUserModalBg.addEventListener('click', (ev) => { if (ev.target === el.newUserModalBg) el.newUserModalBg.classList.remove('active'); });
     el.lightboxClose.addEventListener('click', closeLightbox);
     el.lightboxBg.addEventListener('click', (ev) => { if (ev.target === el.lightboxBg) closeLightbox(); });
