@@ -99,6 +99,7 @@
       font-weight: 700;
     }
     .btn.accent { border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .panel {
       background: var(--card);
       border: 1px solid var(--border);
@@ -813,7 +814,7 @@
           <td data-label="Data Criação">${fmtDate(l.createdAt)}</td>
           <td data-label="Ações">
             <div class="row-actions">
-              <button class="btn" data-action="detail" data-id="${escapeHtml(l.id)}">Ver detalhe</button>
+              <button type="button" class="btn" data-action="detail" data-id="${escapeHtml(l.id)}">Ver detalhe</button>
               <select data-action="status" data-id="${escapeHtml(l.id)}">
                 <option value="EM_INSPECAO" ${l.status === 'EM_INSPECAO' ? 'selected' : ''}>Em Inspeção</option>
                 <option value="AGUARDANDO_APROVACAO" ${l.status === 'AGUARDANDO_APROVACAO' ? 'selected' : ''}>Aguardando Aprovação</option>
@@ -821,10 +822,9 @@
                 <option value="ASSINADO_DIGITALMENTE" ${l.status === 'ASSINADO_DIGITALMENTE' ? 'selected' : ''}>Assinado Digitalmente</option>
                 <option value="CONCLUIDO" ${l.status === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
               </select>
-              <button class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar PDF</button>
-              <button class="btn" data-action="upload-signed-inspetor" data-id="${escapeHtml(l.id)}">Ass. Inspetor</button>
-              <button class="btn" data-action="upload-signed-engenheiro" data-id="${escapeHtml(l.id)}" ${l.inspectorSignedAt ? '' : 'disabled'}>Ass. Engenheiro</button>
-              <button class="btn" data-action="download-official" data-id="${escapeHtml(l.id)}" ${l.signedAt ? '' : 'disabled'}>Baixar Oficial</button>
+              <button type="button" class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar PDF</button>
+              <button type="button" class="btn" data-action="upload-signed-engenheiro" data-id="${escapeHtml(l.id)}" ${l.inspectorSignedAt ? '' : 'disabled'} title="${l.inspectorSignedAt ? escapeHtml('Anexe o PDF assinado pelo engenheiro no gov.br (segunda assinatura).') : escapeHtml('Aguarde: o inspetor anexa primeiro em Minhas Assinaturas.')}">Ass. Engenheiro</button>
+              <button type="button" class="btn" data-action="download-official" data-id="${escapeHtml(l.id)}" ${l.signedAt ? '' : 'disabled'}>Baixar Oficial</button>
             </div>
           </td>
         </tr>
@@ -1180,38 +1180,40 @@
       return input;
     }
 
-    async function uploadSignedPdf(laudo, signerRole) {
+    /** input.click() síncrono no gesto do utilizador — evita bloqueio do seletor de ficheiros. */
+    function openSignedPdfPickerForEngineer(laudo) {
       const input = ensureSignedUploadInput();
       input.value = '';
-
-      const file = await new Promise((resolve) => {
-        input.onchange = () => {
-          const selected = input.files && input.files[0] ? input.files[0] : null;
-          resolve(selected);
-        };
-        input.click();
-      });
-      if (!file) return;
-      if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) {
-        throw new Error('Selecione um arquivo PDF assinado');
-      }
-
-      const fd = new FormData();
-      fd.set('arquivo', file);
-      fd.set('numeroIdentificacao', laudo?.numeroIdentificacao || '');
-
-      const endpoint = signerRole === 'inspetor'
-        ? `/laudos/${laudo.id}/signed-pdf-inspetor`
-        : `/laudos/${laudo.id}/signed-pdf-engenheiro`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        credentials: 'include',
-        body: fd,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Erro ao anexar PDF assinado' }));
-        throw new Error(err.error || `HTTP ${res.status}`);
-      }
+      input.onchange = () => {
+        const file = input.files && input.files[0] ? input.files[0] : null;
+        input.onchange = null;
+        void (async () => {
+          try {
+            el.laudosError.textContent = '';
+            if (!file) return;
+            if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) {
+              throw new Error('Selecione um arquivo PDF assinado');
+            }
+            const fd = new FormData();
+            fd.set('arquivo', file);
+            fd.set('numeroIdentificacao', laudo?.numeroIdentificacao || '');
+            const res = await fetch(`/laudos/${laudo.id}/signed-pdf-engenheiro`, {
+              method: 'POST',
+              credentials: 'include',
+              body: fd,
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({ error: 'Erro ao anexar PDF assinado' }));
+              throw new Error(err.error || `HTTP ${res.status}`);
+            }
+            showToast('PDF assinado do engenheiro anexado como versão oficial.', 'success');
+            await loadLaudos();
+          } catch (err) {
+            el.laudosError.textContent = err.message;
+          }
+        })();
+      };
+      input.click();
     }
 
     async function downloadOfficialPdf(laudoId) {
@@ -1253,34 +1255,38 @@
       window.location.replace('/login');
     });
 
-    el.laudosBody.addEventListener('click', async (ev) => {
-      const action = ev.target.dataset.action;
-      const id = ev.target.dataset.id;
+    el.laudosBody.addEventListener('click', (ev) => {
+      const trigger = ev.target.closest('[data-action]');
+      if (!trigger || trigger.tagName === 'SELECT') return;
+      const action = trigger.dataset.action;
+      const id = trigger.dataset.id;
       if (!action || !id) return;
+      if (trigger.disabled) return;
+
       const laudo = state.laudos.find((item) => item.id === id);
 
-      try {
-        if (action === 'detail') {
-          await showLaudoDetail(id);
-        } else if (action === 'reprocess') {
-          await reprocessLaudo(id);
-          showToast('PDF de trabalho reprocessado. Status: pendente de assinatura.', 'success');
-          await loadLaudos();
-        } else if (action === 'upload-signed-inspetor') {
-          await uploadSignedPdf(laudo || { id }, 'inspetor');
-          showToast('PDF assinado do inspetor anexado.', 'success');
-          await loadLaudos();
-        } else if (action === 'upload-signed-engenheiro') {
-          await uploadSignedPdf(laudo || { id }, 'engenheiro');
-          showToast('PDF assinado do engenheiro anexado como versão oficial.', 'success');
-          await loadLaudos();
-        } else if (action === 'download-official') {
-          await downloadOfficialPdf(id);
-          await loadLaudos();
-        }
-      } catch (err) {
-        el.laudosError.textContent = err.message;
+      if (action === 'upload-signed-engenheiro') {
+        openSignedPdfPickerForEngineer(laudo || { id });
+        return;
       }
+
+      void (async () => {
+        try {
+          el.laudosError.textContent = '';
+          if (action === 'detail') {
+            await showLaudoDetail(id);
+          } else if (action === 'reprocess') {
+            await reprocessLaudo(id);
+            showToast('PDF de trabalho reprocessado. Status: pendente de assinatura.', 'success');
+            await loadLaudos();
+          } else if (action === 'download-official') {
+            await downloadOfficialPdf(id);
+            await loadLaudos();
+          }
+        } catch (err) {
+          el.laudosError.textContent = err.message;
+        }
+      })();
     });
 
     el.laudosBody.addEventListener('change', async (ev) => {
