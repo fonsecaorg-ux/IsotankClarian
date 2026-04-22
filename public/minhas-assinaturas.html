@@ -12,6 +12,7 @@
     h1 { color: #0078d4; font-size: 22px; }
     .meta { font-size: 12px; color: #605e5c; margin-top: 4px; }
     .btn { border: 1px solid #edebe9; background: #fff; color: #323130; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .panel { border: 1px solid #edebe9; background: #fff; border-radius: 10px; padding: 12px; }
     .hint { font-size: 12px; color: #605e5c; margin-bottom: 10px; }
     table { width: 100%; border-collapse: collapse; min-width: 760px; }
@@ -120,14 +121,19 @@
       return uploadInput;
     }
 
-    async function pickPdf() {
+    /**
+     * Abre o seletor de PDF no mesmo turno síncrono do clique (evita bloqueio
+     * do Chrome/Safari quando file input .click() não está ligado a gesto do utilizador).
+     */
+    function openPdfPickerThen(onChosen) {
       const input = ensureUploadInput();
       input.value = '';
-      const file = await new Promise((resolve) => {
-        input.onchange = () => resolve(input.files && input.files[0] ? input.files[0] : null);
-        input.click();
-      });
-      return file;
+      input.onchange = () => {
+        const file = input.files && input.files[0] ? input.files[0] : null;
+        input.onchange = null;
+        onChosen(file);
+      };
+      input.click();
     }
 
     function render() {
@@ -140,7 +146,13 @@
         return;
       }
       el.rows.innerHTML = list.map((l) => {
-        const canUpload = l.status === 'PENDENTE_ASSINATURA';
+        const engineerSigned = Boolean(l.signedAt);
+        const canUpload = (l.status === 'PENDENTE_ASSINATURA' || l.status === 'AGUARDANDO_APROVACAO') && !engineerSigned;
+        const uploadTitle = canUpload
+          ? 'Anexar PDF assinado pelo gov.br (inspetor)'
+          : engineerSigned
+            ? 'Já existe assinatura do engenheiro — use o painel admin se precisar corrigir'
+            : 'Não é possível anexar neste status';
         return `<tr>
           <td>${l.id}</td>
           <td>${l.numeroIdentificacao || '-'}</td>
@@ -149,8 +161,8 @@
           <td>${fmtDate(l.dataInspecao)}</td>
           <td>
             <div class="actions">
-              <button class="btn" data-a="upload" data-id="${l.id}" ${canUpload ? '' : 'disabled'}>Anexar assinado</button>
-              <button class="btn" data-a="preview" data-id="${l.id}">Pré-visualizar PDF</button>
+              <button type="button" class="btn" data-a="upload" data-id="${l.id}" ${canUpload ? '' : 'disabled'} title="${uploadTitle.replace(/"/g, '&quot;')}">Anexar assinado</button>
+              <button type="button" class="btn" data-a="preview" data-id="${l.id}">Pré-visualizar PDF</button>
             </div>
           </td>
         </tr>`;
@@ -180,32 +192,36 @@
       return true;
     }
 
-    el.rows.addEventListener('click', async (ev) => {
+    el.rows.addEventListener('click', (ev) => {
       const btn = ev.target.closest('button[data-a]');
-      if (!btn) return;
+      if (!btn || btn.disabled) return;
       const id = btn.dataset.id;
       const action = btn.dataset.a;
-      try {
-        if (action === 'preview') {
-          window.open(`/laudos/${id}/pdf/preview`, '_blank');
-          return;
-        }
-        if (action === 'upload') {
-          const laudo = state.laudos.find((l) => l.id === id);
-          const file = await pickPdf();
-          if (!file) return;
-          if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) {
-            throw new Error('Selecione um arquivo PDF');
+
+      if (action === 'preview') {
+        window.open(`/laudos/${id}/pdf/preview`, '_blank');
+        return;
+      }
+
+      if (action === 'upload') {
+        const laudo = state.laudos.find((l) => l.id === id);
+        openPdfPickerThen(async (file) => {
+          try {
+            el.error.textContent = '';
+            if (!file) return;
+            if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) {
+              throw new Error('Selecione um arquivo PDF');
+            }
+            const fd = new FormData();
+            fd.set('arquivo', file);
+            fd.set('numeroIdentificacao', laudo?.numeroIdentificacao || '');
+            await api(`/laudos/${id}/signed-pdf-inspetor`, { method: 'POST', body: fd });
+            showToast('PDF assinado do inspetor anexado.');
+            await load();
+          } catch (err) {
+            el.error.textContent = err.message;
           }
-          const fd = new FormData();
-          fd.set('arquivo', file);
-          fd.set('numeroIdentificacao', laudo?.numeroIdentificacao || '');
-          await api(`/laudos/${id}/signed-pdf-inspetor`, { method: 'POST', body: fd });
-          showToast('PDF assinado do inspetor anexado.');
-          await load();
-        }
-      } catch (err) {
-        el.error.textContent = err.message;
+        });
       }
     });
 
