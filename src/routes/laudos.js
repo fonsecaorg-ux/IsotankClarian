@@ -451,6 +451,51 @@ router.get('/:id/oficial/download', async (req, res) => {
   }
 });
 
+/** PDF assinado só pelo inspetor (gov.br) — para o engenheiro/admin baixar e assinar em seguida. */
+router.get('/:id/inspetor-assinado/download', requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const laudo = await prisma.laudo.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        createdById: true,
+        inspectorSignedFileName: true,
+        inspectorSignedMimeType: true,
+        inspectorSignedData: true,
+        inspectorSignedPath: true,
+        inspectorSignedAt: true,
+      },
+    });
+    if (!laudo) return res.status(404).json({ error: 'Laudo não encontrado' });
+    if (!canAccessLaudo(req.user, laudo)) {
+      return res.status(403).json({ error: 'Sem permissão para este laudo' });
+    }
+    if (!laudo.inspectorSignedAt || !laudo.inspectorSignedFileName) {
+      return res.status(409).json({ error: 'Laudo sem PDF assinado pelo inspetor' });
+    }
+
+    res.setHeader('Content-Type', laudo.inspectorSignedMimeType || 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(laudo.inspectorSignedFileName)}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+
+    if (STORAGE_MODE === 'disk') {
+      const absolutePath = getSignedAbsolutePath(laudo.inspectorSignedPath);
+      if (!absolutePath || !fs.existsSync(absolutePath)) {
+        return res.status(404).json({ error: 'Arquivo do inspetor não encontrado no disco' });
+      }
+      return res.send(fs.readFileSync(absolutePath));
+    }
+
+    if (!laudo.inspectorSignedData) {
+      return res.status(404).json({ error: 'PDF do inspetor não encontrado no banco' });
+    }
+    return res.send(laudo.inspectorSignedData);
+  } catch (err) {
+    console.error('Erro ao baixar PDF assinado pelo inspetor:', err);
+    return res.status(500).json({ error: 'Erro ao baixar PDF assinado pelo inspetor' });
+  }
+});
+
 router.patch('/:id/status', requireRole(['ADMIN']), async (req, res) => {
   try {
     const { status } = req.body || {};

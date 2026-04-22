@@ -99,7 +99,7 @@
       font-weight: 700;
     }
     .btn.accent { border-color: var(--accent); color: var(--accent); }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
     .panel {
       background: var(--card);
       border: 1px solid var(--border);
@@ -823,8 +823,9 @@
                 <option value="CONCLUIDO" ${l.status === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
               </select>
               <button type="button" class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar PDF</button>
-              <button type="button" class="btn" data-action="upload-signed-engenheiro" data-id="${escapeHtml(l.id)}" ${l.inspectorSignedAt ? '' : 'disabled'} title="${l.inspectorSignedAt ? escapeHtml('Anexe o PDF assinado pelo engenheiro no gov.br (segunda assinatura).') : escapeHtml('Aguarde: o inspetor anexa primeiro em Minhas Assinaturas.')}">Ass. Engenheiro</button>
-              <button type="button" class="btn" data-action="download-official" data-id="${escapeHtml(l.id)}" ${l.signedAt ? '' : 'disabled'}>Baixar Oficial</button>
+              <button type="button" class="btn" data-action="download-inspetor-signed" data-id="${escapeHtml(l.id)}" ${(l.inspectorSignedAt || l.inspectorSignedFileName) ? '' : 'disabled'} title="${escapeHtml('Baixar o PDF já assinado pelo inspetor (gov.br), para assinar no gov.br como engenheiro.')}">PDF inspetor</button>
+              <button type="button" class="btn" data-action="upload-signed-engenheiro" data-id="${escapeHtml(l.id)}" ${(l.inspectorSignedAt || l.inspectorSignedFileName) ? '' : 'disabled'} title="${(l.inspectorSignedAt || l.inspectorSignedFileName) ? escapeHtml('Anexe o PDF com a segunda assinatura (engenheiro) no gov.br.') : escapeHtml('Aguarde: o inspetor deve anexar primeiro em Minhas Assinaturas (ou use PDF inspetor após anexar).')}">Ass. Engenheiro</button>
+              <button type="button" class="btn" data-action="download-official" data-id="${escapeHtml(l.id)}" ${(l.signedAt || l.signedFileName) ? '' : 'disabled'} title="${(l.signedAt || l.signedFileName) ? escapeHtml('Versão final com assinatura do engenheiro.') : escapeHtml('Só fica disponível depois de Ass. Engenheiro (PDF assinado pelas duas partes).')}">Baixar Oficial</button>
             </div>
           </td>
         </tr>
@@ -1237,6 +1238,27 @@
       URL.revokeObjectURL(url);
     }
 
+    async function downloadInspectorSignedPdf(laudoId) {
+      const res = await fetch(`/laudos/${laudoId}/inspetor-assinado/download`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Erro ao baixar PDF do inspetor' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const cdHeader = res.headers.get('Content-Disposition') || '';
+      const match = cdHeader.match(/filename="?([^"]+)"?/);
+      const filename = match ? decodeURIComponent(match[1]) : `LAUDO_${laudoId}_INSPETOR.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
     el.searchInput.addEventListener('input', renderLaudosTable);
     el.statusFilter.addEventListener('change', renderLaudosTable);
     el.dateStart.addEventListener('change', renderLaudosTable);
@@ -1279,6 +1301,8 @@
             await reprocessLaudo(id);
             showToast('PDF de trabalho reprocessado. Status: pendente de assinatura.', 'success');
             await loadLaudos();
+          } else if (action === 'download-inspetor-signed') {
+            await downloadInspectorSignedPdf(id);
           } else if (action === 'download-official') {
             await downloadOfficialPdf(id);
             await loadLaudos();
