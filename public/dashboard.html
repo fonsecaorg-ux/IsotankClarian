@@ -14,24 +14,27 @@
       --color-border:     #edebe9;
       --color-text:       #323130;
       --color-text-muted: #605e5c;
-      --color-primary:    #0078d4;
-      --color-primary-hover: #106ebe;
+      --color-primary:    #0a1628;
+      --color-primary-hover: #13294b;
+      --color-accent:     #f2c200;
       --color-badge-pendente-bg:  #fff4ce;
       --color-badge-pendente-txt: #835c00;
       --color-badge-gerado-bg:    #dce6f7;
-      --color-badge-gerado-txt:   #0078d4;
+      --color-badge-gerado-txt:   #13294b;
       --color-badge-assinado-bg:  #dff6dd;
       --color-badge-assinado-txt: #107c10;
       --danger: #a80000;
       --warning: #ff8c00;
       --warn: #835c00;
       --ok: #107c10;
-      --status-inspecao: #3b82f6;
-      --status-aprovacao: #f59e0b;
+      --status-inspecao: #2f6fa3;
+      --status-aprovacao: #f2c200;
       --status-concluido: #16a34a;
-      --chart-volume: #2563eb;
-      --chart-inspetor: #0ea5a4;
-      --chart-tempo: #f59e0b;
+      --status-pendente-assinatura: #f59e0b;
+      --status-assinado-digitalmente: #107c10;
+      --chart-volume: #13294b;
+      --chart-inspetor: #2f6fa3;
+      --chart-tempo: #f2c200;
       --radius: 10px;
     }
     body {
@@ -111,7 +114,7 @@
       font-weight: 700;
       cursor: pointer;
     }
-    .toggle.active { border-color: var(--color-primary); color: var(--color-primary); background: #eaf4fc; }
+    .toggle.active { border-color: var(--color-primary); color: var(--color-primary); background: #fff8cc; }
     .canvas-wrap { overflow-x: auto; }
     canvas { display: block; }
     .legend { display: grid; gap: 6px; }
@@ -174,6 +177,15 @@
       border-color: #ffe8a3;
       color: var(--color-badge-pendente-txt);
     }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo {
+      width: auto;
+      height: 40px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--color-border);
+      padding: 4px 8px;
+    }
 
     @media (max-width: 767px) {
       .cards { grid-template-columns: 1fr; }
@@ -195,9 +207,12 @@
 <body>
   <div class="wrap">
     <header class="topbar">
-      <div>
+      <div class="brand">
+        <img class="brand-logo" src="/logo-ceinspec.png" alt="CEINSPEC">
+        <div>
         <h1 class="title">Dashboard de Laudos</h1>
         <p class="meta" id="sessionMeta">Carregando sessão...</p>
+        </div>
       </div>
       <div class="actions">
         <button class="btn" id="btnRefresh">Atualizar</button>
@@ -385,7 +400,7 @@
       const padding = 30;
       const values = items.map((i) => i[valueKey] || 0);
       const maxVal = Math.max(1, ...values);
-      const barColor = opts.barColor || '#2563eb';
+      const barColor = opts.barColor || getCss('--chart-volume');
       const labelStep = Math.max(1, Number(opts.labelStep || 1));
 
       if (!horizontal) {
@@ -401,7 +416,7 @@
           ctx.fillStyle = barColor;
           ctx.fillRect(x, y, barW, h);
           if (idx % labelStep === 0) {
-            ctx.fillStyle = '#605e5c';
+          ctx.fillStyle = getCss('--color-text-muted');
             ctx.font = '11px Segoe UI';
             ctx.fillText(String(item[labelKey]).slice(0, 12), x, height - 8);
           }
@@ -413,7 +428,7 @@
           const y = padding + idx * rowH;
           const val = item[valueKey] || 0;
           const w = (val / maxVal) * chartW;
-          ctx.fillStyle = opts.barColor || '#0ea5a4';
+          ctx.fillStyle = opts.barColor || getCss('--chart-inspetor');
           ctx.fillRect(padding, y + 3, w, rowH - 6);
           ctx.fillStyle = '#323130';
           ctx.font = '11px Segoe UI';
@@ -461,7 +476,7 @@
       const maxY = Math.max(1, avgDays * 1.5);
       const y = baselineY - ((avgDays / maxY) * (height - padding * 2));
 
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = getCss('--chart-tempo');
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(x1, y);
@@ -505,7 +520,7 @@
         items = (stats.laudosPorMes || []).map((i) => ({ label: i.mes.slice(2), total: i.total }));
       }
       drawBars(ctx, el.canvasVolume.width, el.canvasVolume.height, items, 'label', 'total', false, {
-        barColor: '#2563eb',
+        barColor: getCss('--chart-volume'),
         labelStep: state.volumePeriod === '12' ? 2 : 1,
       });
     }
@@ -513,11 +528,11 @@
     function renderStatusChart(stats) {
       const status = stats.laudosPorStatus || {};
       const data = [
-        { key: 'EM_INSPECAO', value: status.EM_INSPECAO || 0, color: '#3b82f6' },
-        { key: 'AGUARDANDO_APROVACAO', value: status.AGUARDANDO_APROVACAO || 0, color: '#f59e0b' },
-        { key: 'PENDENTE_ASSINATURA', value: status.PENDENTE_ASSINATURA || 0, color: '#f97316' },
-        { key: 'ASSINADO_DIGITALMENTE', value: status.ASSINADO_DIGITALMENTE || 0, color: '#16a34a' },
-        { key: 'CONCLUIDO', value: status.CONCLUIDO || 0, color: '#16a34a' },
+        { key: 'EM_INSPECAO', value: status.EM_INSPECAO || 0, color: getCss('--status-inspecao') },
+        { key: 'AGUARDANDO_APROVACAO', value: status.AGUARDANDO_APROVACAO || 0, color: getCss('--status-aprovacao') },
+        { key: 'PENDENTE_ASSINATURA', value: status.PENDENTE_ASSINATURA || 0, color: getCss('--status-pendente-assinatura') },
+        { key: 'ASSINADO_DIGITALMENTE', value: status.ASSINADO_DIGITALMENTE || 0, color: getCss('--status-assinado-digitalmente') },
+        { key: 'CONCLUIDO', value: status.CONCLUIDO || 0, color: getCss('--status-concluido') },
       ];
       const ctx = el.canvasStatus.getContext('2d');
       drawPie(ctx, el.canvasStatus.width, el.canvasStatus.height, data);
@@ -533,7 +548,7 @@
       const list = [...(stats.laudosPorInspetor || [])].sort((a, b) => b.total - a.total);
       const ctx = el.canvasInspetor.getContext('2d');
       drawBars(ctx, el.canvasInspetor.width, el.canvasInspetor.height, list, 'nome', 'total', true, {
-        barColor: '#0ea5a4',
+        barColor: getCss('--chart-inspetor'),
       });
     }
 
@@ -547,6 +562,10 @@
       if (days <= 15) return 'u-yellow';
       if (days <= 30) return 'u-orange';
       return 'u-green';
+    }
+
+    function getCss(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
     async function loadVencimentos() {

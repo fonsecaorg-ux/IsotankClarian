@@ -14,8 +14,9 @@
       --color-border:     #edebe9;
       --color-text:       #323130;
       --color-text-muted: #605e5c;
-      --color-primary:    #0078d4;
-      --color-primary-hover: #106ebe;
+      --color-primary:    #0a1628;
+      --color-primary-hover: #13294b;
+      --color-accent:     #f2c200;
       --color-badge-pendente-bg:  #fff4ce;
       --color-badge-pendente-txt: #835c00;
       --color-badge-gerado-bg:    #dce6f7;
@@ -23,7 +24,7 @@
       --color-badge-assinado-bg:  #dff6dd;
       --color-badge-assinado-txt: #107c10;
       --bg: var(--color-bg); --surface: var(--color-surface); --card: var(--color-surface); --border: var(--color-border); --accent: var(--color-primary);
-      --text: var(--color-text); --muted: var(--color-text-muted); --warn: #835c00; --info: #0078d4; --success: #107c10; --danger: #a80000;
+      --text: var(--color-text); --muted: var(--color-text-muted); --warn: #835c00; --info: #13294b; --success: #107c10; --danger: #a80000;
     }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
     .wrap { padding: 14px; max-width: 1600px; margin: 0 auto; }
@@ -32,6 +33,15 @@
     .actions { display: flex; gap: 8px; align-items: center; }
     .btn { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
     .btn.accent { border-color: var(--accent); color: var(--accent); }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo {
+      width: auto;
+      height: 40px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+    }
     .meta { font-size: 12px; color: var(--muted); }
     .filters { display: grid; grid-template-columns: 1fr 220px 160px 160px; gap: 8px; margin-bottom: 12px; }
     input, select { width: 100%; height: 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); padding: 0 10px; }
@@ -39,7 +49,7 @@
     .col { border: 1px solid var(--border); border-radius: 10px; background: var(--card); min-height: 65vh; display: flex; flex-direction: column; }
     .col-head { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); font-weight: 800; font-size: 12px; }
     .col-head.EM_INSPECAO { color: #835c00; }
-    .col-head.AGUARDANDO_APROVACAO { color: #0078d4; }
+    .col-head.AGUARDANDO_APROVACAO { color: #13294b; }
     .col-head.CONCLUIDO { color: #107c10; }
     .col-count { font-size: 11px; color: var(--muted); }
     .col-body { padding: 8px; display: grid; gap: 8px; min-height: 120px; }
@@ -51,7 +61,7 @@
     .card-muted { font-size: 11px; color: var(--muted); }
     .status-badge { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 800; padding: 3px 6px; border-radius: 999px; }
     .status-badge.EM_INSPECAO { color: #835c00; background: #fff4ce; }
-    .status-badge.AGUARDANDO_APROVACAO { color: #0078d4; background: #dce6f7; }
+    .status-badge.AGUARDANDO_APROVACAO { color: #13294b; background: #dce6f7; }
     .status-badge.CONCLUIDO { color: #107c10; background: #dff6dd; }
     .msg { margin-top: 8px; font-size: 12px; color: var(--danger); min-height: 18px; }
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 50; }
@@ -99,9 +109,12 @@
 <body>
   <div class="wrap">
     <header class="topbar">
-      <div>
+      <div class="brand">
+        <img class="brand-logo" src="/logo-ceinspec.png" alt="CEINSPEC">
+        <div>
         <h1 class="title">Kanban de Laudos</h1>
         <p class="meta" id="sessionMeta">Carregando sessão...</p>
+        </div>
       </div>
       <div class="actions">
         <span class="meta" id="updatedAt">Atualizado às --:--</span>

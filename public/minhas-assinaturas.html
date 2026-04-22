@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CEINSPEC — Minhas Assinaturas</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f3f2f1; color: #323130; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    h1 { color: #0078d4; font-size: 22px; }
+    .meta { font-size: 12px; color: #605e5c; margin-top: 4px; }
+    .btn { border: 1px solid #edebe9; background: #fff; color: #323130; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    .panel { border: 1px solid #edebe9; background: #fff; border-radius: 10px; padding: 12px; }
+    .hint { font-size: 12px; color: #605e5c; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { border-bottom: 1px solid #edebe9; padding: 8px; font-size: 12px; text-align: left; vertical-align: top; }
+    th { background: #faf9f8; color: #605e5c; font-weight: 800; }
+    .table-wrap { overflow: auto; border: 1px solid #edebe9; border-radius: 8px; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .status-PENDENTE_ASSINATURA { background: #ffedd5; color: #c2410c; }
+    .status-AGUARDANDO_APROVACAO { background: #dce6f7; color: #0078d4; }
+    .status-ASSINADO_DIGITALMENTE { background: #dff6dd; color: #107c10; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .error { color: #a80000; margin-top: 8px; font-size: 12px; min-height: 18px; }
+    .toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); background: #fff; border: 1px solid #edebe9; border-radius: 999px; padding: 8px 12px; font-size: 12px; font-weight: 700; display: none; z-index: 20; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>Minhas Assinaturas</h1>
+        <p class="meta" id="sessionMeta">Carregando sessão...</p>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/">Voltar ao formulário</a>
+        <button class="btn" id="btnRefresh" type="button">Atualizar</button>
+        <button class="btn" id="btnLogout" type="button">Sair</button>
+      </div>
+    </div>
+
+    <section class="panel">
+      <p class="hint">Fluxo: gere o laudo, assine no gov.br e anexe aqui o PDF assinado do inspetor.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Isotank</th>
+              <th>Cliente</th>
+              <th>Status</th>
+              <th>Inspeção</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="error" id="error"></p>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script>
+    'use strict';
+    const el = {
+      sessionMeta: document.getElementById('sessionMeta'),
+      btnRefresh: document.getElementById('btnRefresh'),
+      btnLogout: document.getElementById('btnLogout'),
+      rows: document.getElementById('rows'),
+      error: document.getElementById('error'),
+      toast: document.getElementById('toast'),
+    };
+    let state = { user: null, laudos: [] };
+    let uploadInput = null;
+
+    function showToast(msg) {
+      el.toast.textContent = msg;
+      el.toast.style.display = 'block';
+      clearTimeout(el.toast._t);
+      el.toast._t = setTimeout(() => { el.toast.style.display = 'none'; }, 2600);
+    }
+
+    function fmtDate(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return '-';
+      return d.toLocaleString('pt-BR');
+    }
+
+    function labelStatus(s) {
+      const m = {
+        PENDENTE_ASSINATURA: 'Pendente assinatura',
+        AGUARDANDO_APROVACAO: 'Aguardando aprovação',
+        ASSINADO_DIGITALMENTE: 'Assinado digitalmente',
+        EM_INSPECAO: 'Em inspeção',
+        CONCLUIDO: 'Concluído',
+      };
+      return m[s] || s || '-';
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, { credentials: 'include', ...options });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function ensureUploadInput() {
+      if (uploadInput) return uploadInput;
+      uploadInput = document.createElement('input');
+      uploadInput.type = 'file';
+      uploadInput.accept = 'application/pdf,.pdf';
+      uploadInput.style.display = 'none';
+      document.body.appendChild(uploadInput);
+      return uploadInput;
+    }
+
+    async function pickPdf() {
+      const input = ensureUploadInput();
+      input.value = '';
+      const file = await new Promise((resolve) => {
+        input.onchange = () => resolve(input.files && input.files[0] ? input.files[0] : null);
+        input.click();
+      });
+      return file;
+    }
+
+    function render() {
+      const list = state.laudos
+        .filter((l) => ['PENDENTE_ASSINATURA', 'AGUARDANDO_APROVACAO', 'ASSINADO_DIGITALMENTE'].includes(l.status))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      if (!list.length) {
+        el.rows.innerHTML = '<tr><td colspan="6">Nenhum laudo pendente de assinatura.</td></tr>';
+        return;
+      }
+      el.rows.innerHTML = list.map((l) => {
+        const canUpload = l.status === 'PENDENTE_ASSINATURA';
+        return `<tr>
+          <td>${l.id}</td>
+          <td>${l.numeroIdentificacao || '-'}</td>
+          <td>${l.cliente || '-'}</td>
+          <td><span class="badge status-${l.status}">${labelStatus(l.status)}</span></td>
+          <td>${fmtDate(l.dataInspecao)}</td>
+          <td>
+            <div class="actions">
+              <button class="btn" data-a="upload" data-id="${l.id}" ${canUpload ? '' : 'disabled'}>Anexar assinado</button>
+              <button class="btn" data-a="preview" data-id="${l.id}">Pré-visualizar PDF</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function load() {
+      el.error.textContent = '';
+      state.laudos = await api('/laudos');
+      render();
+    }
+
+    async function ensureInspector() {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+      if (res.status === 401) {
+        window.location.replace('/login');
+        return false;
+      }
+      if (!res.ok) throw new Error('Falha ao validar sessão');
+      const payload = await res.json();
+      state.user = payload.user;
+      if (!['INSPETOR', 'ADMIN'].includes(state.user.role)) {
+        window.location.replace('/');
+        return false;
+      }
+      el.sessionMeta.textContent = `${state.user.nome} (${state.user.role})`;
+      return true;
+    }
+
+    el.rows.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('button[data-a]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.a;
+      try {
+        if (action === 'preview') {
+          window.open(`/laudos/${id}/pdf/preview`, '_blank');
+          return;
+        }
+        if (action === 'upload') {
+          const laudo = state.laudos.find((l) => l.id === id);
+          const file = await pickPdf();
+          if (!file) return;
+          if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) {
+            throw new Error('Selecione um arquivo PDF');
+          }
+          const fd = new FormData();
+          fd.set('arquivo', file);
+          fd.set('numeroIdentificacao', laudo?.numeroIdentificacao || '');
+          await api(`/laudos/${id}/signed-pdf-inspetor`, { method: 'POST', body: fd });
+          showToast('PDF assinado do inspetor anexado.');
+          await load();
+        }
+      } catch (err) {
+        el.error.textContent = err.message;
+      }
+    });
+
+    el.btnRefresh.addEventListener('click', () => load().catch((err) => { el.error.textContent = err.message; }));
+    el.btnLogout.addEventListener('click', async () => {
+      try { await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); } catch (_) {}
+      window.location.replace('/login');
+    });
+
+    (async () => {
+      try {
+        const ok = await ensureInspector();
+        if (!ok) return;
+        await load();
+      } catch (err) {
+        el.error.textContent = err.message;
+      }
+    })();
+  </script>
+  <script src="/change-password.js"></script>
+</body>
+</html>

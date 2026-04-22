@@ -84,6 +84,8 @@ router.get('/', async (req, res) => {
         createdAt: true,
         signedAt: true,
         signedFileName: true,
+        inspectorSignedAt: true,
+        inspectorSignedFileName: true,
         createdById: true,
         createdBy: {
           select: {
@@ -115,6 +117,13 @@ router.get('/:id', async (req, res) => {
           },
         },
         signedBy: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        inspectorSignedBy: {
           select: {
             id: true,
             nome: true,
@@ -239,6 +248,148 @@ router.get('/:id/fotos/:fotoId', async (req, res) => {
   }
 });
 
+async function attachSignedPdf(req, res, signerRole) {
+  const laudo = await prisma.laudo.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, status: true, numeroIdentificacao: true, inspectorSignedAt: true, createdById: true },
+  });
+  if (!laudo) return res.status(404).json({ error: 'Laudo não encontrado' });
+
+  if (signerRole === 'inspetor') {
+    if (!canAccessLaudo(req.user, laudo)) {
+      return res.status(403).json({ error: 'Sem permissão para assinar este laudo como inspetor' });
+    }
+    if (req.user.role !== 'INSPETOR' && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Perfil sem permissão para assinatura do inspetor' });
+    }
+  } else {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Somente ADMIN pode anexar assinatura do engenheiro' });
+    }
+  }
+
+  const file = req.file;
+  if (!file || !file.buffer || file.buffer.length === 0) {
+    return res.status(400).json({ error: 'Arquivo PDF assinado é obrigatório' });
+  }
+  if ((file.mimetype || '').toLowerCase() !== 'application/pdf') {
+    return res.status(400).json({ error: 'Formato inválido. Envie um PDF assinado' });
+  }
+
+  if (signerRole === 'engenheiro' && !laudo.inspectorSignedAt) {
+    return res.status(409).json({ error: 'Anexe primeiro o PDF assinado pelo inspetor/encarregado' });
+  }
+
+  const numeroIdentificacao = String(req.body?.numeroIdentificacao || laudo.numeroIdentificacao || '').trim() || 'LAUDO';
+  const safeName = `${numeroIdentificacao}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const signedFileName = signerRole === 'inspetor'
+    ? `LAUDO_${safeName}_ASSINADO_INSPETOR.pdf`
+    : `LAUDO_${safeName}_ASSINADO.pdf`;
+  const signedHash = crypto.createHash('sha256').update(file.buffer).digest('hex');
+
+  let signedPath = null;
+  let signedData = file.buffer;
+  if (STORAGE_MODE === 'disk') {
+    fs.mkdirSync(SIGNED_ROOT, { recursive: true });
+    const finalName = `${laudo.id}_${Date.now()}_${signedFileName}`;
+    const absolutePath = path.join(SIGNED_ROOT, finalName);
+    fs.writeFileSync(absolutePath, file.buffer);
+    signedPath = absolutePath;
+    signedData = null;
+  }
+
+  const data = signerRole === 'inspetor'
+    ? {
+      status: 'AGUARDANDO_APROVACAO',
+      inspectorSignedFileName: signedFileName,
+      inspectorSignedMimeType: 'application/pdf',
+      inspectorSignedSize: Number(file.size || file.buffer.length),
+      inspectorSignedHash: signedHash,
+      inspectorSignedPath: signedPath,
+      inspectorSignedData: signedData,
+      inspectorSignedAt: new Date(),
+      inspectorSignedById: req.user.id,
+    }
+    : {
+      status: 'ASSINADO_DIGITALMENTE',
+      signedFileName,
+      signedMimeType: 'application/pdf',
+      signedSize: Number(file.size || file.buffer.length),
+      signedHash,
+      signedPath,
+      signedData,
+      signedAt: new Date(),
+      signedById: req.user.id,
+    };
+
+  const updated = await prisma.laudo.update({
+    where: { id: laudo.id },
+    data,
+    select: {
+      id: true,
+      status: true,
+      signedFileName: true,
+      signedAt: true,
+      signedHash: true,
+      inspectorSignedFileName: true,
+      inspectorSignedAt: true,
+      inspectorSignedHash: true,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      action: signerRole === 'inspetor' ? 'SIGNED_PDF_ATTACHED_INSPETOR' : 'SIGNED_PDF_ATTACHED_ENGENHEIRO',
+      laudoId: laudo.id,
+      userId: req.user.id,
+      fromStatus: laudo.status,
+      toStatus: updated.status,
+      metadata: {
+        signedFileName,
+        signedSize: Number(file.size || file.buffer.length),
+        signedHash,
+      },
+    },
+  });
+
+  return res.status(201).json(updated);
+}
+
+router.post('/:id/signed-pdf-inspetor', requireRole(['ADMIN', 'INSPETOR']), (req, res) => {
+  signedUpload.single('arquivo')(req, res, async (uploadErr) => {
+    if (uploadErr && uploadErr.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Arquivo excede 20MB' });
+    }
+    if (uploadErr) {
+      return res.status(400).json({ error: 'Falha ao processar upload do PDF assinado' });
+    }
+    try {
+      return await attachSignedPdf(req, res, 'inspetor');
+    } catch (err) {
+      console.error('Erro ao anexar PDF assinado do inspetor:', err);
+      return res.status(500).json({ error: 'Erro ao anexar PDF assinado do inspetor' });
+    }
+  });
+});
+
+router.post('/:id/signed-pdf-engenheiro', requireRole(['ADMIN']), (req, res) => {
+  signedUpload.single('arquivo')(req, res, async (uploadErr) => {
+    if (uploadErr && uploadErr.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Arquivo excede 20MB' });
+    }
+    if (uploadErr) {
+      return res.status(400).json({ error: 'Falha ao processar upload do PDF assinado' });
+    }
+    try {
+      return await attachSignedPdf(req, res, 'engenheiro');
+    } catch (err) {
+      console.error('Erro ao anexar PDF assinado do engenheiro:', err);
+      return res.status(500).json({ error: 'Erro ao anexar PDF assinado do engenheiro' });
+    }
+  });
+});
+
+// Compatibilidade: endpoint antigo passa a representar assinatura final do engenheiro.
 router.post('/:id/signed-pdf', requireRole(['ADMIN']), (req, res) => {
   signedUpload.single('arquivo')(req, res, async (uploadErr) => {
     if (uploadErr && uploadErr.code === 'LIMIT_FILE_SIZE') {
@@ -248,76 +399,9 @@ router.post('/:id/signed-pdf', requireRole(['ADMIN']), (req, res) => {
       return res.status(400).json({ error: 'Falha ao processar upload do PDF assinado' });
     }
     try {
-      const laudo = await prisma.laudo.findUnique({
-        where: { id: req.params.id },
-        select: { id: true, status: true, numeroIdentificacao: true },
-      });
-      if (!laudo) return res.status(404).json({ error: 'Laudo não encontrado' });
-
-      const file = req.file;
-      if (!file || !file.buffer || file.buffer.length === 0) {
-        return res.status(400).json({ error: 'Arquivo PDF assinado é obrigatório' });
-      }
-      if ((file.mimetype || '').toLowerCase() !== 'application/pdf') {
-        return res.status(400).json({ error: 'Formato inválido. Envie um PDF assinado' });
-      }
-
-      const numeroIdentificacao = String(req.body?.numeroIdentificacao || laudo.numeroIdentificacao || '').trim() || 'LAUDO';
-      const safeName = `${numeroIdentificacao}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const signedFileName = `LAUDO_${safeName}_ASSINADO.pdf`;
-      const signedHash = crypto.createHash('sha256').update(file.buffer).digest('hex');
-
-      let signedPath = null;
-      let signedData = file.buffer;
-      if (STORAGE_MODE === 'disk') {
-        fs.mkdirSync(SIGNED_ROOT, { recursive: true });
-        const finalName = `${laudo.id}_${Date.now()}_${signedFileName}`;
-        const absolutePath = path.join(SIGNED_ROOT, finalName);
-        fs.writeFileSync(absolutePath, file.buffer);
-        signedPath = absolutePath;
-        signedData = null;
-      }
-
-      const updated = await prisma.laudo.update({
-        where: { id: laudo.id },
-        data: {
-          status: 'ASSINADO_DIGITALMENTE',
-          signedFileName,
-          signedMimeType: 'application/pdf',
-          signedSize: Number(file.size || file.buffer.length),
-          signedHash,
-          signedPath,
-          signedData,
-          signedAt: new Date(),
-          signedById: req.user.id,
-        },
-        select: {
-          id: true,
-          status: true,
-          signedFileName: true,
-          signedAt: true,
-          signedHash: true,
-        },
-      });
-
-      await prisma.auditLog.create({
-        data: {
-          action: 'SIGNED_PDF_ATTACHED',
-          laudoId: laudo.id,
-          userId: req.user.id,
-          fromStatus: laudo.status,
-          toStatus: 'ASSINADO_DIGITALMENTE',
-          metadata: {
-            signedFileName,
-            signedSize: Number(file.size || file.buffer.length),
-            signedHash,
-          },
-        },
-      });
-
-      return res.status(201).json(updated);
+      return await attachSignedPdf(req, res, 'engenheiro');
     } catch (err) {
-      console.error('Erro ao anexar PDF assinado:', err);
+      console.error('Erro ao anexar PDF assinado (compat):', err);
       return res.status(500).json({ error: 'Erro ao anexar PDF assinado' });
     }
   });
@@ -387,10 +471,13 @@ router.patch('/:id/status', requireRole(['ADMIN']), async (req, res) => {
     if (status === 'ASSINADO_DIGITALMENTE') {
       const signed = await prisma.laudo.findUnique({
         where: { id: existing.id },
-        select: { signedAt: true, signedFileName: true },
+        select: { signedAt: true, signedFileName: true, inspectorSignedAt: true, inspectorSignedFileName: true },
       });
+      if (!signed?.inspectorSignedAt || !signed?.inspectorSignedFileName) {
+        return res.status(400).json({ error: 'Anexe primeiro o PDF assinado do inspetor' });
+      }
       if (!signed?.signedAt || !signed?.signedFileName) {
-        return res.status(400).json({ error: 'Anexe um PDF assinado antes de definir status ASSINADO_DIGITALMENTE' });
+        return res.status(400).json({ error: 'Anexe o PDF assinado do engenheiro antes de definir status ASSINADO_DIGITALMENTE' });
       }
     }
 

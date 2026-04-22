@@ -524,6 +524,7 @@
       <strong id="loggedUserName">Carregando...</strong>
       <span id="loggedUserRole">--</span>
     </div>
+    <a class="admin-link hidden" id="signaturesLink" href="/minhas-assinaturas">Minhas Assinaturas</a>
     <a class="admin-link hidden" id="adminLink" href="/painel-admin">Painel Admin</a>
     <button type="button" class="btn-logout" id="btnLogout">Sair</button>
   </div>
@@ -973,6 +974,7 @@ const loggedUserName = document.getElementById('loggedUserName');
 const loggedUserRole = document.getElementById('loggedUserRole');
 const btnLogout = document.getElementById('btnLogout');
 const adminLink = document.getElementById('adminLink');
+const signaturesLink = document.getElementById('signaturesLink');
 const draftMeta = document.getElementById('draftMeta');
 const overlay = document.getElementById('overlay');
 const retryWrap = document.getElementById('retryWrap');
@@ -1309,6 +1311,7 @@ async function ensureAuthenticated() {
   loggedUserName.textContent = loggedUser.nome || 'Usuário';
   loggedUserRole.textContent = loggedUser.role || '-';
   if (loggedUser.role === 'ADMIN') adminLink.classList.remove('hidden');
+  if (loggedUser.role === 'INSPETOR' || loggedUser.role === 'ADMIN') signaturesLink.classList.remove('hidden');
   draftKey = `isotank_draft_${loggedUser.id}`;
   return true;
 }

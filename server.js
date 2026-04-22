@@ -529,6 +529,7 @@ app.get('/kanban.html', (req, res) => res.redirect(301, '/kanban'));
 app.get('/dashboard.html', (req, res) => res.redirect(301, '/dashboard'));
 app.get('/equipamentos.html', (req, res) => res.redirect(301, '/equipamentos'));
 app.get('/clientes.html', (req, res) => res.redirect(301, '/clientes'));
+app.get('/minhas-assinaturas.html', (req, res) => res.redirect(301, '/minhas-assinaturas'));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/login', (req, res) => {
@@ -542,6 +543,9 @@ app.get('/kanban', (req, res) => {
 });
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+app.get('/minhas-assinaturas', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'minhas-assinaturas.html'));
 });
 function isPageNavigation(req) {
   const accept = String(req.headers.accept || '');

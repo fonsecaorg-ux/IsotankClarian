@@ -9,9 +9,10 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --color-bg: #f3f2f1; --color-surface: #ffffff; --color-sidebar: #ffffff; --color-border: #edebe9;
-      --color-text: #323130; --color-text-muted: #605e5c; --color-primary: #0078d4; --color-primary-hover: #106ebe;
+      --color-text: #323130; --color-text-muted: #605e5c; --color-primary: #0a1628; --color-primary-hover: #13294b;
+      --color-accent: #f2c200;
       --color-badge-pendente-bg: #fff4ce; --color-badge-pendente-txt: #835c00; --color-badge-gerado-bg: #dce6f7;
-      --color-badge-gerado-txt: #0078d4; --color-badge-assinado-bg: #dff6dd; --color-badge-assinado-txt: #107c10;
+      --color-badge-gerado-txt: #13294b; --color-badge-assinado-bg: #dff6dd; --color-badge-assinado-txt: #107c10;
       --danger: #a80000; --warning: #ff8c00; --ok: #107c10;
     }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--color-bg); color: var(--color-text); min-height: 100vh; }
@@ -23,6 +24,15 @@
     .btn { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 8px; min-height: 40px; padding: 8px 10px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; }
     .btn.primary { border-color: var(--color-primary); color: #fff; background: var(--color-primary); }
     .btn.primary:hover { background: var(--color-primary-hover); }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo {
+      width: auto;
+      height: 40px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--color-border);
+      padding: 4px 8px;
+    }
     .panel { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
     .panel-title { color: var(--color-primary); font-size: 14px; font-weight: 800; margin-bottom: 8px; }
     .form-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 8px; align-items: end; }
@@ -37,7 +47,7 @@
     .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
     .ld-status { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
     .ld-status.EM_INSPECAO { background: #fff4ce; color: #835c00; }
-    .ld-status.AGUARDANDO_APROVACAO { background: #dce6f7; color: #0078d4; }
+    .ld-status.AGUARDANDO_APROVACAO { background: #dce6f7; color: #13294b; }
     .ld-status.CONCLUIDO { background: #dff6dd; color: #107c10; }
     .b-red { background: #fde7e9; color: var(--danger); }
     .b-yellow { background: var(--color-badge-pendente-bg); color: var(--color-badge-pendente-txt); }
@@ -71,9 +81,12 @@
 <body>
   <div class="wrap">
     <header class="topbar">
-      <div>
+      <div class="brand">
+        <img class="brand-logo" src="/logo-ceinspec.png" alt="CEINSPEC">
+        <div>
         <h1 class="title">Cadastro de Isotanks</h1>
         <p class="meta" id="sessionMeta">Carregando sessão...</p>
+        </div>
       </div>
       <div class="actions">
         <button class="btn" id="btnRefresh">Atualizar</button>

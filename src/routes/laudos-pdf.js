@@ -142,6 +142,14 @@ router.post(
             signedData: null,
             signedAt: null,
             signedById: null,
+            inspectorSignedFileName: null,
+            inspectorSignedMimeType: null,
+            inspectorSignedSize: null,
+            inspectorSignedHash: null,
+            inspectorSignedPath: null,
+            inspectorSignedData: null,
+            inspectorSignedAt: null,
+            inspectorSignedById: null,
           },
         });
       } catch (errStatus) {

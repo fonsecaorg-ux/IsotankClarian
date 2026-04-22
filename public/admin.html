@@ -822,7 +822,8 @@
                 <option value="CONCLUIDO" ${l.status === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
               </select>
               <button class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar PDF</button>
-              <button class="btn" data-action="upload-signed" data-id="${escapeHtml(l.id)}">Anexar Assinado</button>
+              <button class="btn" data-action="upload-signed-inspetor" data-id="${escapeHtml(l.id)}">Ass. Inspetor</button>
+              <button class="btn" data-action="upload-signed-engenheiro" data-id="${escapeHtml(l.id)}" ${l.inspectorSignedAt ? '' : 'disabled'}>Ass. Engenheiro</button>
               <button class="btn" data-action="download-official" data-id="${escapeHtml(l.id)}" ${l.signedAt ? '' : 'disabled'}>Baixar Oficial</button>
             </div>
           </td>
@@ -1179,7 +1180,7 @@
       return input;
     }
 
-    async function uploadSignedPdf(laudo) {
+    async function uploadSignedPdf(laudo, signerRole) {
       const input = ensureSignedUploadInput();
       input.value = '';
 
@@ -1199,7 +1200,10 @@
       fd.set('arquivo', file);
       fd.set('numeroIdentificacao', laudo?.numeroIdentificacao || '');
 
-      const res = await fetch(`/laudos/${laudo.id}/signed-pdf`, {
+      const endpoint = signerRole === 'inspetor'
+        ? `/laudos/${laudo.id}/signed-pdf-inspetor`
+        : `/laudos/${laudo.id}/signed-pdf-engenheiro`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
         body: fd,
@@ -1262,9 +1266,13 @@
           await reprocessLaudo(id);
           showToast('PDF de trabalho reprocessado. Status: pendente de assinatura.', 'success');
           await loadLaudos();
-        } else if (action === 'upload-signed') {
-          await uploadSignedPdf(laudo || { id });
-          showToast('PDF assinado anexado como versão oficial.', 'success');
+        } else if (action === 'upload-signed-inspetor') {
+          await uploadSignedPdf(laudo || { id }, 'inspetor');
+          showToast('PDF assinado do inspetor anexado.', 'success');
+          await loadLaudos();
+        } else if (action === 'upload-signed-engenheiro') {
+          await uploadSignedPdf(laudo || { id }, 'engenheiro');
+          showToast('PDF assinado do engenheiro anexado como versão oficial.', 'success');
           await loadLaudos();
         } else if (action === 'download-official') {
           await downloadOfficialPdf(id);
