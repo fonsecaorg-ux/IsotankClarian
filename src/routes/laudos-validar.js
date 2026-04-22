@@ -15,6 +15,8 @@ const router = express.Router();
 const STATUS_LABEL = {
   EM_INSPECAO: 'Em inspeção',
   AGUARDANDO_APROVACAO: 'Aguardando aprovação',
+  PENDENTE_ASSINATURA: 'Pendente assinatura digital',
+  ASSINADO_DIGITALMENTE: 'Assinado digitalmente',
   CONCLUIDO: 'Concluído',
 };
 
@@ -78,8 +80,10 @@ function renderPage({ title, body }) {
     display: inline-block; padding: 4px 11px; border-radius: 18px;
     font-size: 12px; font-weight: 600;
   }
+  .status-ASSINADO_DIGITALMENTE { background: #E1F5EE; color: #0F6E56; }
   .status-CONCLUIDO { background: #E1F5EE; color: #0F6E56; }
   .status-AGUARDANDO_APROVACAO { background: #fff3cd; color: #856404; }
+  .status-PENDENTE_ASSINATURA { background: #ffe9d5; color: #9a3412; }
   .status-EM_INSPECAO { background: #d1ecf1; color: #0c5460; }
   .divider {
     border-top: 1px solid #eee; margin: 20px 0;
@@ -129,7 +133,7 @@ router.get('/:id/validar', async (req, res) => {
       select: {
         id: true, numeroIdentificacao: true, cliente: true,
         dataInspecao: true, status: true, generatedAt: true,
-        pdfHash: true,
+        pdfHash: true, signedHash: true,
         createdBy: { select: { nome: true } },
       },
     });
@@ -154,15 +158,15 @@ router.get('/:id/validar', async (req, res) => {
       }));
     }
 
-    if (laudo.status === 'EM_INSPECAO') {
+    if (!['ASSINADO_DIGITALMENTE', 'CONCLUIDO'].includes(laudo.status)) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.status(200).send(renderPage({
-        title: 'Laudo em emissão',
+        title: 'Laudo sem assinatura digital',
         body: `
           <div class="card-header warn">
             <div class="error-icon">⏳</div>
-            <h1>Laudo em emissão</h1>
-            <div class="subtitle">Documento ainda não finalizado</div>
+            <h1>Laudo pendente de assinatura</h1>
+            <div class="subtitle">Documento ainda não oficial</div>
           </div>
           <div class="card-body">
             <div class="field">
@@ -170,15 +174,15 @@ router.get('/:id/validar', async (req, res) => {
               <div class="field-value mono">${escHtml(laudo.numeroIdentificacao || '—')}</div>
             </div>
             <p style="text-align: center; color: #555; margin-top: 12px;">
-              Este laudo ainda está em processo de inspeção e
-              <strong>não possui valor oficial</strong>.
+              Este laudo ainda não recebeu assinatura digital final e
+              <strong>não possui valor oficial externo</strong>.
             </p>
           </div>
         `,
       }));
     }
 
-    const hash = laudo.pdfHash;
+    const hash = laudo.signedHash || laudo.pdfHash;
     const hashBlock = hash
       ? `
         <div class="divider"></div>

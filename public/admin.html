@@ -139,6 +139,8 @@
     }
     .badge.EM_INSPECAO { background: #fff4ce; color: #835c00; }
     .badge.AGUARDANDO_APROVACAO { background: #dce6f7; color: #0078d4; }
+    .badge.PENDENTE_ASSINATURA { background: #ffedd5; color: #c2410c; }
+    .badge.ASSINADO_DIGITALMENTE { background: #dff6dd; color: #107c10; }
     .badge.CONCLUIDO { background: #dff6dd; color: #107c10; }
     .row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .hidden { display: none !important; }
@@ -404,6 +406,8 @@
             <option value="">Todos os status</option>
             <option value="EM_INSPECAO">Em Inspeção</option>
             <option value="AGUARDANDO_APROVACAO">Aguardando Aprovação</option>
+            <option value="PENDENTE_ASSINATURA">Pendente Assinatura</option>
+            <option value="ASSINADO_DIGITALMENTE">Assinado Digitalmente</option>
             <option value="CONCLUIDO">Concluído</option>
           </select>
           <input type="date" id="dateStart">
@@ -658,6 +662,7 @@
       lightboxPrev: document.getElementById('lightboxPrev'),
       lightboxNext: document.getElementById('lightboxNext'),
       lightboxClose: document.getElementById('lightboxClose'),
+      signedUploadInput: null,
     };
 
     function showToast(message, type = 'success') {
@@ -687,6 +692,8 @@
       const m = {
         EM_INSPECAO: 'Em Inspeção',
         AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+        PENDENTE_ASSINATURA: 'Pendente Assinatura',
+        ASSINADO_DIGITALMENTE: 'Assinado Digitalmente',
         CONCLUIDO: 'Concluído',
       };
       return m[s] || s || '-';
@@ -810,9 +817,13 @@
               <select data-action="status" data-id="${escapeHtml(l.id)}">
                 <option value="EM_INSPECAO" ${l.status === 'EM_INSPECAO' ? 'selected' : ''}>Em Inspeção</option>
                 <option value="AGUARDANDO_APROVACAO" ${l.status === 'AGUARDANDO_APROVACAO' ? 'selected' : ''}>Aguardando Aprovação</option>
+                <option value="PENDENTE_ASSINATURA" ${l.status === 'PENDENTE_ASSINATURA' ? 'selected' : ''}>Pendente Assinatura</option>
+                <option value="ASSINADO_DIGITALMENTE" ${l.status === 'ASSINADO_DIGITALMENTE' ? 'selected' : ''}>Assinado Digitalmente</option>
                 <option value="CONCLUIDO" ${l.status === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
               </select>
               <button class="btn accent" data-action="reprocess" data-id="${escapeHtml(l.id)}">Reprocessar PDF</button>
+              <button class="btn" data-action="upload-signed" data-id="${escapeHtml(l.id)}">Anexar Assinado</button>
+              <button class="btn" data-action="download-official" data-id="${escapeHtml(l.id)}" ${l.signedAt ? '' : 'disabled'}>Baixar Oficial</button>
             </div>
           </td>
         </tr>
@@ -1157,6 +1168,69 @@
       URL.revokeObjectURL(url);
     }
 
+    function ensureSignedUploadInput() {
+      if (el.signedUploadInput) return el.signedUploadInput;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/pdf,.pdf';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      el.signedUploadInput = input;
+      return input;
+    }
+
+    async function uploadSignedPdf(laudo) {
+      const input = ensureSignedUploadInput();
+      input.value = '';
+
+      const file = await new Promise((resolve) => {
+        input.onchange = () => {
+          const selected = input.files && input.files[0] ? input.files[0] : null;
+          resolve(selected);
+        };
+        input.click();
+      });
+      if (!file) return;
+      if (file.type !== 'application/pdf' && !String(file.name || '').toLowerCase().endsWith('.pdf')) {
+        throw new Error('Selecione um arquivo PDF assinado');
+      }
+
+      const fd = new FormData();
+      fd.set('arquivo', file);
+      fd.set('numeroIdentificacao', laudo?.numeroIdentificacao || '');
+
+      const res = await fetch(`/laudos/${laudo.id}/signed-pdf`, {
+        method: 'POST',
+        credentials: 'include',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Erro ao anexar PDF assinado' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+    }
+
+    async function downloadOfficialPdf(laudoId) {
+      const res = await fetch(`/laudos/${laudoId}/oficial/download`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Erro ao baixar PDF oficial' }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const cdHeader = res.headers.get('Content-Disposition') || '';
+      const match = cdHeader.match(/filename="?([^"]+)"?/);
+      const filename = match ? decodeURIComponent(match[1]) : `LAUDO_${laudoId}_ASSINADO.pdf`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
     el.searchInput.addEventListener('input', renderLaudosTable);
     el.statusFilter.addEventListener('change', renderLaudosTable);
     el.dateStart.addEventListener('change', renderLaudosTable);
@@ -1179,12 +1253,21 @@
       const action = ev.target.dataset.action;
       const id = ev.target.dataset.id;
       if (!action || !id) return;
+      const laudo = state.laudos.find((item) => item.id === id);
 
       try {
         if (action === 'detail') {
           await showLaudoDetail(id);
         } else if (action === 'reprocess') {
           await reprocessLaudo(id);
+          showToast('PDF de trabalho reprocessado. Status: pendente de assinatura.', 'success');
+          await loadLaudos();
+        } else if (action === 'upload-signed') {
+          await uploadSignedPdf(laudo || { id });
+          showToast('PDF assinado anexado como versão oficial.', 'success');
+          await loadLaudos();
+        } else if (action === 'download-official') {
+          await downloadOfficialPdf(id);
           await loadLaudos();
         }
       } catch (err) {

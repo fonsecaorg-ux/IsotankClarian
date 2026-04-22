@@ -16,6 +16,8 @@ enum UserRole {
 enum LaudoStatus {
   EM_INSPECAO
   AGUARDANDO_APROVACAO
+  PENDENTE_ASSINATURA
+  ASSINADO_DIGITALMENTE
   CONCLUIDO
 }
 
@@ -32,6 +34,7 @@ model User {
   updatedAt    DateTime   @updatedAt
 
   laudos       Laudo[]    @relation("LaudoCreatedBy")
+  laudosAssinados Laudo[] @relation("LaudoSignedBy")
   auditLogs    AuditLog[]
   documentos   Documento[] @relation("DocumentoUploadedBy")
 }
@@ -47,11 +50,20 @@ model Laudo {
   generatedFileName String?
   generatedAt       DateTime?
   pdfHash           String?
+  signedFileName    String?
+  signedMimeType    String?
+  signedSize        Int?
+  signedHash        String?
+  signedPath        String?
+  signedData        Bytes?
+  signedAt          DateTime?
+  signedById        String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   createdById       String
   createdBy         User        @relation("LaudoCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  signedBy          User?       @relation("LaudoSignedBy", fields: [signedById], references: [id], onDelete: SetNull)
   equipamentoId     String?
   equipamento       Equipamento? @relation(fields: [equipamentoId], references: [id])
 
@@ -63,6 +75,7 @@ model Laudo {
   @@index([numeroIdentificacao])
   @@index([dataInspecao])
   @@index([equipamentoId])
+  @@index([signedById])
 }
 
 model FotoLaudo {

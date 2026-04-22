@@ -326,6 +326,8 @@
       const m = {
         EM_INSPECAO: 'Em Inspeção',
         AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+        PENDENTE_ASSINATURA: 'Pendente Assinatura',
+        ASSINADO_DIGITALMENTE: 'Assinado Digitalmente',
         CONCLUIDO: 'Concluído',
       };
       return m[s] || s || '-';
@@ -513,6 +515,8 @@
       const data = [
         { key: 'EM_INSPECAO', value: status.EM_INSPECAO || 0, color: '#3b82f6' },
         { key: 'AGUARDANDO_APROVACAO', value: status.AGUARDANDO_APROVACAO || 0, color: '#f59e0b' },
+        { key: 'PENDENTE_ASSINATURA', value: status.PENDENTE_ASSINATURA || 0, color: '#f97316' },
+        { key: 'ASSINADO_DIGITALMENTE', value: status.ASSINADO_DIGITALMENTE || 0, color: '#16a34a' },
         { key: 'CONCLUIDO', value: status.CONCLUIDO || 0, color: '#16a34a' },
       ];
       const ctx = el.canvasStatus.getContext('2d');

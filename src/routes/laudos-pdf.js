@@ -126,19 +126,26 @@ router.post(
       const baseUrl = buildBaseUrl(req);
       const { buffer, hash } = await generatePdf(id, { baseUrl });
 
-      // 3) Atualizar status: laudo deixa de estar EM_INSPECAO ao gerar pela 1ª vez
+      // 3) Atualizar status: após gerar/regerar PDF, volta para pendente de assinatura digital.
       try {
         await prisma.laudo.update({
           where: { id: laudo.id },
           data: {
-            status: 'AGUARDANDO_APROVACAO',
+            status: 'PENDENTE_ASSINATURA',
             generatedAt: new Date(),
             generatedFileName: `LAUDO_${(laudo.numeroIdentificacao || laudo.id).replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`,
+            signedFileName: null,
+            signedMimeType: null,
+            signedSize: null,
+            signedHash: null,
+            signedPath: null,
+            signedData: null,
+            signedAt: null,
+            signedById: null,
           },
         });
       } catch (errStatus) {
-        // Não crítico: se já estava CONCLUIDO ou outro status, não rebaixa.
-        console.warn(`[PDF-${requestId}] Falha ao atualizar status (não crítico):`, errStatus.message);
+        console.warn(`[PDF-${requestId}] Falha ao atualizar status/limpar assinatura (não crítico):`, errStatus.message);
       }
 
       // 4) Resposta: PDF como download

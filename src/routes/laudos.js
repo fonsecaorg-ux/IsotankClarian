@@ -3,12 +3,14 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const multer = require('multer');
 const prisma = require('../lib/prisma');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/requireRole');
 
 const router = express.Router();
-const ALLOWED_STATUS = ['EM_INSPECAO', 'AGUARDANDO_APROVACAO', 'CONCLUIDO'];
+const ALLOWED_STATUS = ['EM_INSPECAO', 'AGUARDANDO_APROVACAO', 'PENDENTE_ASSINATURA', 'ASSINADO_DIGITALMENTE', 'CONCLUIDO'];
 const STORAGE_MODE = String(process.env.STORAGE_MODE || 'database').trim().toLowerCase() === 'disk'
   ? 'disk'
   : 'database';
@@ -16,6 +18,16 @@ const STORAGE_PATH_RAW = String(process.env.STORAGE_PATH || './storage/fotos').t
 const STORAGE_ROOT = path.isAbsolute(STORAGE_PATH_RAW)
   ? STORAGE_PATH_RAW
   : path.join(process.cwd(), STORAGE_PATH_RAW);
+const SIGNED_ROOT = path.join(STORAGE_ROOT, 'laudos-assinados');
+const signedUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
+
+function getSignedAbsolutePath(storedPath) {
+  if (!storedPath) return null;
+  return path.isAbsolute(storedPath) ? storedPath : path.join(STORAGE_ROOT, storedPath);
+}
 
 function canAccessLaudo(user, laudo) {
   if (user.role === 'ADMIN') return true;
@@ -70,6 +82,8 @@ router.get('/', async (req, res) => {
         status: true,
         dataInspecao: true,
         createdAt: true,
+        signedAt: true,
+        signedFileName: true,
         createdById: true,
         createdBy: {
           select: {
@@ -94,6 +108,13 @@ router.get('/:id', async (req, res) => {
       where: { id: req.params.id },
       include: {
         createdBy: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        signedBy: {
           select: {
             id: true,
             nome: true,
@@ -218,6 +239,134 @@ router.get('/:id/fotos/:fotoId', async (req, res) => {
   }
 });
 
+router.post('/:id/signed-pdf', requireRole(['ADMIN']), (req, res) => {
+  signedUpload.single('arquivo')(req, res, async (uploadErr) => {
+    if (uploadErr && uploadErr.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Arquivo excede 20MB' });
+    }
+    if (uploadErr) {
+      return res.status(400).json({ error: 'Falha ao processar upload do PDF assinado' });
+    }
+    try {
+      const laudo = await prisma.laudo.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, status: true, numeroIdentificacao: true },
+      });
+      if (!laudo) return res.status(404).json({ error: 'Laudo não encontrado' });
+
+      const file = req.file;
+      if (!file || !file.buffer || file.buffer.length === 0) {
+        return res.status(400).json({ error: 'Arquivo PDF assinado é obrigatório' });
+      }
+      if ((file.mimetype || '').toLowerCase() !== 'application/pdf') {
+        return res.status(400).json({ error: 'Formato inválido. Envie um PDF assinado' });
+      }
+
+      const numeroIdentificacao = String(req.body?.numeroIdentificacao || laudo.numeroIdentificacao || '').trim() || 'LAUDO';
+      const safeName = `${numeroIdentificacao}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const signedFileName = `LAUDO_${safeName}_ASSINADO.pdf`;
+      const signedHash = crypto.createHash('sha256').update(file.buffer).digest('hex');
+
+      let signedPath = null;
+      let signedData = file.buffer;
+      if (STORAGE_MODE === 'disk') {
+        fs.mkdirSync(SIGNED_ROOT, { recursive: true });
+        const finalName = `${laudo.id}_${Date.now()}_${signedFileName}`;
+        const absolutePath = path.join(SIGNED_ROOT, finalName);
+        fs.writeFileSync(absolutePath, file.buffer);
+        signedPath = absolutePath;
+        signedData = null;
+      }
+
+      const updated = await prisma.laudo.update({
+        where: { id: laudo.id },
+        data: {
+          status: 'ASSINADO_DIGITALMENTE',
+          signedFileName,
+          signedMimeType: 'application/pdf',
+          signedSize: Number(file.size || file.buffer.length),
+          signedHash,
+          signedPath,
+          signedData,
+          signedAt: new Date(),
+          signedById: req.user.id,
+        },
+        select: {
+          id: true,
+          status: true,
+          signedFileName: true,
+          signedAt: true,
+          signedHash: true,
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: 'SIGNED_PDF_ATTACHED',
+          laudoId: laudo.id,
+          userId: req.user.id,
+          fromStatus: laudo.status,
+          toStatus: 'ASSINADO_DIGITALMENTE',
+          metadata: {
+            signedFileName,
+            signedSize: Number(file.size || file.buffer.length),
+            signedHash,
+          },
+        },
+      });
+
+      return res.status(201).json(updated);
+    } catch (err) {
+      console.error('Erro ao anexar PDF assinado:', err);
+      return res.status(500).json({ error: 'Erro ao anexar PDF assinado' });
+    }
+  });
+});
+
+router.get('/:id/oficial/download', async (req, res) => {
+  try {
+    const laudo = await prisma.laudo.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        createdById: true,
+        signedFileName: true,
+        signedMimeType: true,
+        signedData: true,
+        signedPath: true,
+        signedAt: true,
+      },
+    });
+    if (!laudo) return res.status(404).json({ error: 'Laudo não encontrado' });
+    if (!canAccessLaudo(req.user, laudo)) {
+      return res.status(403).json({ error: 'Sem permissão para este laudo' });
+    }
+    if (!laudo.signedAt || !laudo.signedFileName) {
+      return res.status(409).json({ error: 'Laudo sem assinatura digital oficial anexada' });
+    }
+
+    res.setHeader('Content-Type', laudo.signedMimeType || 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(laudo.signedFileName)}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+
+    if (STORAGE_MODE === 'disk') {
+      const absolutePath = getSignedAbsolutePath(laudo.signedPath);
+      if (!absolutePath || !fs.existsSync(absolutePath)) {
+        return res.status(404).json({ error: 'Arquivo assinado não encontrado no disco' });
+      }
+      return res.send(fs.readFileSync(absolutePath));
+    }
+
+    if (!laudo.signedData) {
+      return res.status(404).json({ error: 'PDF assinado não encontrado no banco' });
+    }
+    return res.send(laudo.signedData);
+  } catch (err) {
+    console.error('Erro ao baixar laudo oficial assinado:', err);
+    return res.status(500).json({ error: 'Erro ao baixar laudo oficial assinado' });
+  }
+});
+
 router.patch('/:id/status', requireRole(['ADMIN']), async (req, res) => {
   try {
     const { status } = req.body || {};
@@ -233,6 +382,16 @@ router.patch('/:id/status', requireRole(['ADMIN']), async (req, res) => {
 
     if (!existing) {
       return res.status(404).json({ error: 'Laudo não encontrado' });
+    }
+
+    if (status === 'ASSINADO_DIGITALMENTE') {
+      const signed = await prisma.laudo.findUnique({
+        where: { id: existing.id },
+        select: { signedAt: true, signedFileName: true },
+      });
+      if (!signed?.signedAt || !signed?.signedFileName) {
+        return res.status(400).json({ error: 'Anexe um PDF assinado antes de definir status ASSINADO_DIGITALMENTE' });
+      }
     }
 
     const updated = await prisma.laudo.update({

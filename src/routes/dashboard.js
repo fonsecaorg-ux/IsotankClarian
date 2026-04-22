@@ -36,7 +36,7 @@ router.get('/stats', async (req, res) => {
     const [totalLaudos, laudosMes, aguardandoAssinatura, statusRows, byInspectorRows, laudos30, laudos12m, assinados] = await Promise.all([
       prisma.laudo.count(),
       prisma.laudo.count({ where: { createdAt: { gte: monthStart } } }),
-      prisma.laudo.count({ where: { status: 'AGUARDANDO_APROVACAO' } }),
+      prisma.laudo.count({ where: { status: { in: ['PENDENTE_ASSINATURA', 'AGUARDANDO_APROVACAO'] } } }),
       prisma.laudo.groupBy({
         by: ['status'],
         _count: { _all: true },
@@ -54,12 +54,12 @@ router.get('/stats', async (req, res) => {
         select: { createdAt: true },
       }),
       prisma.laudo.findMany({
-        where: { status: 'CONCLUIDO' },
+        where: { status: { in: ['ASSINADO_DIGITALMENTE', 'CONCLUIDO'] } },
         select: { createdAt: true, updatedAt: true },
       }),
     ]);
 
-    const statusMap = { EM_INSPECAO: 0, AGUARDANDO_APROVACAO: 0, CONCLUIDO: 0 };
+    const statusMap = { EM_INSPECAO: 0, AGUARDANDO_APROVACAO: 0, PENDENTE_ASSINATURA: 0, ASSINADO_DIGITALMENTE: 0, CONCLUIDO: 0 };
     statusRows.forEach((row) => {
       statusMap[row.status] = row._count._all;
     });
