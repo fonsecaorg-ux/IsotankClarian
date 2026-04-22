@@ -161,7 +161,8 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
- * Admin: atualiza apenas o JSON do formulário (formData) e campos espelhados.
+ * Só ADMIN: substitui o JSON completo do formulário (formData) e campos espelhados.
+ * INSPETOR não usa esta rota — conferência / correção de dados é responsabilidade do painel admin (e Kanban, também só ADMIN).
  * Fotos (FotoLaudo) não são alteradas. Limpa PDF gerado / assinaturas digitais
  * para forçar novo PDF e novo fluxo de assinatura após a correção.
  */

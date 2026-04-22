@@ -69,6 +69,35 @@
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 50; }
     .modal-bg.active { display: flex; }
     .modal { width: min(980px, 100%); max-height: 90vh; overflow: auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    .modal.laudo-detail-modal {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      max-height: 90vh;
+    }
+    .modal.laudo-detail-modal .laudo-detail-head {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 10px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal.laudo-detail-modal .laudo-detail-head .modal-title { margin-bottom: 0; }
+    .modal.laudo-detail-modal .laudo-detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .modal.laudo-detail-modal #detailContent {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
     .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
     .modal-title { color: var(--accent); font-size: 16px; font-weight: 800; }
     .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -159,12 +188,13 @@
   </div>
 
   <div class="modal-bg" id="detailModalBg">
-    <div class="modal">
-      <div class="modal-head">
+    <div class="modal laudo-detail-modal">
+      <div class="laudo-detail-head">
         <h2 class="modal-title">Detalhe do Laudo</h2>
-        <div style="display:flex;gap:8px;">
-          <button class="btn accent" id="btnReprocessModal">Reprocessar PDF</button>
-          <button class="btn" id="closeDetailModal">Fechar</button>
+        <div class="laudo-detail-actions">
+          <button type="button" class="btn" id="detailBtnEditLaudo" title="Corrigir dados do formulário (fotos não mudam)">Editar laudo</button>
+          <button type="button" class="btn accent" id="detailBtnReprocessPdf">Reprocessar PDF</button>
+          <button type="button" class="btn" id="closeDetailModal">Fechar</button>
         </div>
       </div>
       <div id="detailContent"></div>
@@ -202,6 +232,8 @@
       laudos: [],
       filtered: [],
       currentDetailId: null,
+      currentDetail: null,
+      detailLaudoId: null,
       dragOrigin: null,
       timer: null,
       galleryPhotos: [],
@@ -227,7 +259,8 @@
       detailModalBg: document.getElementById('detailModalBg'),
       detailContent: document.getElementById('detailContent'),
       closeDetailModal: document.getElementById('closeDetailModal'),
-      btnReprocessModal: document.getElementById('btnReprocessModal'),
+      detailBtnEditLaudo: document.getElementById('detailBtnEditLaudo'),
+      detailBtnReprocessPdf: document.getElementById('detailBtnReprocessPdf'),
       lightboxBg: document.getElementById('lightboxBg'),
       lightboxImg: document.getElementById('lightboxImg'),
       lightboxPrev: document.getElementById('lightboxPrev'),
@@ -487,7 +520,85 @@
       el.lightboxBg.classList.remove('active');
     }
 
-    async function openDetailModal(laudoId) {
+    function renderLaudoEditForm(detail) {
+      const id = detail.id;
+      const entries = Object.entries(detail.formData || {}).sort(([a], [b]) => a.localeCompare(b));
+      const fields = entries.map(([k, v]) => {
+        const raw = v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+        const long = raw.length > 140 || /conclusao|recomendacao/i.test(k);
+        const input = long
+          ? `<textarea data-form-key="${escapeHtml(k)}" rows="4" style="width:100%;font:inherit;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:6px;">${escapeHtml(raw)}</textarea>`
+          : `<input data-form-key="${escapeHtml(k)}" type="text" value="${escapeHtml(raw)}" style="width:100%;font:inherit;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:6px;">`;
+        return `<div class="edit-field" style="margin-bottom:12px;">
+          <label style="display:block;font-weight:700;font-size:12px;margin-bottom:4px;color:var(--text);">${escapeHtml(k)}</label>
+          ${input}
+        </div>`;
+      }).join('');
+      return `
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.45;">
+          Corrija os dados do formulário. As <strong>fotos</strong> deste laudo não são alteradas aqui.
+          Ao salvar, assinaturas digitais anteriores e o PDF em cache são limpos — use <strong>Reprocessar PDF</strong> em seguida.
+        </p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          <button type="button" class="btn accent" data-detail-action="save-edit" data-id="${escapeHtml(id)}">Salvar alterações</button>
+          <button type="button" class="btn" data-detail-action="cancel-edit" data-id="${escapeHtml(id)}">Cancelar</button>
+        </div>
+        <div style="max-height:58vh;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:12px;background:#faf9f8;">
+          ${fields || '<p>Sem dados de formulário para editar.</p>'}
+        </div>
+      `;
+    }
+
+    function collectFormDataFromEdit(rootEl) {
+      const inputs = rootEl.querySelectorAll('[data-form-key]');
+      const out = {};
+      inputs.forEach((el) => {
+        const k = el.getAttribute('data-form-key');
+        if (!k) return;
+        const raw = el.value;
+        const t = raw.trim();
+        if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
+          try {
+            out[k] = JSON.parse(t);
+            return;
+          } catch (_) {
+            out[k] = raw;
+            return;
+          }
+        }
+        if (/^-?\d+(\.\d+)?$/.test(t)) {
+          const n = Number(raw);
+          if (!Number.isNaN(n) && String(n) === t) {
+            out[k] = n;
+            return;
+          }
+        }
+        out[k] = raw;
+      });
+      return out;
+    }
+
+    async function saveLaudoFormEdit(laudoId) {
+      const formData = collectFormDataFromEdit(el.detailContent);
+      await api(`/laudos/${laudoId}/form-data`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formData }),
+      });
+      el.errorMsg.textContent = '';
+      await loadLaudos();
+      await openDetailModal(laudoId);
+    }
+
+    function closeKanbanDetailModal() {
+      el.detailModalBg.classList.remove('active');
+      state.currentDetailId = null;
+      state.detailLaudoId = null;
+      state.currentDetail = null;
+    }
+
+    async function openDetailModal(laudoId, opts = {}) {
+      const openInEdit = Boolean(opts && opts.edit);
       try {
         state.currentDetailId = laudoId;
         const detail = await api(`/laudos/${laudoId}`);
@@ -502,16 +613,24 @@
           <div class="kv"><b>${escapeHtml(k)}</b>${escapeHtml(v)}</div>
         `).join('');
 
+        const auditActionLabel = (action) => {
+          if (action === 'LAUDO_FORM_UPDATED') return 'Dados do laudo alterados (admin)';
+          return action || '—';
+        };
+
         const auditEntries = (detail.auditLogs || []).map((a) => `
           <div class="audit-item">
-            <b>${escapeHtml(a.action)}</b><br>
+            <b>${escapeHtml(auditActionLabel(a.action))}</b><br>
             De: ${escapeHtml(laudoStatusLabel(a.fromStatus))} → Para: ${escapeHtml(laudoStatusLabel(a.toStatus))}<br>
             Por: ${escapeHtml(a.user?.nome || 'Sistema')}<br>
             Em: ${fmtDate(a.createdAt)}
           </div>
         `).join('') || '<p>Nenhuma movimentação registrada.</p>';
 
-        el.detailContent.innerHTML = `
+        state.currentDetail = detail;
+        state.detailLaudoId = laudoId;
+
+        const viewHtml = `
           <div class="grid2" style="margin-bottom:10px;">
             <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
             <div class="kv"><b>Status</b><span class="status-badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusDisplay(detail))}</span></div>
@@ -526,6 +645,8 @@
           ${auditEntries}
           ${renderPhotoGallery(fotos, laudoId)}
         `;
+
+        el.detailContent.innerHTML = openInEdit ? renderLaudoEditForm(detail) : viewHtml;
         el.detailModalBg.classList.add('active');
       } catch (err) {
         el.errorMsg.textContent = err.message;
@@ -590,14 +711,35 @@
       window.location.replace('/login');
     });
     el.detailContent.addEventListener('click', (ev) => {
+      const actionBtn = ev.target.closest('[data-detail-action]');
+      if (actionBtn) {
+        const action = actionBtn.dataset.detailAction;
+        const id = actionBtn.dataset.id;
+        if (!id) return;
+        if (action === 'cancel-edit') {
+          void openDetailModal(id);
+          return;
+        }
+        if (action === 'save-edit') {
+          void (async () => {
+            try {
+              el.errorMsg.textContent = '';
+              await saveLaudoFormEdit(id);
+            } catch (err) {
+              el.errorMsg.textContent = err.message;
+            }
+          })();
+          return;
+        }
+      }
       const idxRaw = ev.target?.dataset?.photoIndex;
       if (idxRaw == null) return;
       const idx = Number(idxRaw);
       if (Number.isNaN(idx)) return;
       openLightbox(idx);
     });
-    el.closeDetailModal.addEventListener('click', () => el.detailModalBg.classList.remove('active'));
-    el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) el.detailModalBg.classList.remove('active'); });
+    el.closeDetailModal.addEventListener('click', closeKanbanDetailModal);
+    el.detailModalBg.addEventListener('click', (ev) => { if (ev.target === el.detailModalBg) closeKanbanDetailModal(); });
     el.lightboxClose.addEventListener('click', closeLightbox);
     el.lightboxBg.addEventListener('click', (ev) => { if (ev.target === el.lightboxBg) closeLightbox(); });
     el.lightboxPrev.addEventListener('click', () => {
@@ -610,8 +752,20 @@
       state.galleryIndex = (state.galleryIndex + 1) % state.galleryPhotos.length;
       updateLightbox();
     });
-    el.btnReprocessModal.addEventListener('click', async () => {
+    el.detailBtnEditLaudo.addEventListener('click', () => {
+      const d = state.currentDetail;
+      const id = state.detailLaudoId;
+      if (!d || !id || d.id !== id) {
+        el.errorMsg.textContent = 'Abra um laudo no quadro (clique no cartão) para editar.';
+        return;
+      }
+      el.errorMsg.textContent = '';
+      el.detailContent.innerHTML = renderLaudoEditForm(d);
+    });
+
+    el.detailBtnReprocessPdf.addEventListener('click', async () => {
       try {
+        el.errorMsg.textContent = '';
         await reprocessCurrentDetail();
       } catch (err) {
         el.errorMsg.textContent = err.message;

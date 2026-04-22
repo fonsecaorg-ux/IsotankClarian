@@ -71,6 +71,29 @@ O **`.docx` legado** mantém-se útil para compatibilidade, auditoria ou quem ai
 
 ---
 
+## Alinhamento CEINSPEC — modelo do laudo, PDF e assinatura (registo)
+
+Este bloco documenta **feedback de gestão / operação** e a **solução técnica** associada, para não perder contexto entre versões.
+
+| Quem | O quê |
+|---|---|
+| **Soyan** (liderança técnica) | **Aprovou o novo modelo de laudo** baseado em **PDF** (layout controlado no código, em linha com a secção *Da geração Word ao PDF* acima). |
+| **Soyan** | **Sugeriu incluir assinatura digital** no documento (valor percebido junto a cliente e arquivo). |
+| **Wagner** (operação / conferência) | **Questionou a edição** do laudo quando há erro (ex.: lacre, tara, fabricante): receio de o **PDF não ser editável** como um `.docx` no Word. |
+
+### Solução acordada para “editar o laudo”
+
+- O **PDF não substitui o Word como ficheiro de rascunho**: o que manda são os **dados da inspeção** (`formData` + fotos em `FotoLaudo`). O PDF é a **exportação** desses dados num layout oficial.
+- **Quem pode corrigir os dados:** apenas o perfil **ADMIN**, na tela **Detalhe do laudo** do **Painel Admin** (`/painel-admin`) ou do **Kanban** (`/kanban` — também restrito a ADMIN). O **inspetor** não tem permissão para `PATCH /laudos/:id/form-data` (a API responde 403). Não há limite de campos no JSON: o admin pode ajustar **todo** o `formData` devolvido pelo sistema.
+- **Fluxo:** o admin **altera os dados do formulário** (`PATCH /laudos/:id/form-data`), **sem trocar fotos**, e em seguida **reprocessar o PDF** (`POST /laudos/:id/pdf`) para baixar o laudo **atualizado** com as mesmas fotos já anexadas.
+- Se existir fluxo de **assinatura digital** (ex.: ICP-Brasil / gov.br), alterar o PDF “à mão” **invalidaria** a assinatura; por isso qualquer correção passa por **novo PDF** (e novo ciclo de assinatura, conforme a regra de negócio vigente).
+
+### Assinatura digital — estado da decisão
+
+A **adesão formal** a um fluxo de assinatura digital (ex.: **gov.br**) **ainda não está fechada**: depende da **aprovação dos gestores Wagner** e **Diego Aparecido de Lima**. Enquanto isso, o código pode expor caminhos de “PDF assinado anexado” / estados de workflow, mas isso deve ser tratado como **opcional até decisão explícita** de negócio.
+
+---
+
 ## Pré-requisitos
 
 - Node.js 18+
