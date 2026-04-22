@@ -407,7 +407,7 @@
             <option value="">Todos os status</option>
             <option value="EM_INSPECAO">Em Inspeção</option>
             <option value="AGUARDANDO_APROVACAO">Aguardando Aprovação</option>
-            <option value="PENDENTE_ASSINATURA">Pendente Assinatura</option>
+            <option value="PENDENTE_ASSINATURA">Pendente assinatura (inspetor gov.br)</option>
             <option value="ASSINADO_DIGITALMENTE">Assinado Digitalmente</option>
             <option value="CONCLUIDO">Concluído</option>
           </select>
@@ -611,6 +611,8 @@
       galleryPhotos: [],
       galleryIndex: 0,
       tab: 'laudos',
+      /** Último laudo carregado no modal de detalhe (para modo edição). */
+      currentDetail: null,
     };
 
     const el = {
@@ -693,11 +695,36 @@
       const m = {
         EM_INSPECAO: 'Em Inspeção',
         AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
-        PENDENTE_ASSINATURA: 'Pendente Assinatura',
+        PENDENTE_ASSINATURA: 'Pendente assinatura (inspetor gov.br)',
         ASSINADO_DIGITALMENTE: 'Assinado Digitalmente',
         CONCLUIDO: 'Concluído',
       };
       return m[s] || s || '-';
+    }
+
+    function hasInspectorPdf(l) {
+      return Boolean(l && (l.inspectorSignedAt || l.inspectorSignedFileName));
+    }
+    function hasEngineerPdf(l) {
+      return Boolean(l && (l.signedAt || l.signedFileName));
+    }
+    /** Rótulo contextual: indica de quem falta a assinatura digital (gov.br). */
+    function laudoStatusDisplay(laudo) {
+      if (!laudo) return '-';
+      const s = laudo.status;
+      if (s === 'PENDENTE_ASSINATURA') {
+        return 'Pendente assinatura — inspetor (gov.br)';
+      }
+      if (s === 'AGUARDANDO_APROVACAO') {
+        if (hasInspectorPdf(laudo) && !hasEngineerPdf(laudo)) {
+          return 'Aguardando aprovação — falta engenheiro (gov.br)';
+        }
+        if (!hasInspectorPdf(laudo)) {
+          return 'Aguardando aprovação — falta inspetor (gov.br)';
+        }
+        return 'Aguardando aprovação';
+      }
+      return laudoStatusLabel(s);
     }
 
     /** Formulário novo usuário só entra no DOM ao abrir o modal (evita autofill do Chrome na busca de laudos). */
@@ -809,7 +836,7 @@
           <td data-label="Isotank">${escapeHtml(l.numeroIdentificacao || '-')}</td>
           <td data-label="Cliente">${escapeHtml(l.cliente || '-')}</td>
           <td data-label="Inspetor">${escapeHtml(l.createdBy?.nome || '-')}</td>
-          <td data-label="Status"><span class="badge ${escapeHtml(l.status)}">${escapeHtml(laudoStatusLabel(l.status))}</span></td>
+          <td data-label="Status"><span class="badge ${escapeHtml(l.status)}">${escapeHtml(laudoStatusDisplay(l))}</span></td>
           <td data-label="Data Inspeção">${fmtDate(l.dataInspecao)}</td>
           <td data-label="Data Criação">${fmtDate(l.createdAt)}</td>
           <td data-label="Ações">
@@ -818,7 +845,7 @@
               <select data-action="status" data-id="${escapeHtml(l.id)}">
                 <option value="EM_INSPECAO" ${l.status === 'EM_INSPECAO' ? 'selected' : ''}>Em Inspeção</option>
                 <option value="AGUARDANDO_APROVACAO" ${l.status === 'AGUARDANDO_APROVACAO' ? 'selected' : ''}>Aguardando Aprovação</option>
-                <option value="PENDENTE_ASSINATURA" ${l.status === 'PENDENTE_ASSINATURA' ? 'selected' : ''}>Pendente Assinatura</option>
+                <option value="PENDENTE_ASSINATURA" ${l.status === 'PENDENTE_ASSINATURA' ? 'selected' : ''}>Pendente assinatura (inspetor gov.br)</option>
                 <option value="ASSINADO_DIGITALMENTE" ${l.status === 'ASSINADO_DIGITALMENTE' ? 'selected' : ''}>Assinado Digitalmente</option>
                 <option value="CONCLUIDO" ${l.status === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
               </select>
@@ -1101,6 +1128,76 @@
       el.lightboxBg.classList.remove('active');
     }
 
+    function renderLaudoEditForm(detail) {
+      const id = detail.id;
+      const entries = Object.entries(detail.formData || {}).sort(([a], [b]) => a.localeCompare(b));
+      const fields = entries.map(([k, v]) => {
+        const raw = v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+        const long = raw.length > 140 || /conclusao|recomendacao/i.test(k);
+        const input = long
+          ? `<textarea data-form-key="${escapeHtml(k)}" rows="4" style="width:100%;font:inherit;box-sizing:border-box;padding:8px;border:1px solid #edebe9;border-radius:6px;">${escapeHtml(raw)}</textarea>`
+          : `<input data-form-key="${escapeHtml(k)}" type="text" value="${escapeHtml(raw)}" style="width:100%;font:inherit;box-sizing:border-box;padding:8px;border:1px solid #edebe9;border-radius:6px;">`;
+        return `<div class="edit-field" style="margin-bottom:12px;">
+          <label style="display:block;font-weight:700;font-size:12px;margin-bottom:4px;color:#323130;">${escapeHtml(k)}</label>
+          ${input}
+        </div>`;
+      }).join('');
+      return `
+        <p style="font-size:12px;color:#605e5c;margin-bottom:12px;line-height:1.45;">
+          Corrija os dados do formulário. As <strong>fotos</strong> deste laudo não são alteradas aqui.
+          Ao salvar, assinaturas digitais anteriores e o PDF em cache são limpos — use <strong>Reprocessar PDF</strong> em seguida.
+        </p>
+        <div class="detail-toolbar" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          <button type="button" class="btn accent" data-detail-action="save-edit" data-id="${escapeHtml(id)}">Salvar alterações</button>
+          <button type="button" class="btn" data-detail-action="cancel-edit" data-id="${escapeHtml(id)}">Cancelar</button>
+        </div>
+        <div style="max-height:58vh;overflow:auto;border:1px solid #edebe9;border-radius:8px;padding:12px;background:#faf9f8;">
+          ${fields || '<p>Sem dados de formulário para editar.</p>'}
+        </div>
+      `;
+    }
+
+    function collectFormDataFromEdit(rootEl) {
+      const inputs = rootEl.querySelectorAll('[data-form-key]');
+      const out = {};
+      inputs.forEach((el) => {
+        const k = el.getAttribute('data-form-key');
+        if (!k) return;
+        const raw = el.value;
+        const t = raw.trim();
+        if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
+          try {
+            out[k] = JSON.parse(t);
+            return;
+          } catch (_) {
+            out[k] = raw;
+            return;
+          }
+        }
+        if (/^-?\d+(\.\d+)?$/.test(t)) {
+          const n = Number(raw);
+          if (!Number.isNaN(n) && String(n) === t) {
+            out[k] = n;
+            return;
+          }
+        }
+        out[k] = raw;
+      });
+      return out;
+    }
+
+    async function saveLaudoFormEdit(laudoId) {
+      const formData = collectFormDataFromEdit(el.detailContent);
+      await api(`/laudos/${laudoId}/form-data`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formData }),
+      });
+      showToast('Dados atualizados. Use Reprocessar PDF para gerar novo laudo.', 'success');
+      await loadLaudos();
+      await showLaudoDetail(laudoId);
+    }
+
     async function showLaudoDetail(laudoId) {
       try {
         const detail = await api(`/laudos/${laudoId}`);
@@ -1115,19 +1212,30 @@
           <div class="kv"><b>${escapeHtml(k)}</b>${escapeHtml(v)}</div>
         `).join('');
 
+        const auditActionLabel = (action) => {
+          if (action === 'LAUDO_FORM_UPDATED') return 'Dados do laudo alterados (admin)';
+          return action || '—';
+        };
+
         const auditEntries = (detail.auditLogs || []).map((a) => `
           <div class="audit-item">
-            <b>${escapeHtml(a.action)}</b><br>
+            <b>${escapeHtml(auditActionLabel(a.action))}</b><br>
             De: ${escapeHtml(laudoStatusLabel(a.fromStatus))} → Para: ${escapeHtml(laudoStatusLabel(a.toStatus))}<br>
             Por: ${escapeHtml(a.user?.nome || 'Sistema')}<br>
             Em: ${fmtDate(a.createdAt)}
           </div>
         `).join('') || '<p>Nenhum histórico de status.</p>';
 
+        state.currentDetail = detail;
+
         el.detailContent.innerHTML = `
+          <div class="detail-toolbar" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center;">
+            <button type="button" class="btn" data-detail-action="edit" data-id="${escapeHtml(laudoId)}">Editar laudo</button>
+            <button type="button" class="btn accent" data-detail-action="reprocess" data-id="${escapeHtml(laudoId)}">Reprocessar PDF</button>
+          </div>
           <div class="grid2" style="margin-bottom:10px;">
             <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
-            <div class="kv"><b>Status</b><span class="badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusLabel(detail.status))}</span></div>
+            <div class="kv"><b>Status</b><span class="badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusDisplay(detail))}</span></div>
             <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
             <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
             <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>
@@ -1330,6 +1438,48 @@
     });
 
     el.detailContent.addEventListener('click', (ev) => {
+      const actionBtn = ev.target.closest('[data-detail-action]');
+      if (actionBtn) {
+        const action = actionBtn.dataset.detailAction;
+        const id = actionBtn.dataset.id;
+        if (!id) return;
+        if (action === 'edit') {
+          const d = state.currentDetail;
+          if (!d || d.id !== id) return;
+          el.detailContent.innerHTML = renderLaudoEditForm(d);
+          return;
+        }
+        if (action === 'cancel-edit') {
+          void showLaudoDetail(id);
+          return;
+        }
+        if (action === 'save-edit') {
+          void (async () => {
+            try {
+              el.laudosError.textContent = '';
+              await saveLaudoFormEdit(id);
+            } catch (err) {
+              el.laudosError.textContent = err.message;
+            }
+          })();
+          return;
+        }
+        if (action === 'reprocess') {
+          void (async () => {
+            try {
+              el.laudosError.textContent = '';
+              await reprocessLaudo(id);
+              showToast('PDF reprocessado. Status: pendente de assinatura.', 'success');
+              await loadLaudos();
+              await showLaudoDetail(id);
+            } catch (err) {
+              el.laudosError.textContent = err.message;
+            }
+          })();
+          return;
+        }
+      }
+
       const idxRaw = ev.target?.dataset?.photoIndex;
       if (idxRaw == null) return;
       const idx = Number(idxRaw);

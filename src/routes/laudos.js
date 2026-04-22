@@ -160,6 +160,104 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+/**
+ * Admin: atualiza apenas o JSON do formulário (formData) e campos espelhados.
+ * Fotos (FotoLaudo) não são alteradas. Limpa PDF gerado / assinaturas digitais
+ * para forçar novo PDF e novo fluxo de assinatura após a correção.
+ */
+router.patch('/:id/form-data', requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const formData = req.body && req.body.formData;
+    if (!formData || typeof formData !== 'object' || Array.isArray(formData)) {
+      return res.status(400).json({ error: 'Campo obrigatório: formData (objeto JSON)' });
+    }
+
+    const payloadSize = JSON.stringify(formData).length;
+    if (payloadSize > 1_500_000) {
+      return res.status(400).json({ error: 'formData excede o tamanho máximo permitido' });
+    }
+
+    const existing = await prisma.laudo.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, status: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Laudo não encontrado' });
+    }
+
+    const dataInspecao = formData.data_inspecao
+      ? new Date(formData.data_inspecao)
+      : null;
+
+    const nextStatus = existing.status === 'EM_INSPECAO' ? 'EM_INSPECAO' : 'AGUARDANDO_APROVACAO';
+
+    const clearGeneratedAndSignatures = {
+      pdfHash: null,
+      generatedAt: null,
+      generatedFileName: null,
+      signedFileName: null,
+      signedMimeType: null,
+      signedSize: null,
+      signedHash: null,
+      signedPath: null,
+      signedData: null,
+      signedAt: null,
+      signedById: null,
+      inspectorSignedFileName: null,
+      inspectorSignedMimeType: null,
+      inspectorSignedSize: null,
+      inspectorSignedHash: null,
+      inspectorSignedPath: null,
+      inspectorSignedData: null,
+      inspectorSignedAt: null,
+      inspectorSignedById: null,
+    };
+
+    const updated = await prisma.laudo.update({
+      where: { id: existing.id },
+      data: {
+        formData,
+        numeroIdentificacao: formData.numero_identificacao || null,
+        cliente: formData.cliente || null,
+        endereco: formData.endereco || null,
+        dataInspecao: dataInspecao && !Number.isNaN(dataInspecao.getTime()) ? dataInspecao : null,
+        status: nextStatus,
+        ...clearGeneratedAndSignatures,
+      },
+      select: {
+        id: true,
+        status: true,
+        numeroIdentificacao: true,
+        cliente: true,
+        endereco: true,
+        dataInspecao: true,
+        formData: true,
+        updatedAt: true,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: 'LAUDO_FORM_UPDATED',
+        laudoId: existing.id,
+        userId: req.user.id,
+        fromStatus: existing.status,
+        toStatus: nextStatus,
+        metadata: {
+          keys: Object.keys(formData),
+          payloadChars: payloadSize,
+        },
+      },
+    });
+
+    return res.json(updated);
+  } catch (err) {
+    console.error('Erro ao atualizar formData do laudo:', err);
+    return res.status(500).json({ error: 'Erro ao atualizar dados do laudo' });
+  }
+});
+
 router.get('/:id/fotos', async (req, res) => {
   try {
     const laudo = await prisma.laudo.findUnique({

@@ -85,6 +85,10 @@ router.get('/:id', async (req, res) => {
             status: true,
             dataInspecao: true,
             createdAt: true,
+            signedAt: true,
+            signedFileName: true,
+            inspectorSignedAt: true,
+            inspectorSignedFileName: true,
             createdBy: {
               select: {
                 id: true,

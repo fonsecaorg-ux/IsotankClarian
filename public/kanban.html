@@ -63,6 +63,8 @@
     .status-badge.EM_INSPECAO { color: #835c00; background: #fff4ce; }
     .status-badge.AGUARDANDO_APROVACAO { color: #13294b; background: #dce6f7; }
     .status-badge.CONCLUIDO { color: #107c10; background: #dff6dd; }
+    .status-badge.PENDENTE_ASSINATURA { color: #9a3412; background: #ffedd5; }
+    .status-badge.ASSINADO_DIGITALMENTE { color: #0b5c0b; background: #dff6dd; }
     .msg { margin-top: 8px; font-size: 12px; color: var(--danger); min-height: 18px; }
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; z-index: 50; }
     .modal-bg.active { display: flex; }
@@ -247,9 +249,46 @@
       const m = {
         EM_INSPECAO: 'Em Inspeção',
         AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+        PENDENTE_ASSINATURA: 'Pendente assinatura (inspetor gov.br)',
+        ASSINADO_DIGITALMENTE: 'Assinado digitalmente',
         CONCLUIDO: 'Concluído',
       };
       return m[s] || s || '-';
+    }
+
+    function hasInspectorPdf(l) {
+      return Boolean(l && (l.inspectorSignedAt || l.inspectorSignedFileName));
+    }
+    function hasEngineerPdf(l) {
+      return Boolean(l && (l.signedAt || l.signedFileName));
+    }
+    /** Indica de quem falta a assinatura digital (gov.br). */
+    function laudoStatusDisplay(laudo) {
+      if (!laudo) return '-';
+      const s = laudo.status;
+      if (s === 'PENDENTE_ASSINATURA') {
+        return 'Pendente assinatura — inspetor (gov.br)';
+      }
+      if (s === 'AGUARDANDO_APROVACAO') {
+        if (hasInspectorPdf(laudo) && !hasEngineerPdf(laudo)) {
+          return 'Aguardando aprovação — falta engenheiro (gov.br)';
+        }
+        if (!hasInspectorPdf(laudo)) {
+          return 'Aguardando aprovação — falta inspetor (gov.br)';
+        }
+        return 'Aguardando aprovação';
+      }
+      return laudoStatusLabel(s);
+    }
+
+    function kanbanBucket(status) {
+      if (status === 'EM_INSPECAO') return 'EM_INSPECAO';
+      if (status === 'CONCLUIDO') return 'CONCLUIDO';
+      return 'AGUARDANDO_APROVACAO';
+    }
+
+    function canDragKanbanStatus(s) {
+      return s === 'EM_INSPECAO' || s === 'AGUARDANDO_APROVACAO' || s === 'CONCLUIDO';
     }
 
     function fmtDate(v) {
@@ -320,7 +359,9 @@
     function createCard(laudo) {
       const card = document.createElement('article');
       card.className = 'card';
-      card.draggable = true;
+      const drag = canDragKanbanStatus(laudo.status);
+      card.draggable = drag;
+      card.style.cursor = drag ? 'grab' : 'default';
       card.dataset.id = laudo.id;
       card.dataset.status = laudo.status;
       card.innerHTML = `
@@ -329,10 +370,11 @@
         <div class="card-muted">Inspetor: ${escapeHtml(laudo.createdBy?.nome || '-')}</div>
         <div class="card-muted">Inspeção: ${fmtDate(laudo.dataInspecao)}</div>
         <div class="card-muted">${timeAgo(laudo.updatedAt || laudo.createdAt)}</div>
-        <span class="status-badge ${escapeHtml(laudo.status)}">${escapeHtml(laudoStatusLabel(laudo.status))}</span>
+        <span class="status-badge ${escapeHtml(laudo.status)}">${escapeHtml(laudoStatusDisplay(laudo))}</span>
       `;
 
       card.addEventListener('dragstart', () => {
+        if (!canDragKanbanStatus(laudo.status)) return;
         state.dragOrigin = { id: laudo.id, status: laudo.status };
         card.classList.add('dragging');
       });
@@ -347,7 +389,10 @@
       el.colConcluido.innerHTML = '';
 
       const byStatus = { EM_INSPECAO: [], AGUARDANDO_APROVACAO: [], CONCLUIDO: [] };
-      state.filtered.forEach((l) => byStatus[l.status]?.push(l));
+      state.filtered.forEach((l) => {
+        const b = kanbanBucket(l.status);
+        byStatus[b].push(l);
+      });
 
       byStatus.EM_INSPECAO.forEach((l) => el.colEmInspecao.appendChild(createCard(l)));
       byStatus.AGUARDANDO_APROVACAO.forEach((l) => el.colAguardando.appendChild(createCard(l)));
@@ -469,7 +514,7 @@
         el.detailContent.innerHTML = `
           <div class="grid2" style="margin-bottom:10px;">
             <div class="kv"><b>ID</b>${escapeHtml(detail.id)}</div>
-            <div class="kv"><b>Status</b><span class="status-badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusLabel(detail.status))}</span></div>
+            <div class="kv"><b>Status</b><span class="status-badge ${escapeHtml(detail.status)}">${escapeHtml(laudoStatusDisplay(detail))}</span></div>
             <div class="kv"><b>Isotank</b>${escapeHtml(detail.numeroIdentificacao || '-')}</div>
             <div class="kv"><b>Cliente</b>${escapeHtml(detail.cliente || '-')}</div>
             <div class="kv"><b>Inspetor</b>${escapeHtml(detail.createdBy?.nome || '-')}</div>

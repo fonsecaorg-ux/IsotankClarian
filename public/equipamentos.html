@@ -49,6 +49,8 @@
     .ld-status.EM_INSPECAO { background: #fff4ce; color: #835c00; }
     .ld-status.AGUARDANDO_APROVACAO { background: #dce6f7; color: #13294b; }
     .ld-status.CONCLUIDO { background: #dff6dd; color: #107c10; }
+    .ld-status.PENDENTE_ASSINATURA { background: #ffedd5; color: #c2410c; }
+    .ld-status.ASSINADO_DIGITALMENTE { background: #dff6dd; color: #107c10; }
     .b-red { background: #fde7e9; color: var(--danger); }
     .b-yellow { background: var(--color-badge-pendente-bg); color: var(--color-badge-pendente-txt); }
     .b-orange { background: #fff4e5; color: var(--warning); }
@@ -165,8 +167,37 @@
 
     function esc(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
     function laudoStatusLabel(s) {
-      const m = { EM_INSPECAO: 'Em Inspeção', AGUARDANDO_APROVACAO: 'Aguardando Aprovação', CONCLUIDO: 'Concluído' };
+      const m = {
+        EM_INSPECAO: 'Em Inspeção',
+        AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+        PENDENTE_ASSINATURA: 'Pendente assinatura (inspetor gov.br)',
+        ASSINADO_DIGITALMENTE: 'Assinado digitalmente',
+        CONCLUIDO: 'Concluído',
+      };
       return m[s] || s || '-';
+    }
+    function hasInspectorPdf(l) {
+      return Boolean(l && (l.inspectorSignedAt || l.inspectorSignedFileName));
+    }
+    function hasEngineerPdf(l) {
+      return Boolean(l && (l.signedAt || l.signedFileName));
+    }
+    function laudoStatusDisplay(laudo) {
+      if (!laudo) return '-';
+      const s = laudo.status;
+      if (s === 'PENDENTE_ASSINATURA') {
+        return 'Pendente assinatura — inspetor (gov.br)';
+      }
+      if (s === 'AGUARDANDO_APROVACAO') {
+        if (hasInspectorPdf(laudo) && !hasEngineerPdf(laudo)) {
+          return 'Aguardando aprovação — falta engenheiro (gov.br)';
+        }
+        if (!hasInspectorPdf(laudo)) {
+          return 'Aguardando aprovação — falta inspetor (gov.br)';
+        }
+        return 'Aguardando aprovação';
+      }
+      return laudoStatusLabel(s);
     }
     function fmtDate(v) { if (!v) return '-'; const d = new Date(v); return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString('pt-BR'); }
     function toast(msg, type) { el.toast.textContent = msg; el.toast.className = `toast ${type || ''} show`; clearTimeout(el.toast._t); el.toast._t = setTimeout(() => el.toast.classList.remove('show'), 3000); }
@@ -215,7 +246,7 @@
         <tr>
           <td data-label="Data Inspeção">${fmtDate(l.dataInspecao)}</td>
           <td data-label="Inspetor">${esc(l.createdBy?.nome || '-')}</td>
-          <td data-label="Status"><span class="ld-status ${esc(l.status)}">${esc(laudoStatusLabel(l.status))}</span></td>
+          <td data-label="Status"><span class="ld-status ${esc(l.status)}">${esc(laudoStatusDisplay(l))}</span></td>
           <td data-label="Ação"><button class="btn" data-a="download" data-laudo="${esc(l.id)}">Baixar PDF</button></td>
         </tr>
       `).join('') || '<tr><td colspan="4">Sem histórico de laudos.</td></tr>';

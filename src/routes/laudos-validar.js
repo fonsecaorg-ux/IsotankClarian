@@ -20,6 +20,31 @@ const STATUS_LABEL = {
   CONCLUIDO: 'Concluído',
 };
 
+function hasInspectorPdf(l) {
+  return Boolean(l && (l.inspectorSignedAt || l.inspectorSignedFileName));
+}
+function hasEngineerPdf(l) {
+  return Boolean(l && (l.signedAt || l.signedFileName));
+}
+/** Indica de quem falta a assinatura gov.br (texto para visitante). */
+function publicStatusLabel(laudo) {
+  if (!laudo) return '—';
+  const s = laudo.status;
+  if (s === 'PENDENTE_ASSINATURA') {
+    return 'Pendente assinatura — inspetor (gov.br)';
+  }
+  if (s === 'AGUARDANDO_APROVACAO') {
+    if (hasInspectorPdf(laudo) && !hasEngineerPdf(laudo)) {
+      return 'Aguardando aprovação — falta engenheiro (gov.br)';
+    }
+    if (!hasInspectorPdf(laudo)) {
+      return 'Aguardando aprovação — falta inspetor (gov.br)';
+    }
+    return STATUS_LABEL[s] || s;
+  }
+  return STATUS_LABEL[s] || s;
+}
+
 function escHtml(s) {
   return String(s || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -134,6 +159,10 @@ router.get('/:id/validar', async (req, res) => {
         id: true, numeroIdentificacao: true, cliente: true,
         dataInspecao: true, status: true, generatedAt: true,
         pdfHash: true, signedHash: true,
+        signedAt: true,
+        signedFileName: true,
+        inspectorSignedAt: true,
+        inspectorSignedFileName: true,
         createdBy: { select: { nome: true } },
       },
     });
@@ -169,6 +198,12 @@ router.get('/:id/validar', async (req, res) => {
             <div class="subtitle">Documento ainda não oficial</div>
           </div>
           <div class="card-body">
+            <div class="field">
+              <div class="field-label">Situação</div>
+              <div class="field-value">
+                <span class="status-badge status-${escHtml(laudo.status)}">${escHtml(publicStatusLabel(laudo))}</span>
+              </div>
+            </div>
             <div class="field">
               <div class="field-label">Identificação</div>
               <div class="field-value mono">${escHtml(laudo.numeroIdentificacao || '—')}</div>
@@ -232,7 +267,7 @@ router.get('/:id/validar', async (req, res) => {
             <div class="field-label">Status</div>
             <div class="field-value">
               <span class="status-badge status-${escHtml(laudo.status)}">
-                ${escHtml(STATUS_LABEL[laudo.status] || laudo.status)}
+                ${escHtml(publicStatusLabel(laudo))}
               </span>
             </div>
           </div>

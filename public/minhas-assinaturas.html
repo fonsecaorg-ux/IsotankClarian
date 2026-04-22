@@ -91,15 +91,48 @@
       return d.toLocaleString('pt-BR');
     }
 
-    function labelStatus(s) {
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function laudoStatusLabel(s) {
       const m = {
-        PENDENTE_ASSINATURA: 'Pendente assinatura',
+        PENDENTE_ASSINATURA: 'Pendente assinatura (inspetor gov.br)',
         AGUARDANDO_APROVACAO: 'Aguardando aprovação',
         ASSINADO_DIGITALMENTE: 'Assinado digitalmente',
         EM_INSPECAO: 'Em inspeção',
         CONCLUIDO: 'Concluído',
       };
       return m[s] || s || '-';
+    }
+
+    function hasInspectorPdf(l) {
+      return Boolean(l && (l.inspectorSignedAt || l.inspectorSignedFileName));
+    }
+    function hasEngineerPdf(l) {
+      return Boolean(l && (l.signedAt || l.signedFileName));
+    }
+    function laudoStatusDisplay(laudo) {
+      if (!laudo) return '-';
+      const s = laudo.status;
+      if (s === 'PENDENTE_ASSINATURA') {
+        return 'Pendente assinatura — inspetor (gov.br)';
+      }
+      if (s === 'AGUARDANDO_APROVACAO') {
+        if (hasInspectorPdf(laudo) && !hasEngineerPdf(laudo)) {
+          return 'Aguardando aprovação — falta engenheiro (gov.br)';
+        }
+        if (!hasInspectorPdf(laudo)) {
+          return 'Aguardando aprovação — falta inspetor (gov.br)';
+        }
+        return 'Aguardando aprovação';
+      }
+      return laudoStatusLabel(s);
     }
 
     async function api(path, options = {}) {
@@ -146,7 +179,7 @@
         return;
       }
       el.rows.innerHTML = list.map((l) => {
-        const engineerSigned = Boolean(l.signedAt);
+        const engineerSigned = Boolean(l.signedAt || l.signedFileName);
         const canUpload = (l.status === 'PENDENTE_ASSINATURA' || l.status === 'AGUARDANDO_APROVACAO') && !engineerSigned;
         const uploadTitle = canUpload
           ? 'Anexar PDF assinado pelo gov.br (inspetor)'
@@ -157,7 +190,7 @@
           <td>${l.id}</td>
           <td>${l.numeroIdentificacao || '-'}</td>
           <td>${l.cliente || '-'}</td>
-          <td><span class="badge status-${l.status}">${labelStatus(l.status)}</span></td>
+          <td><span class="badge status-${l.status}">${escapeHtml(laudoStatusDisplay(l))}</span></td>
           <td>${fmtDate(l.dataInspecao)}</td>
           <td>
             <div class="actions">
