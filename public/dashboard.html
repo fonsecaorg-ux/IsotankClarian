@@ -26,6 +26,12 @@
       --warning: #ff8c00;
       --warn: #835c00;
       --ok: #107c10;
+      --status-inspecao: #3b82f6;
+      --status-aprovacao: #f59e0b;
+      --status-concluido: #16a34a;
+      --chart-volume: #2563eb;
+      --chart-inspetor: #0ea5a4;
+      --chart-tempo: #f59e0b;
       --radius: 10px;
     }
     body {
@@ -74,6 +80,10 @@
     }
     .card-label { font-size: 12px; color: var(--color-text-muted); margin-bottom: 6px; }
     .card-value { font-size: 26px; font-weight: 800; color: var(--color-primary); }
+    .card.total .card-value { color: var(--chart-volume); }
+    .card.mes .card-value { color: #0ea5a4; }
+    .card.aprovacao .card-value { color: var(--status-aprovacao); }
+    .card.taxa .card-value { color: var(--status-concluido); }
 
     .charts {
       display: grid;
@@ -101,7 +111,7 @@
       font-weight: 700;
       cursor: pointer;
     }
-    .toggle.active { border-color: var(--color-primary); color: var(--color-primary); }
+    .toggle.active { border-color: var(--color-primary); color: var(--color-primary); background: #eaf4fc; }
     .canvas-wrap { overflow-x: auto; }
     canvas { display: block; }
     .legend { display: grid; gap: 6px; }
@@ -207,10 +217,10 @@
     <button class="critical-alert" id="criticalAlert" type="button"></button>
 
     <section class="cards">
-      <article class="card"><p class="card-label">Total de Laudos</p><p class="card-value" id="kpiTotal">0</p></article>
-      <article class="card"><p class="card-label">Laudos este mês</p><p class="card-value" id="kpiMes">0</p></article>
-      <article class="card"><p class="card-label">Aguardando Aprovação</p><p class="card-value" id="kpiGerado">0</p></article>
-      <article class="card"><p class="card-label">Taxa de Aprovação</p><p class="card-value" id="kpiTaxa">0%</p></article>
+      <article class="card total"><p class="card-label">Total de Laudos</p><p class="card-value" id="kpiTotal">0</p></article>
+      <article class="card mes"><p class="card-label">Laudos este mês</p><p class="card-value" id="kpiMes">0</p></article>
+      <article class="card aprovacao"><p class="card-label">Aguardando Aprovação</p><p class="card-value" id="kpiGerado">0</p></article>
+      <article class="card taxa"><p class="card-label">Taxa de Aprovação</p><p class="card-value" id="kpiTaxa">0%</p></article>
     </section>
 
     <section class="charts">
@@ -365,7 +375,7 @@
       return true;
     }
 
-    function drawBars(ctx, width, height, items, labelKey, valueKey, horizontal = false) {
+    function drawBars(ctx, width, height, items, labelKey, valueKey, horizontal = false, opts = {}) {
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = '#faf9f8';
       ctx.fillRect(0, 0, width, height);
@@ -373,6 +383,8 @@
       const padding = 30;
       const values = items.map((i) => i[valueKey] || 0);
       const maxVal = Math.max(1, ...values);
+      const barColor = opts.barColor || '#2563eb';
+      const labelStep = Math.max(1, Number(opts.labelStep || 1));
 
       if (!horizontal) {
         const chartW = width - padding * 2;
@@ -384,11 +396,13 @@
           const x = padding + idx * (barW + 6);
           const h = (val / maxVal) * chartH;
           const y = padding + chartH - h;
-          ctx.fillStyle = '#0078d4';
+          ctx.fillStyle = barColor;
           ctx.fillRect(x, y, barW, h);
-          ctx.fillStyle = '#605e5c';
-          ctx.font = '11px Segoe UI';
-          ctx.fillText(String(item[labelKey]).slice(0, 8), x, height - 8);
+          if (idx % labelStep === 0) {
+            ctx.fillStyle = '#605e5c';
+            ctx.font = '11px Segoe UI';
+            ctx.fillText(String(item[labelKey]).slice(0, 12), x, height - 8);
+          }
         });
       } else {
         const chartW = width - padding * 2;
@@ -397,7 +411,7 @@
           const y = padding + idx * rowH;
           const val = item[valueKey] || 0;
           const w = (val / maxVal) * chartW;
-          ctx.fillStyle = '#0078d4';
+          ctx.fillStyle = opts.barColor || '#0ea5a4';
           ctx.fillRect(padding, y + 3, w, rowH - 6);
           ctx.fillStyle = '#323130';
           ctx.font = '11px Segoe UI';
@@ -445,7 +459,7 @@
       const maxY = Math.max(1, avgDays * 1.5);
       const y = baselineY - ((avgDays / maxY) * (height - padding * 2));
 
-      ctx.strokeStyle = '#0078d4';
+      ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(x1, y);
@@ -455,6 +469,20 @@
       ctx.fillStyle = '#323130';
       ctx.font = '12px Segoe UI';
       ctx.fillText(`Média: ${avgDays.toFixed(2)} dias`, padding, y - 8);
+    }
+
+    function aggregateVolumeByWeek(daily = [], maxDays = 30) {
+      const ordered = [...daily].slice(-maxDays);
+      const buckets = [];
+      for (let i = 0; i < ordered.length; i += 7) {
+        const slice = ordered.slice(i, i + 7);
+        if (!slice.length) continue;
+        const total = slice.reduce((acc, cur) => acc + Number(cur.total || 0), 0);
+        const start = String(slice[0].data || '').slice(5);
+        const end = String(slice[slice.length - 1].data || '').slice(5);
+        buckets.push({ label: `${start}..${end}`, total });
+      }
+      return buckets;
     }
 
     function renderSummary(stats) {
@@ -470,19 +498,22 @@
       if (state.volumePeriod === '7') {
         items = (stats.laudosPorDia || []).slice(-7).map((i) => ({ label: i.data.slice(5), total: i.total }));
       } else if (state.volumePeriod === '30') {
-        items = (stats.laudosPorDia || []).map((i) => ({ label: i.data.slice(5), total: i.total }));
+        items = aggregateVolumeByWeek(stats.laudosPorDia || [], 30);
       } else {
         items = (stats.laudosPorMes || []).map((i) => ({ label: i.mes.slice(2), total: i.total }));
       }
-      drawBars(ctx, el.canvasVolume.width, el.canvasVolume.height, items, 'label', 'total', false);
+      drawBars(ctx, el.canvasVolume.width, el.canvasVolume.height, items, 'label', 'total', false, {
+        barColor: '#2563eb',
+        labelStep: state.volumePeriod === '12' ? 2 : 1,
+      });
     }
 
     function renderStatusChart(stats) {
       const status = stats.laudosPorStatus || {};
       const data = [
-        { key: 'EM_INSPECAO', value: status.EM_INSPECAO || 0, color: '#fff4ce' },
-        { key: 'AGUARDANDO_APROVACAO', value: status.AGUARDANDO_APROVACAO || 0, color: '#dce6f7' },
-        { key: 'CONCLUIDO', value: status.CONCLUIDO || 0, color: '#dff6dd' },
+        { key: 'EM_INSPECAO', value: status.EM_INSPECAO || 0, color: '#3b82f6' },
+        { key: 'AGUARDANDO_APROVACAO', value: status.AGUARDANDO_APROVACAO || 0, color: '#f59e0b' },
+        { key: 'CONCLUIDO', value: status.CONCLUIDO || 0, color: '#16a34a' },
       ];
       const ctx = el.canvasStatus.getContext('2d');
       drawPie(ctx, el.canvasStatus.width, el.canvasStatus.height, data);
@@ -497,7 +528,9 @@
     function renderInspectorChart(stats) {
       const list = [...(stats.laudosPorInspetor || [])].sort((a, b) => b.total - a.total);
       const ctx = el.canvasInspetor.getContext('2d');
-      drawBars(ctx, el.canvasInspetor.width, el.canvasInspetor.height, list, 'nome', 'total', true);
+      drawBars(ctx, el.canvasInspetor.width, el.canvasInspetor.height, list, 'nome', 'total', true, {
+        barColor: '#0ea5a4',
+      });
     }
 
     function renderTempoChart(stats) {
