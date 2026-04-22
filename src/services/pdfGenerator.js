@@ -223,18 +223,41 @@ async function buildContext(laudo, fotos, cfg, options = {}) {
     );
   }
   let assinaturaEngenheiro = null;
+  const engenheiroUserId = String(
+    process.env.ENGENHEIRO_USER_ID || cfg.engenheiro_user_id || ''
+  ).trim();
   const engenheiroEmail = String(
-    process.env.ENGENHEIRO_EMAIL || 'diego.fonseca@grupocesari.com.br'
+    process.env.ENGENHEIRO_EMAIL || cfg.engenheiro_email || ''
   ).trim().toLowerCase();
+  const engenheiroNome = String(cfg.engenheiro || '').trim();
   try {
-    const userEng = await prisma.user.findUnique({
-      where: { email: engenheiroEmail },
-      select: { assinatura: true, assinaturaMimeType: true },
-    });
+    let userEng = null;
+    // Ordem de resolução: userId (fixo) -> email (fixo) -> nome do engenheiro no config.
+    if (engenheiroUserId) {
+      userEng = await prisma.user.findUnique({
+        where: { id: engenheiroUserId },
+        select: { assinatura: true, assinaturaMimeType: true, id: true, email: true, nome: true },
+      });
+    }
+    if (!userEng && engenheiroEmail) {
+      userEng = await prisma.user.findUnique({
+        where: { email: engenheiroEmail },
+        select: { assinatura: true, assinaturaMimeType: true, id: true, email: true, nome: true },
+      });
+    }
+    if (!userEng && engenheiroNome) {
+      userEng = await prisma.user.findFirst({
+        where: { nome: engenheiroNome },
+        select: { assinatura: true, assinaturaMimeType: true, id: true, email: true, nome: true },
+      });
+    }
+
     if (userEng?.assinatura) {
       assinaturaEngenheiro = bufferToDataUrl(
         userEng.assinatura, userEng.assinaturaMimeType || 'image/png'
       );
+    } else {
+      console.warn('[PDF] Assinatura do engenheiro não encontrada. Configure ENGENHEIRO_USER_ID, ENGENHEIRO_EMAIL, cfg.engenheiro_user_id, cfg.engenheiro_email ou um nome em cfg.engenheiro que exista em User.');
     }
   } catch (err) {
     console.error('[PDF] Falha ao buscar assinatura do engenheiro:', err.message);
