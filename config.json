@@ -1,6 +1,13 @@
 {
   "encarregado": "Elton Vieira",
   "engenheiro": "Diego Aparecido de Lima",
-  "crea_info": "Engenheiro Mecânico – CREA:506.927.6941-S",
-  "cidade": "Cubatão"
+  "crea_info": "Engenheiro Mecânico — CREA-SP 506.927.6941-S",
+  "cidade": "Cubatão",
+  "relatorio_codigo_documento": "L-CEI-IVC-09",
+  "empresa_razao_social": "CEINSPEC Inspeções Veiculares e Industriais Ltda",
+  "empresa_endereco_completo": "Rua Claudino Domingues Graça, 831 — Jardim das Indústrias — Cubatão/SP — CEP 11570-100 — CNPJ da unidade/filial 48.758.755/0004-29",
+  "empresa_cnpj": "48.758.755/0004-29",
+  "empresa_oia": "OIA/PP 1064 — Tipo C (INMETRO)",
+  "empresa_crea_sp": "Registro CREA-SP nº 2430958",
+  "empresa_texto_acreditacao": "Organismo de Inspeção acreditado pelo INMETRO (CGCRE) para inspeção de isotanks e equipamentos similares de transporte e armazenamento, conforme escopo OIA/PP 1064 — Tipo C."
 }

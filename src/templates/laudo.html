@@ -9,7 +9,7 @@
      ═══════════════════════════════════════════════════════════════════ */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-family: Georgia, "Times New Roman", Times, serif;
     color: #111;
     -webkit-font-smoothing: antialiased;
   }
@@ -252,6 +252,168 @@
     letter-spacing: 6pt;
     pointer-events: none;
     white-space: nowrap;
+  }
+
+  /* Capa — alinhada ao modelo físico CEINSPEC ------------------------ */
+  .capa.capa-modelo {
+    padding: 12mm 16mm 16mm 16mm;
+  }
+  .capa-modelo-topo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 3mm;
+    padding-bottom: 6mm;
+  }
+  .capa-modelo-logo {
+    width: 36mm;
+    height: auto;
+  }
+  .capa-modelo-titulo {
+    font-size: 13pt;
+    font-weight: 700;
+    color: var(--ceinspec-blue);
+    letter-spacing: 0.8pt;
+    line-height: 1.25;
+    max-width: 170mm;
+  }
+  .capa-modelo-caixa-meta {
+    margin-top: 2mm;
+    display: inline-block;
+    border: 0.75pt solid #b0b0b0;
+    background: #e4e4e4;
+    padding: 3mm 10mm 3.5mm 10mm;
+    min-width: 72mm;
+  }
+  .capa-modelo-caixa-meta table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+  .capa-modelo-caixa-meta td {
+    padding: 1mm 2mm;
+    vertical-align: middle;
+  }
+  .capa-modelo-caixa-meta .meta-k {
+    font-weight: 700;
+    color: #333;
+    text-align: left;
+    width: 38%;
+  }
+  .capa-modelo-caixa-meta .meta-v {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--ceinspec-blue);
+    text-align: left;
+  }
+  .capa-modelo-id-wrap {
+    display: flex;
+    margin-top: 10mm;
+    align-items: stretch;
+    min-height: 46mm;
+  }
+  .capa-modelo-barra-azul {
+    width: 5.5mm;
+    flex-shrink: 0;
+    background: var(--ceinspec-blue);
+    margin-right: 4mm;
+  }
+  .capa-modelo-id-linhas {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3.5mm;
+    font-size: 10.5pt;
+    line-height: 1.35;
+    text-align: left;
+  }
+  .capa-modelo-id-linhas .id-lab {
+    font-weight: 700;
+    color: #222;
+    margin-right: 2mm;
+  }
+  .capa-modelo-id-linhas .id-val {
+    color: #111;
+    font-weight: 400;
+  }
+  .capa-modelo-status {
+    margin-top: 10mm;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+  .capa-modelo-fund {
+    margin-top: 8mm;
+    font-size: 9pt;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    text-align: center;
+    max-width: 175mm;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Faixas azuis (corpo) --------------------------------------------- */
+  .interno-modelo {
+    font-size: 10pt;
+  }
+  .modelo-bar {
+    background: var(--ceinspec-blue);
+    color: #fff;
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 0.4pt;
+    padding: 2.3mm 4mm;
+    margin: 7mm 0 3mm 0;
+    text-transform: uppercase;
+    page-break-after: avoid;
+  }
+  .interno-modelo > .modelo-bar:first-child {
+    margin-top: 0;
+  }
+  .modelo-subbar {
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: var(--ceinspec-blue);
+    letter-spacing: 0.5pt;
+    margin: 5mm 0 2mm 0;
+    padding-bottom: 1mm;
+    border-bottom: 0.75pt solid var(--ceinspec-blue);
+    page-break-after: avoid;
+  }
+  .texto-empresa {
+    font-size: 10pt;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin-bottom: 2mm;
+  }
+
+  /* Tabela oficial 2 colunas (rótulo | valor em azul) ---------------- */
+  .tbl-dt-oficial {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+    margin-bottom: 5mm;
+  }
+  .tbl-dt-oficial td {
+    border: 0.5pt solid #888;
+    padding: 2.4mm 3mm;
+    vertical-align: middle;
+  }
+  .tbl-dt-oficial td.dt-lab {
+    width: 44%;
+    text-align: center;
+    font-weight: 700;
+    color: #111;
+    background: #ececec;
+  }
+  .tbl-dt-oficial td.dt-val {
+    text-align: center;
+    font-weight: 600;
+    color: #1a4a8c;
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -612,57 +774,42 @@
 <!-- ═══════════════════════════════════════════════════════════════════
      CAPA
      ═══════════════════════════════════════════════════════════════════ -->
-<section class="capa">
-  <header class="capa-topo">
-    <div class="capa-marca-wrap">
-      <img class="capa-logo" src="data:image/png;base64,{{logo_base64}}" alt="CEINSPEC">
-      <div class="capa-marca-subtitle">Inspeções Veiculares e Industriais</div>
+<section class="capa capa-modelo">
+  <div class="capa-modelo-topo">
+    <img class="capa-modelo-logo" src="data:image/png;base64,{{logo_base64}}" alt="CEINSPEC">
+    <h1 class="capa-modelo-titulo">RELATÓRIO DE INSPEÇÃO VISUAL</h1>
+    <div class="capa-modelo-caixa-meta">
+      <table>
+        <tr>
+          <td class="meta-k">NÚMERO</td>
+          <td class="meta-v">{{relatorio_codigo}}</td>
+        </tr>
+        <tr>
+          <td class="meta-k">DATA</td>
+          <td class="meta-v">{{data_inspecao_curta}}</td>
+        </tr>
+      </table>
     </div>
-    <div class="capa-credenciais">
-      OIA/PP 1064 — Tipo C<br>
-      CNPJ 48.758.755/0004-29<br>
-      CREA-SP 2430958
+  </div>
+
+  <div class="capa-modelo-id-wrap">
+    <div class="capa-modelo-barra-azul" aria-hidden="true"></div>
+    <div class="capa-modelo-id-linhas">
+      <div><span class="id-lab">IDENTIFICAÇÃO:</span><span class="id-val">{{numero_identificacao}}</span></div>
+      <div><span class="id-lab">CLIENTE:</span><span class="id-val">{{cliente}}</span></div>
+      <div><span class="id-lab">ENDEREÇO:</span><span class="id-val">{{endereco}}</span></div>
+      <div><span class="id-lab">EQUIPAMENTO:</span><span class="id-val">{{equipamento_resumo}}</span></div>
     </div>
-  </header>
+  </div>
 
-  <div class="capa-documento-label">RELATÓRIO DE INSPEÇÃO VISUAL</div>
-  <div class="capa-numero">Nº L-CEI-IVC-09</div>
-
-  <div class="capa-identificacao-label">IDENTIFICAÇÃO</div>
-  <div class="capa-identificacao-valor">{{numero_identificacao}}</div>
-  <div class="capa-equipamento-resumo">{{equipamento_resumo}}</div>
-
-  <div class="capa-status">
+  <div class="capa-modelo-status">
     <div class="chip {{status_class}}">{{status_label}}</div>
     <div class="chip chip-neutral">EXAME VISUAL EXTERNO</div>
   </div>
 
-  <div class="capa-metadados">
-    <div class="meta-campo">
-      <div class="meta-label">CLIENTE</div>
-      <div class="meta-valor">{{cliente}}</div>
-    </div>
-    <div class="meta-campo">
-      <div class="meta-label">DATA DA INSPEÇÃO</div>
-      <div class="meta-valor">{{data_inspecao}}</div>
-    </div>
-    <div class="meta-campo">
-      <div class="meta-label">LOCAL</div>
-      <div class="meta-valor">{{endereco}}</div>
-    </div>
-    <div class="meta-campo">
-      <div class="meta-label">INSPETOR RESPONSÁVEL</div>
-      <div class="meta-valor">{{encarregado_nome}}</div>
-      <div class="meta-valor-secundario">Encarregado Operacional</div>
-    </div>
-  </div>
-
-  <div class="capa-fundamentacao">
-    <div class="capa-fundamentacao-label">FUNDAMENTAÇÃO TÉCNICA</div>
-    <div class="capa-fundamentacao-texto">
-      ITCO ACC Manual (2017) · Resolução ANTT nº 5.998/2022<br>
-      Norma de fabricação: {{norma_fabricacao}}
-    </div>
+  <div class="capa-modelo-fund">
+    Inspetor responsável: <b>{{encarregado_nome}}</b> (Encarregado Operacional)<br>
+    Data por extenso: {{data_inspecao}}
   </div>
 
   <div class="capa-watermark">CEINSPEC · DOCUMENTO OFICIAL</div>
@@ -682,150 +829,20 @@
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     DADOS TÉCNICOS + EXAMES
+     CORPO — ordem e faixas alinhadas ao modelo físico CEINSPEC
      ═══════════════════════════════════════════════════════════════════ -->
 
-<div class="secao-numero">SEÇÃO 1</div>
-<div class="secao-titulo">Objetivo</div>
-<p class="texto-corrido">
-  O objetivo da inspeção visual de um isotank (ou tanque isotérmico) é garantir
-  que o equipamento esteja em condições seguras, legais e operacionais para o
-  transporte e armazenamento de produtos — especialmente produtos químicos
-  perigosos, gases liquefeitos ou alimentos líquidos.
+<main class="interno-modelo">
+
+<div class="modelo-bar">Dados da empresa contratada</div>
+<p class="texto-empresa">
+  <b>{{empresa_razao_social}}</b><br>
+  {{#if empresa_endereco_completo}}{{empresa_endereco_completo}}<br>{{/if}}
+  CNPJ {{empresa_cnpj}} · {{empresa_oia}} · {{empresa_crea_sp}}
 </p>
+<p class="texto-corrido" style="font-size: 9.5pt; margin-bottom: 4mm;">{{empresa_texto_acreditacao}}</p>
 
-<div class="secao-numero">SEÇÃO 2</div>
-<div class="secao-titulo">Dados técnicos do equipamento</div>
-
-<div class="dados-resumo">
-  <div class="card-resumo">
-    <div class="card-resumo-label">FABRICANTE</div>
-    <div class="card-resumo-valor">{{fabricante}}</div>
-    <div class="card-resumo-secundario">{{pais_fabricacao}}{{#if ano_fabricacao}} · {{ano_fabricacao}}{{/if}}</div>
-  </div>
-  <div class="card-resumo">
-    <div class="card-resumo-label">N° DE SÉRIE</div>
-    <div class="card-resumo-valor mono">{{numero_serie}}</div>
-  </div>
-  <div class="card-resumo">
-    <div class="card-resumo-label">DIMENSÕES</div>
-    <div class="card-resumo-valor">{{tamanho}}{{#if capacidade_liquida}} · {{capacidade_liquida}}{{/if}}</div>
-  </div>
-</div>
-
-<div class="sub-secao-label">PESOS</div>
-<div class="tabela-quad">
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Tara</div>
-    <div class="tabela-quad-valor">{{tara}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Carga líquida</div>
-    <div class="tabela-quad-valor">{{peso_carga_liquida}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Bruto total</div>
-    <div class="tabela-quad-valor">{{peso_bruto_total}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Empilhamento</div>
-    <div class="tabela-quad-valor">{{peso_empilhamento}}</div>
-  </div>
-</div>
-
-<div class="sub-secao-label">PRESSÕES &amp; TEMPERATURA</div>
-<div class="tabela-quad">
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Projeto</div>
-    <div class="tabela-quad-valor">{{pressao_projeto}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Ensaio hidrostático</div>
-    <div class="tabela-quad-valor">{{pressao_ensaio}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">MTA</div>
-    <div class="tabela-quad-valor">{{pressao_maxima}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Temp. projeto</div>
-    <div class="tabela-quad-valor">{{temperatura_projeto}}</div>
-  </div>
-</div>
-
-<div class="sub-secao-label">MATERIAIS &amp; CONEXÕES</div>
-<div class="tabela-quad">
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Calota</div>
-    <div class="tabela-quad-valor">{{material_calota}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Costado</div>
-    <div class="tabela-quad-valor">{{material_costado}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Espessura</div>
-    <div class="tabela-quad-valor">{{espessura}}</div>
-  </div>
-  <div class="tabela-quad-cell">
-    <div class="tabela-quad-label">Flange</div>
-    <div class="tabela-quad-valor">{{conexoes_flange}}</div>
-  </div>
-</div>
-
-<div class="sub-secao-label">CERTIFICAÇÕES</div>
-<div class="lista-status avoid-break">
-  <div class="lista-status-linha">
-    <span class="lista-status-nome">Chapa de identificação do fabricante</span>
-    {{{status_chapa_identificacao}}}
-  </div>
-  <div class="lista-status-linha">
-    <span class="lista-status-nome">Certificado de calibração de válvulas</span>
-    {{{status_cert_calibracao}}}
-  </div>
-  <div class="lista-status-linha">
-    <span class="lista-status-nome">Certificado de descontaminação</span>
-    {{{status_cert_descontaminacao}}}
-  </div>
-</div>
-
-<div class="sub-secao-label">ESTRUTURA EXTERNA</div>
-<div class="lista-status avoid-break">
-  <div class="lista-status-linha"><span class="lista-status-nome">Estrutura externa</span>{{{status_estrutura_externa}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Corpo do tanque</span>{{{status_corpo_tanque}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Passadiços</span>{{{status_passadicos}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Revestimento</span>{{{status_revestimento}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Isolamento térmico</span>{{{status_isolamento_termico}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Escada</span>{{{status_escada}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Dispositivos de canto</span>{{{status_dispositivos_canto}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Ponto de aterramento</span>{{{status_ponto_aterramento}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Fixações</span>{{{status_fixacoes}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Berços de fixação</span>{{{status_bercos_fixacao}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Mossas / corrosão</span>{{{status_mossas_escavacoes}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Porosidade / soldas</span>{{{status_porosidade}}}</div>
-</div>
-
-<div class="sub-secao-label">COMPONENTES &amp; ACESSÓRIOS</div>
-<div class="lista-status avoid-break">
-  <div class="lista-status-linha"><span class="lista-status-nome">Bocal de descarga</span>{{{status_bocal_descarga}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Boca de visita</span>{{{status_boca_visita}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Válvula de alívio</span>{{{status_valvula_alivio}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Linha de ar</span>{{{status_linha_ar}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Linha de recuperação de vapor</span>{{{status_linha_recuperacao}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Acionamento remoto</span>{{{status_acionamento_remoto}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Tomada de saída de vapor</span>{{{status_tomada_saida_vapor}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Sistema de carga/descarga</span>{{{status_sistema_carga_descarga}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Dispositivo de medição</span>{{{status_dispositivo_medicao}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Válvula de fundo</span>{{{status_valvula_fundo}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Tomada de entrada de vapor</span>{{{status_tomada_entrada_vapor}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Termômetro</span>{{{status_termometro_comp}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Manômetro</span>{{{status_manometro}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Tubulações</span>{{{status_tubulacoes}}}</div>
-  <div class="lista-status-linha"><span class="lista-status-nome">Estrutura externa visual</span>{{{status_estrutura_visual}}}</div>
-</div>
-
-<div class="secao-numero">SEÇÃO 3</div>
-<div class="secao-titulo">Exames e ensaios realizados</div>
+<div class="modelo-bar">Exames e ensaios realizados</div>
 <table class="exames-tabela avoid-break">
   <thead>
     <tr>
@@ -876,11 +893,104 @@
 </table>
 <div class="legenda-compacta"><b>A</b> Aprovado &nbsp; <b>R</b> Reprovado &nbsp; <b>NA</b> Não aplicável</div>
 
+<div class="modelo-bar">1 — Objetivo</div>
+<p class="texto-corrido">
+  O objetivo da inspeção visual de um isotank (ou tanque isotérmico) é garantir
+  que o equipamento esteja em condições seguras, legais e operacionais para o
+  transporte e armazenamento de produtos — especialmente produtos químicos
+  perigosos, gases liquefeitos ou alimentos líquidos.
+</p>
+
+<div class="modelo-bar">2 — Dados técnicos</div>
+<table class="tbl-dt-oficial avoid-break">
+  <tbody>
+    <tr><td class="dt-lab">Data da inspeção</td><td class="dt-val">{{data_inspecao_curta}}</td></tr>
+    <tr><td class="dt-lab">Tipo de equipamento</td><td class="dt-val">{{tipo_equipamento}}</td></tr>
+    <tr><td class="dt-lab">Nº identificação</td><td class="dt-val">{{numero_identificacao}}</td></tr>
+    <tr><td class="dt-lab">Cliente</td><td class="dt-val">{{cliente}}</td></tr>
+    <tr><td class="dt-lab">Endereço / local</td><td class="dt-val">{{endereco}}</td></tr>
+    <tr><td class="dt-lab">Fabricante</td><td class="dt-val">{{fabricante}}</td></tr>
+    <tr><td class="dt-lab">Nº de série</td><td class="dt-val">{{numero_serie}}</td></tr>
+    <tr><td class="dt-lab">País de fabricação</td><td class="dt-val">{{pais_fabricacao}}</td></tr>
+    <tr><td class="dt-lab">Ano de fabricação</td><td class="dt-val">{{ano_fabricacao}}</td></tr>
+    <tr><td class="dt-lab">Tamanho / dimensões</td><td class="dt-val">{{tamanho}}</td></tr>
+    <tr><td class="dt-lab">Capacidade líquida</td><td class="dt-val">{{capacidade_liquida}}</td></tr>
+    <tr><td class="dt-lab">Tara</td><td class="dt-val">{{tara}}</td></tr>
+    <tr><td class="dt-lab">Peso carga líquida</td><td class="dt-val">{{peso_carga_liquida}}</td></tr>
+    <tr><td class="dt-lab">Peso bruto total</td><td class="dt-val">{{peso_bruto_total}}</td></tr>
+    <tr><td class="dt-lab">Peso empilhamento</td><td class="dt-val">{{peso_empilhamento}}</td></tr>
+    <tr><td class="dt-lab">Pressão de projeto</td><td class="dt-val">{{pressao_projeto}}</td></tr>
+    <tr><td class="dt-lab">Pressão ensaio hidrostático</td><td class="dt-val">{{pressao_ensaio}}</td></tr>
+    <tr><td class="dt-lab">Pressão máxima de trabalho (MTA)</td><td class="dt-val">{{pressao_maxima}}</td></tr>
+    <tr><td class="dt-lab">Temperatura de projeto</td><td class="dt-val">{{temperatura_projeto}}</td></tr>
+    <tr><td class="dt-lab">Material calota</td><td class="dt-val">{{material_calota}}</td></tr>
+    <tr><td class="dt-lab">Material costado</td><td class="dt-val">{{material_costado}}</td></tr>
+    <tr><td class="dt-lab">Espessura</td><td class="dt-val">{{espessura}}</td></tr>
+    <tr><td class="dt-lab">Conexões / flange</td><td class="dt-val">{{conexoes_flange}}</td></tr>
+    <tr><td class="dt-lab">Norma de fabricação</td><td class="dt-val">{{norma_fabricacao}}</td></tr>
+  </tbody>
+</table>
+
+<div class="modelo-subbar">Fundamentação normativa</div>
+<p class="texto-corrido" style="font-size: 9.5pt;">
+  ITCO ACC Manual (2017) · Resolução ANTT nº 5.998/2022. A norma de fabricação do equipamento consta na tabela acima.
+</p>
+
+<div class="modelo-bar">3 — Certificações e documentação</div>
+<div class="lista-status avoid-break">
+  <div class="lista-status-linha">
+    <span class="lista-status-nome">Chapa de identificação do fabricante</span>
+    {{{status_chapa_identificacao}}}
+  </div>
+  <div class="lista-status-linha">
+    <span class="lista-status-nome">Certificado de calibração de válvulas</span>
+    {{{status_cert_calibracao}}}
+  </div>
+  <div class="lista-status-linha">
+    <span class="lista-status-nome">Certificado de descontaminação</span>
+    {{{status_cert_descontaminacao}}}
+  </div>
+</div>
+
+<div class="modelo-bar">4 — Estrutura externa</div>
+<div class="lista-status avoid-break">
+  <div class="lista-status-linha"><span class="lista-status-nome">Estrutura externa</span>{{{status_estrutura_externa}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Corpo do tanque</span>{{{status_corpo_tanque}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Passadiços</span>{{{status_passadicos}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Revestimento</span>{{{status_revestimento}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Isolamento térmico</span>{{{status_isolamento_termico}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Escada</span>{{{status_escada}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Dispositivos de canto</span>{{{status_dispositivos_canto}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Ponto de aterramento</span>{{{status_ponto_aterramento}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Fixações</span>{{{status_fixacoes}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Berços de fixação</span>{{{status_bercos_fixacao}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Mossas / corrosão</span>{{{status_mossas_escavacoes}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Porosidade / soldas</span>{{{status_porosidade}}}</div>
+</div>
+
+<div class="modelo-bar">5 — Componentes e acessórios</div>
+<div class="lista-status avoid-break">
+  <div class="lista-status-linha"><span class="lista-status-nome">Bocal de descarga</span>{{{status_bocal_descarga}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Boca de visita</span>{{{status_boca_visita}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Válvula de alívio</span>{{{status_valvula_alivio}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Linha de ar</span>{{{status_linha_ar}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Linha de recuperação de vapor</span>{{{status_linha_recuperacao}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Acionamento remoto</span>{{{status_acionamento_remoto}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Tomada de saída de vapor</span>{{{status_tomada_saida_vapor}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Sistema de carga/descarga</span>{{{status_sistema_carga_descarga}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Dispositivo de medição</span>{{{status_dispositivo_medicao}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Válvula de fundo</span>{{{status_valvula_fundo}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Tomada de entrada de vapor</span>{{{status_tomada_entrada_vapor}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Termômetro</span>{{{status_termometro_comp}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Manômetro</span>{{{status_manometro}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Tubulações</span>{{{status_tubulacoes}}}</div>
+  <div class="lista-status-linha"><span class="lista-status-nome">Estrutura externa visual</span>{{{status_estrutura_visual}}}</div>
+</div>
+
 <!-- ═══════════════════════════════════════════════════════════════════
      FOTOS
      ═══════════════════════════════════════════════════════════════════ -->
-<div class="secao-numero">SEÇÃO 4</div>
-<div class="secao-titulo">Registro fotográfico</div>
+<div class="modelo-bar">6 — Registro fotográfico</div>
 <p class="secao-descricao">Evidências coletadas em campo — 10 pontos obrigatórios</p>
 
 <div class="fotos-grid">
@@ -899,8 +1009,7 @@
 <!-- ═══════════════════════════════════════════════════════════════════
      CONCLUSÃO + RECOMENDAÇÃO
      ═══════════════════════════════════════════════════════════════════ -->
-<div class="secao-numero">SEÇÃO 5</div>
-<div class="secao-titulo">Conclusão</div>
+<div class="modelo-bar">7 — Conclusão</div>
 
 <div class="parecer-bloco {{parecer_class}}">
   <div class="parecer-bloco-label">PARECER TÉCNICO · {{status_label}}</div>
@@ -916,8 +1025,7 @@
   conforme previsto na Resolução ANTT nº 5.998/2022.
 </p>
 
-<div class="secao-numero">SEÇÃO 6</div>
-<div class="secao-titulo">Recomendação</div>
+<div class="modelo-bar">8 — Recomendação</div>
 <p class="texto-corrido">
   A presente inspeção possui caráter exclusivamente visual, destinada à
   avaliação preliminar das condições aparentes do equipamento. Este laudo
@@ -931,6 +1039,8 @@
   certificado de Inspeção internacional, garantindo o atendimento integral
   às exigências legais e normativas vigentes.
 </p>
+
+</main>
 
 <!-- ═══════════════════════════════════════════════════════════════════
      ASSINATURAS + VALIDAÇÃO

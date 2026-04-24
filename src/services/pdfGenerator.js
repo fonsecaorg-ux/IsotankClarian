@@ -1,13 +1,15 @@
 'use strict';
 
 /**
- * pdfGenerator.js — v2 (layout moderno + hash SHA-256)
+ * pdfGenerator.js — v2 (layout modelo CEINSPEC + hash SHA-256)
  * ───────────────────────────────────────────────────────────────────────────
  * Gera PDF do laudo usando Puppeteer + Handlebars.
  * Calcula hash SHA-256 do PDF gerado e persiste em Laudo.pdfHash.
  *
- * Layout: capa moderna com status colorido, cards de dados técnicos,
- * chips numerados nas fotos, bloco de validação com QR + hash.
+ * Layout: capa alinhada ao relatório físico (faixa azul, caixa número/data,
+ * tipografia serif), faixas azuis no corpo, tabela oficial de dados técnicos,
+ * chips nas fotos, validação com QR + hash. Código do relatório e bloco
+ * “empresa contratada” vêm de config.json (defaults no código).
  */
 
 const fs = require('fs');
@@ -60,6 +62,10 @@ const MESES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
+/** Endereço fixo da unidade (CNPJ 0004-29) — laudo PDF e fallback sem config.json */
+const DEFAULT_EMPRESA_ENDERECO_COMPLETO =
+  'Rua Claudino Domingues Graça, 831 — Jardim das Indústrias — Cubatão/SP — CEP 11570-100 — CNPJ da unidade/filial 48.758.755/0004-29';
+
 function formatDatePt(isoOrDate) {
   if (!isoOrDate) return '';
   const s = String(isoOrDate);
@@ -67,6 +73,24 @@ function formatDatePt(isoOrDate) {
   if (!match) return s;
   const [, y, m, d] = match;
   return `${parseInt(d, 10)} de ${MESES[parseInt(m, 10) - 1]} de ${y}`;
+}
+
+/** Data curta dd/mm/aaaa (modelo relatório físico). */
+function formatDateShortBr(isoOrDate) {
+  if (!isoOrDate) return '';
+  const s = String(isoOrDate);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const [, y, mo, d] = m;
+    return `${parseInt(d, 10)}/${mo}/${y}`;
+  }
+  const dt = new Date(isoOrDate);
+  if (!Number.isNaN(dt.getTime())) {
+    const d = String(dt.getDate()).padStart(2, '0');
+    const mo = String(dt.getMonth() + 1).padStart(2, '0');
+    return `${d}/${mo}/${dt.getFullYear()}`;
+  }
+  return s;
 }
 
 function bufferToDataUrl(buf, mimeType) {
@@ -92,8 +116,16 @@ function loadConfig() {
     return {
       encarregado: 'Elton Vieira',
       engenheiro: 'Diego Aparecido de Lima',
-      crea_info: 'Engenheiro Mecânico – CREA:506.927.6941-S',
+      crea_info: 'Engenheiro Mecânico — CREA-SP 506.927.6941-S',
       cidade: 'Cubatão',
+      relatorio_codigo_documento: 'L-CEI-IVC-09',
+      empresa_razao_social: 'CEINSPEC Inspeções Veiculares e Industriais Ltda',
+      empresa_endereco_completo: DEFAULT_EMPRESA_ENDERECO_COMPLETO,
+      empresa_cnpj: '48.758.755/0004-29',
+      empresa_oia: 'OIA/PP 1064 — Tipo C (INMETRO)',
+      empresa_crea_sp: 'Registro CREA-SP nº 2430958',
+      empresa_texto_acreditacao:
+        'Organismo de Inspeção acreditado pelo INMETRO (CGCRE) para inspeção de isotanks e equipamentos similares de transporte e armazenamento, conforme escopo OIA/PP 1064 — Tipo C.',
     };
   }
 }
@@ -170,7 +202,9 @@ function computeLaudoStatus(formData) {
 
 async function buildContext(laudo, fotos, cfg, options = {}) {
   const formData = laudo.formData || {};
-  const dataPt = formatDatePt(formData.data_inspecao || laudo.dataInspecao);
+  const dataIso = formData.data_inspecao || laudo.dataInspecao;
+  const dataPt = formatDatePt(dataIso);
+  const dataCurta = formatDateShortBr(dataIso);
 
   // Flags dos exames (para a tabela A/R/NA)
   const examFlags = {};
@@ -293,6 +327,17 @@ async function buildContext(laudo, fotos, cfg, options = {}) {
     statusHelpers[`status_${c}`] = renderStatus(formData[c]);
   }
 
+  const relatorioCodigo = String(cfg.relatorio_codigo_documento || 'L-CEI-IVC-09').trim();
+  const empresaRazao = String(cfg.empresa_razao_social || 'CEINSPEC Inspeções Veiculares e Industriais Ltda').trim();
+  const empresaEndereco = String(cfg.empresa_endereco_completo || DEFAULT_EMPRESA_ENDERECO_COMPLETO).trim();
+  const empresaCnpj = String(cfg.empresa_cnpj || '48.758.755/0004-29').trim();
+  const empresaOia = String(cfg.empresa_oia || 'OIA/PP 1064 — Tipo C').trim();
+  const empresaCreaSp = String(cfg.empresa_crea_sp || 'CREA-SP 2430958').trim();
+  const empresaTextoAcreditacao = String(
+    cfg.empresa_texto_acreditacao
+    || 'Organismo de Inspeção acreditado pelo INMETRO para inspeção de isotanks e equipamentos similares, conforme escopo OIA/PP 1064.',
+  ).trim();
+
   return {
     // Logo
     logo_base64: LOGO_BASE64,
@@ -303,6 +348,14 @@ async function buildContext(laudo, fotos, cfg, options = {}) {
     endereco: formData.endereco || '',
     tipo_equipamento: formData.tipo_equipamento || 'ISOTANK',
     data_inspecao: dataPt,
+    data_inspecao_curta: dataCurta,
+    relatorio_codigo: relatorioCodigo,
+    empresa_razao_social: empresaRazao,
+    empresa_endereco_completo: empresaEndereco,
+    empresa_cnpj: empresaCnpj,
+    empresa_oia: empresaOia,
+    empresa_crea_sp: empresaCreaSp,
+    empresa_texto_acreditacao: empresaTextoAcreditacao,
     equipamento_resumo: buildEquipamentoResumo(formData),
 
     // Status da capa + parecer
@@ -421,7 +474,7 @@ async function renderToBuffer(context) {
                     border-bottom: 0.5px solid #e0e0e0; color: #666;">
           <div style="display: flex; align-items: center; gap: 6mm;">
             <img src="data:image/png;base64,${LOGO_BASE64}" style="width: 22mm; height: auto;" />
-            <span style="font-family: ui-monospace, monospace; font-size: 8pt; color: #aaa;">L-CEI-IVC-09</span>
+            <span style="font-family: ui-monospace, monospace; font-size: 8pt; color: #aaa;">${String(context.relatorio_codigo || 'L-CEI-IVC-09').replace(/</g, '')}</span>
           </div>
           <div style="font-size: 9pt;">
             <span style="font-family: ui-monospace, monospace;">${context.numero_identificacao}</span>
@@ -436,7 +489,7 @@ async function renderToBuffer(context) {
                     font-size: 7pt; padding: 2mm 15mm 3mm 15mm;
                     display: flex; justify-content: space-between; color: #bbb;
                     border-top: 0.5px solid #eee;">
-          <div>CEINSPEC · CNPJ 48.758.755/0004-29 · OIA/PP 1064</div>
+          <div>CEINSPEC · CNPJ ${String(context.empresa_cnpj || '').replace(/</g, '')} · ${String(context.empresa_oia || '').replace(/</g, '')}</div>
           <div style="font-family: ui-monospace, monospace;">ID ${context.laudo_id_curto}</div>
         </div>
       `,
